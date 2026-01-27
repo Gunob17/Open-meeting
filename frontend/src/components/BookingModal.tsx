@@ -44,12 +44,14 @@ export function BookingModal({ room, initialDate, initialHour, existingBooking, 
         .map(email => email.trim())
         .filter(email => email.length > 0);
 
+      // Send local time string directly - backend will handle it
+      // This preserves the user's intended local time for validation
       if (isEditing) {
         await api.updateBooking(existingBooking.id, {
           title,
           description,
-          startTime: new Date(startTime).toISOString(),
-          endTime: new Date(endTime).toISOString(),
+          startTime: startTime,
+          endTime: endTime,
           attendees: attendeeList
         });
       } else {
@@ -57,8 +59,8 @@ export function BookingModal({ room, initialDate, initialHour, existingBooking, 
           roomId: room.id,
           title,
           description,
-          startTime: new Date(startTime).toISOString(),
-          endTime: new Date(endTime).toISOString(),
+          startTime: startTime,
+          endTime: endTime,
           attendees: attendeeList
         });
       }

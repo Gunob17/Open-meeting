@@ -17,11 +17,24 @@ function getGlobalSettings(): { openingHour: number; closingHour: number } {
   };
 }
 
+// Helper to extract hour and minute from a time string
+// Handles both ISO format (2024-01-27T08:00:00.000Z) and local format (2024-01-27T08:00)
+function extractLocalTime(timeStr: string): { hour: number; minute: number } {
+  // Try to extract from the T portion of the string (works for both formats)
+  const match = timeStr.match(/T(\d{2}):(\d{2})/);
+  if (match) {
+    return { hour: parseInt(match[1], 10), minute: parseInt(match[2], 10) };
+  }
+  // Fallback to Date parsing (may have timezone issues)
+  const date = new Date(timeStr);
+  return { hour: date.getHours(), minute: date.getMinutes() };
+}
+
 // Helper to validate booking time against room/global hours
 function validateBookingHours(
   room: MeetingRoom,
-  startTime: Date,
-  endTime: Date
+  startTimeStr: string,
+  endTimeStr: string
 ): { valid: boolean; error?: string } {
   const globalSettings = getGlobalSettings();
 
@@ -33,20 +46,18 @@ function validateBookingHours(
     ? room.closingHour
     : globalSettings.closingHour;
 
-  const startHour = startTime.getHours();
-  const startMinutes = startTime.getMinutes();
-  const endHour = endTime.getHours();
-  const endMinutes = endTime.getMinutes();
+  // Extract local time directly from string to avoid timezone conversion issues
+  const startTime = extractLocalTime(startTimeStr);
+  const endTime = extractLocalTime(endTimeStr);
 
   // Check if start time is before opening hour
-  // Allow exact opening hour (e.g., 8:00 is valid if openingHour is 8)
-  if (startHour < openingHour || (startHour === openingHour && startMinutes < 0)) {
+  if (startTime.hour < openingHour) {
     return { valid: false, error: `Bookings cannot start before ${openingHour}:00` };
   }
 
   // Check if end time is after closing hour
   // Allow booking to end exactly at closing hour (e.g., 18:00 is valid if closingHour is 18)
-  if (endHour > closingHour || (endHour === closingHour && endMinutes > 0)) {
+  if (endTime.hour > closingHour || (endTime.hour === closingHour && endTime.minute > 0)) {
     return { valid: false, error: `Bookings must end by ${closingHour}:00` };
   }
 
@@ -182,7 +193,8 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     // Validate booking hours against room/global settings
-    const hoursValidation = validateBookingHours(room, start, end);
+    // Pass original string to avoid timezone conversion issues
+    const hoursValidation = validateBookingHours(room, startTime, endTime);
     if (!hoursValidation.valid) {
       res.status(400).json({ error: hoursValidation.error });
       return;
