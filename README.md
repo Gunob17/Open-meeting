@@ -41,14 +41,16 @@ A comprehensive meeting room booking service for shared offices with a hierarchi
 
 ### Option 1: Docker (Recommended)
 
-The easiest way to run the application is with Docker:
+The easiest way to run the application is with Docker. Download the latest release from [GitHub Releases](../../releases):
 
 ```bash
-# Pull and run the latest image
-docker pull ghcr.io/gunob17/meetingbooking:latest
-docker run -d -p 80:80 --name meeting-booking ghcr.io/gunob17/meetingbooking:latest
+# Download the image tar file from releases, then load it
+gunzip -c meeting-booking-v1.0.0.tar.gz | docker load
 
-# Or use Docker Compose
+# Run the container
+docker run -d -p 80:80 --name meeting-booking meeting-booking:v1.0.0
+
+# Or use Docker Compose (after building locally)
 docker-compose up -d
 ```
 
@@ -233,9 +235,8 @@ docker run -d -p 80:80 -v meeting-data:/app/backend/data meeting-booking
 The project includes a GitHub Actions workflow that:
 
 1. **Build & Test**: Compiles TypeScript for both backend and frontend
-2. **Docker Build**: Creates multi-architecture images (amd64, arm64)
-3. **Push to Registry**: Publishes to GitHub Container Registry (ghcr.io)
-4. **Release**: Creates GitHub releases with changelog for tagged versions
+2. **Docker Build**: Creates Docker image and exports as tar archive
+3. **Release**: Creates GitHub releases with the Docker image attached
 
 ### Creating a Release
 
@@ -248,14 +249,19 @@ git push origin v1.0.0
 ```
 
 The CI/CD pipeline will automatically:
-- Build and push the Docker image with the version tag
+- Build the Docker image
+- Export it as a compressed tar file (`meeting-booking-v1.0.0.tar.gz`)
 - Create a GitHub release with changelog
-- Tag the image as `latest` if it's the main branch
+- Attach the Docker image tar file to the release
 
-### Docker Image Tags
+### Using a Release
 
-| Tag | Description |
-|-----|-------------|
-| `latest` | Latest build from main/master branch |
-| `v1.0.0` | Specific version tag |
-| `sha-abc1234` | Specific commit SHA |
+Download the `meeting-booking-vX.X.X.tar.gz` file from the release assets, then:
+
+```bash
+# Load the image into Docker
+gunzip -c meeting-booking-v1.0.0.tar.gz | docker load
+
+# Run the container
+docker run -d -p 80:80 --name meeting-booking meeting-booking:v1.0.0
+```
