@@ -52,6 +52,11 @@ class ApiService {
     return response.json();
   }
 
+  // Setup
+  async checkSetupStatus(): Promise<{ isSetup: boolean; hasUsers: boolean }> {
+    return this.request('/setup/status');
+  }
+
   // Auth
   async login(email: string, password: string): Promise<AuthResponse> {
     const response = await this.request<AuthResponse>('/auth/login', {

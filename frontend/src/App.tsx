@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Layout } from './components/Layout';
@@ -9,6 +9,8 @@ import { MyBookingsPage } from './pages/MyBookingsPage';
 import { UsersPage } from './pages/UsersPage';
 import { AdminRoomsPage } from './pages/AdminRoomsPage';
 import { CompaniesPage } from './pages/CompaniesPage';
+import { SetupPage } from './pages/SetupPage';
+import { api } from './services/api';
 import './styles.css';
 
 function PrivateRoute({ children, adminOnly = false, companyAdminOnly = false }: {
@@ -103,12 +105,43 @@ function AppRoutes() {
   );
 }
 
+function AppWithSetup() {
+  const [setupStatus, setSetupStatus] = useState<'loading' | 'needed' | 'complete'>('loading');
+
+  useEffect(() => {
+    checkSetup();
+  }, []);
+
+  const checkSetup = async () => {
+    try {
+      const status = await api.checkSetupStatus();
+      setSetupStatus(status.isSetup ? 'complete' : 'needed');
+    } catch (error) {
+      console.error('Failed to check setup status:', error);
+      // If we can't check, assume setup is needed
+      setSetupStatus('needed');
+    }
+  };
+
+  if (setupStatus === 'loading') {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (setupStatus === 'needed') {
+    return <SetupPage onSetupComplete={() => setSetupStatus('complete')} />;
+  }
+
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <AppWithSetup />
     </BrowserRouter>
   );
 }

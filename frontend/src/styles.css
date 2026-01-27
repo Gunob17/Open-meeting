@@ -836,3 +836,176 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Setup page */
+.setup-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  padding: 2rem;
+}
+
+.setup-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 800px;
+}
+
+.setup-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.setup-header h1 {
+  font-size: 1.75rem;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.setup-header p {
+  color: #6b7280;
+}
+
+.setup-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.setup-option {
+  border: 2px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.setup-option:hover {
+  border-color: #4f46e5;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.15);
+}
+
+.option-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.setup-option h2 {
+  font-size: 1.25rem;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.setup-option p {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.setup-option ul {
+  text-align: left;
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.setup-option li {
+  margin: 0.25rem 0;
+}
+
+.setup-form {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.form-section {
+  margin-bottom: 1.5rem;
+}
+
+.form-section h3 {
+  font-size: 1rem;
+  color: #374151;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.setup-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.demo-info {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.demo-info h3 {
+  color: #166534;
+  margin-bottom: 0.5rem;
+}
+
+.demo-info ul {
+  margin: 0;
+  padding-left: 1.5rem;
+  color: #166534;
+}
+
+.demo-credentials {
+  margin-bottom: 1.5rem;
+}
+
+.demo-credentials h3 {
+  margin-bottom: 1rem;
+}
+
+.credential-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.credential-card h4 {
+  color: #4f46e5;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.credential-card p {
+  margin: 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .setup-options {
+    grid-template-columns: 1fr;
+  }
+
+  .setup-card {
+    padding: 1.5rem;
+  }
+
+  .setup-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .setup-actions button {
+    width: 100%;
+  }
+}

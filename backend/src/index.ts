@@ -8,6 +8,7 @@ import userRoutes from './routes/user.routes';
 import companyRoutes from './routes/company.routes';
 import roomRoutes from './routes/room.routes';
 import bookingRoutes from './routes/booking.routes';
+import setupRoutes from './routes/setup.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,6 +21,7 @@ app.use(express.json());
 initializeDatabase();
 
 // Routes
+app.use('/api/setup', setupRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/companies', companyRoutes);
