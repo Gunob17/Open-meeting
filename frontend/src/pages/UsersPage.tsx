@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { User, Company, UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -20,11 +20,7 @@ export function UsersPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [usersData, companiesData] = await Promise.all([
@@ -33,15 +29,19 @@ export function UsersPage() {
       ]);
       setUsers(usersData);
       setCompanies(companiesData);
-      if (!formData.companyId && currentUser) {
-        setFormData(prev => ({ ...prev, companyId: currentUser.companyId }));
+      if (currentUser) {
+        setFormData(prev => prev.companyId ? prev : { ...prev, companyId: currentUser.companyId });
       }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdmin, currentUser]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleOpenModal = (user?: User) => {
     if (user) {

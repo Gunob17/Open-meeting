@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { MeetingRoom, Booking } from '../types';
 import { BookingModal } from '../components/BookingModal';
-import { format, parseISO, isAfter, isBefore, addHours } from 'date-fns';
+import { format, parseISO, isAfter, isBefore } from 'date-fns';
 
 export function RoomsListPage() {
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);

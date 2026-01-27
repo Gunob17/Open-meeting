@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO, isWithinInterval, addHours, startOfDay } from 'date-fns';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from 'date-fns';
 import { api } from '../services/api';
 import { Booking, MeetingRoom } from '../types';
 import { BookingModal } from '../components/BookingModal';
@@ -18,9 +18,9 @@ export function CalendarPage() {
   } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
+  const weekEnd = useMemo(() => endOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -36,7 +36,7 @@ export function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }, [weekStart.toISOString(), weekEnd.toISOString()]);
+  }, [weekStart, weekEnd]);
 
   useEffect(() => {
     loadData();
