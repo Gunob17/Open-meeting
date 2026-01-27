@@ -1,16 +1,16 @@
-import Database from 'better-sqlite3';
+import Database, { Database as DatabaseType } from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 
 const dbPath = path.join(__dirname, '../../data/meeting_booking.db');
 
 // Ensure directory exists
-import fs from 'fs';
 const dataDir = path.dirname(dbPath);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const db = new Database(dbPath);
+const db: DatabaseType = new Database(dbPath);
 
 // Enable foreign keys
 db.pragma('foreign_keys = ON');
