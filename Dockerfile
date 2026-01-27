@@ -7,7 +7,7 @@ FROM node:18-alpine AS backend-builder
 WORKDIR /app/backend
 
 COPY backend/package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY backend/ .
 RUN npm run build
@@ -18,7 +18,7 @@ FROM node:18-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY frontend/ .
 ENV REACT_APP_API_URL=/api
@@ -36,7 +36,7 @@ WORKDIR /app
 COPY --from=backend-builder /app/backend/dist ./backend/dist
 COPY --from=backend-builder /app/backend/package*.json ./backend/
 WORKDIR /app/backend
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 RUN mkdir -p /app/backend/data
 
 # Copy frontend build to nginx
