@@ -104,6 +104,20 @@ export function CalendarPage() {
           </button>
         </div>
         <h2>{format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}</h2>
+        <div className="calendar-legend">
+          <div className="legend-item">
+            <span className="legend-color available"></span>
+            <span>Available - Click to book</span>
+          </div>
+          <div className="legend-item">
+            <span className="legend-color booked"></span>
+            <span>Booked - Click for details</span>
+          </div>
+          <div className="legend-item">
+            <span className="legend-color past"></span>
+            <span>Past</span>
+          </div>
+        </div>
       </div>
 
       <div className="calendar-container">
@@ -145,10 +159,15 @@ export function CalendarPage() {
                         key={`${room.id}-${day.toISOString()}-${hour}`}
                         className={`time-slot ${isBooked ? 'booked' : 'available'} ${isPast ? 'past' : ''}`}
                         onClick={() => !isPast && handleSlotClick(room, day, hour)}
+                        title={isPast ? 'Past time slot' : isBooked ? `${booking.title} - Click for details` : `Book ${room.name} at ${format(new Date().setHours(hour, 0), 'h:mm a')}`}
                       >
-                        {isBooked && (
+                        {isBooked ? (
                           <div className="booking-indicator">
                             <span className="booking-title">{booking.title}</span>
+                          </div>
+                        ) : !isPast && (
+                          <div className="slot-available-indicator">
+                            <span className="plus-icon">+</span>
                           </div>
                         )}
                       </div>
