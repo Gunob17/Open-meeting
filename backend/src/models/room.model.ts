@@ -8,8 +8,8 @@ export class RoomModel {
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO meeting_rooms (id, name, capacity, amenities, floor, address, description, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO meeting_rooms (id, name, capacity, amenities, floor, address, description, is_active, opening_hour, closing_hour, locked_to_company_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -21,6 +21,9 @@ export class RoomModel {
       data.address,
       data.description || '',
       1,
+      data.openingHour ?? null,
+      data.closingHour ?? null,
+      data.lockedToCompanyId ?? null,
       now,
       now
     );
@@ -57,11 +60,17 @@ export class RoomModel {
     const now = new Date().toISOString();
     const stmt = db.prepare(`
       UPDATE meeting_rooms
-      SET name = ?, capacity = ?, amenities = ?, floor = ?, address = ?, description = ?, is_active = ?, updated_at = ?
+      SET name = ?, capacity = ?, amenities = ?, floor = ?, address = ?, description = ?, is_active = ?,
+          opening_hour = ?, closing_hour = ?, locked_to_company_id = ?, updated_at = ?
       WHERE id = ?
     `);
 
     const amenities = data.amenities ? JSON.stringify(data.amenities) : existing.amenities;
+
+    // Handle undefined vs null for optional fields
+    const openingHour = data.openingHour !== undefined ? data.openingHour : existing.openingHour;
+    const closingHour = data.closingHour !== undefined ? data.closingHour : existing.closingHour;
+    const lockedToCompanyId = data.lockedToCompanyId !== undefined ? data.lockedToCompanyId : existing.lockedToCompanyId;
 
     stmt.run(
       data.name ?? existing.name,
@@ -71,6 +80,9 @@ export class RoomModel {
       data.address ?? existing.address,
       data.description ?? existing.description,
       data.isActive !== undefined ? (data.isActive ? 1 : 0) : (existing.isActive ? 1 : 0),
+      openingHour,
+      closingHour,
+      lockedToCompanyId,
       now,
       id
     );
@@ -100,6 +112,9 @@ export class RoomModel {
       address: row.address,
       description: row.description,
       isActive: row.is_active === 1,
+      openingHour: row.opening_hour,
+      closingHour: row.closing_hour,
+      lockedToCompanyId: row.locked_to_company_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

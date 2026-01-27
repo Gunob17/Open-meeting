@@ -71,6 +71,17 @@ export function initializeDatabase(): void {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    -- Settings table for global configuration
+    CREATE TABLE IF NOT EXISTS settings (
+      id TEXT PRIMARY KEY DEFAULT 'global',
+      opening_hour INTEGER NOT NULL DEFAULT 8,
+      closing_hour INTEGER NOT NULL DEFAULT 18,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Insert default settings if not exists
+    INSERT OR IGNORE INTO settings (id, opening_hour, closing_hour) VALUES ('global', 8, 18);
+
     -- Create indexes for better query performance
     CREATE INDEX IF NOT EXISTS idx_bookings_room_id ON bookings(room_id);
     CREATE INDEX IF NOT EXISTS idx_bookings_user_id ON bookings(user_id);
@@ -79,6 +90,19 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_users_company_id ON users(company_id);
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
+
+  // Add new columns to meeting_rooms if they don't exist (migration)
+  try {
+    db.exec(`ALTER TABLE meeting_rooms ADD COLUMN opening_hour INTEGER DEFAULT NULL`);
+  } catch (e) { /* Column may already exist */ }
+
+  try {
+    db.exec(`ALTER TABLE meeting_rooms ADD COLUMN closing_hour INTEGER DEFAULT NULL`);
+  } catch (e) { /* Column may already exist */ }
+
+  try {
+    db.exec(`ALTER TABLE meeting_rooms ADD COLUMN locked_to_company_id TEXT DEFAULT NULL REFERENCES companies(id)`);
+  } catch (e) { /* Column may already exist */ }
 }
 
 export default db;

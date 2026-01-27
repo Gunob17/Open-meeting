@@ -30,7 +30,18 @@ export interface MeetingRoom {
   address: string;
   description: string;
   isActive: boolean;
+  openingHour?: number | null;
+  closingHour?: number | null;
+  lockedToCompanyId?: string | null;
+  lockedToCompany?: Company;
   createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface Settings {
+  id: string;
+  openingHour: number;
+  closingHour: number;
   updatedAt?: string;
 }
 

@@ -9,6 +9,7 @@ import companyRoutes from './routes/company.routes';
 import roomRoutes from './routes/room.routes';
 import bookingRoutes from './routes/booking.routes';
 import setupRoutes from './routes/setup.routes';
+import settingsRoutes from './routes/settings.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,6 +28,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

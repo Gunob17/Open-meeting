@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from 'date-fns';
 import { api } from '../services/api';
-import { Booking, MeetingRoom } from '../types';
+import { Booking, MeetingRoom, Settings } from '../types';
 import { BookingModal } from '../components/BookingModal';
-
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM to 7 PM
+import { useAuth } from '../context/AuthContext';
 
 export function CalendarPage() {
+  const { user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSlot, setSelectedSlot] = useState<{
     room: MeetingRoom;
@@ -22,21 +23,43 @@ export function CalendarPage() {
   const weekEnd = useMemo(() => endOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
 
+  // Generate hours based on global settings
+  const hours = useMemo(() => {
+    const opening = settings?.openingHour ?? 8;
+    const closing = settings?.closingHour ?? 18;
+    return Array.from({ length: closing - opening }, (_, i) => i + opening);
+  }, [settings]);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [roomsData, bookingsData] = await Promise.all([
+      const [roomsData, bookingsData, settingsData] = await Promise.all([
         api.getRooms(),
-        api.getBookings(weekStart.toISOString(), addDays(weekEnd, 1).toISOString())
+        api.getBookings(weekStart.toISOString(), addDays(weekEnd, 1).toISOString()),
+        api.getSettings()
       ]);
       setRooms(roomsData);
       setBookings(bookingsData);
+      setSettings(settingsData);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
     }
   }, [weekStart, weekEnd]);
+
+  // Check if a slot is available for booking based on room-specific or global hours
+  const isSlotAvailable = useCallback((room: MeetingRoom, hour: number): boolean => {
+    const openingHour = room.openingHour ?? settings?.openingHour ?? 8;
+    const closingHour = room.closingHour ?? settings?.closingHour ?? 18;
+    return hour >= openingHour && hour < closingHour;
+  }, [settings]);
+
+  // Check if user can book this room (company lock check)
+  const canUserBookRoom = useCallback((room: MeetingRoom): boolean => {
+    if (!room.lockedToCompanyId) return true;
+    return room.lockedToCompanyId === user?.companyId;
+  }, [user]);
 
   useEffect(() => {
     loadData();
@@ -114,6 +137,14 @@ export function CalendarPage() {
             <span>Booked - Click for details</span>
           </div>
           <div className="legend-item">
+            <span className="legend-color unavailable"></span>
+            <span>Outside hours</span>
+          </div>
+          <div className="legend-item">
+            <span className="legend-color restricted"></span>
+            <span>Restricted</span>
+          </div>
+          <div className="legend-item">
             <span className="legend-color past"></span>
             <span>Past</span>
           </div>
@@ -143,7 +174,7 @@ export function CalendarPage() {
               </div>
 
               {/* Time slots for each hour */}
-              {HOURS.map(hour => (
+              {hours.map(hour => (
                 <React.Fragment key={`${day.toISOString()}-${hour}`}>
                   <div className="time-slot-label">
                     {format(new Date().setHours(hour, 0), 'h:mm a')}
@@ -153,19 +184,42 @@ export function CalendarPage() {
                     const isBooked = slotBookings.length > 0;
                     const booking = slotBookings[0];
                     const isPast = new Date(day).setHours(hour) < Date.now();
+                    const isAvailable = isSlotAvailable(room, hour);
+                    const canBook = canUserBookRoom(room);
+                    const isRestricted = !isAvailable || !canBook;
+
+                    let slotClass = 'time-slot';
+                    let title = '';
+
+                    if (isPast) {
+                      slotClass += ' past';
+                      title = 'Past time slot';
+                    } else if (isBooked) {
+                      slotClass += ' booked';
+                      title = `${booking.title} - Click for details`;
+                    } else if (!isAvailable) {
+                      slotClass += ' unavailable';
+                      title = 'Outside room booking hours';
+                    } else if (!canBook) {
+                      slotClass += ' restricted';
+                      title = 'This room is reserved for another company';
+                    } else {
+                      slotClass += ' available';
+                      title = `Book ${room.name} at ${format(new Date().setHours(hour, 0), 'h:mm a')}`;
+                    }
 
                     return (
                       <div
                         key={`${room.id}-${day.toISOString()}-${hour}`}
-                        className={`time-slot ${isBooked ? 'booked' : 'available'} ${isPast ? 'past' : ''}`}
-                        onClick={() => !isPast && handleSlotClick(room, day, hour)}
-                        title={isPast ? 'Past time slot' : isBooked ? `${booking.title} - Click for details` : `Book ${room.name} at ${format(new Date().setHours(hour, 0), 'h:mm a')}`}
+                        className={slotClass}
+                        onClick={() => !isPast && !isRestricted && handleSlotClick(room, day, hour)}
+                        title={title}
                       >
                         {isBooked ? (
                           <div className="booking-indicator">
                             <span className="booking-title">{booking.title}</span>
                           </div>
-                        ) : !isPast && (
+                        ) : !isPast && !isRestricted && (
                           <div className="slot-available-indicator">
                             <span className="plus-icon">+</span>
                           </div>

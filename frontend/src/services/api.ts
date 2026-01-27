@@ -1,4 +1,4 @@
-import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole } from '../types';
+import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -55,6 +55,18 @@ class ApiService {
   // Setup
   async checkSetupStatus(): Promise<{ isSetup: boolean; hasUsers: boolean }> {
     return this.request('/setup/status');
+  }
+
+  // Settings
+  async getSettings(): Promise<Settings> {
+    return this.request<Settings>('/settings');
+  }
+
+  async updateSettings(data: { openingHour: number; closingHour: number }): Promise<Settings> {
+    return this.request<Settings>('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
   }
 
   // Auth
@@ -176,6 +188,9 @@ class ApiService {
     floor: string;
     address: string;
     description?: string;
+    openingHour?: number | null;
+    closingHour?: number | null;
+    lockedToCompanyId?: string | null;
   }): Promise<MeetingRoom> {
     return this.request<MeetingRoom>('/rooms', {
       method: 'POST',
@@ -191,6 +206,9 @@ class ApiService {
     address?: string;
     description?: string;
     isActive?: boolean;
+    openingHour?: number | null;
+    closingHour?: number | null;
+    lockedToCompanyId?: string | null;
   }): Promise<MeetingRoom> {
     return this.request<MeetingRoom>(`/rooms/${id}`, {
       method: 'PUT',

@@ -85,7 +85,7 @@ router.get('/:id/availability', authenticate, (req: AuthRequest, res: Response) 
 // Create room (admin only)
 router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
-    const { name, capacity, amenities, floor, address, description } = req.body;
+    const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyId } = req.body;
 
     if (!name || !capacity || !floor || !address) {
       res.status(400).json({ error: 'Name, capacity, floor, and address are required' });
@@ -97,13 +97,34 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
       return;
     }
 
+    // Validate room-specific hours if provided
+    if (openingHour !== undefined && openingHour !== null) {
+      if (typeof openingHour !== 'number' || openingHour < 0 || openingHour > 23) {
+        res.status(400).json({ error: 'Opening hour must be between 0 and 23' });
+        return;
+      }
+    }
+    if (closingHour !== undefined && closingHour !== null) {
+      if (typeof closingHour !== 'number' || closingHour < 0 || closingHour > 23) {
+        res.status(400).json({ error: 'Closing hour must be between 0 and 23' });
+        return;
+      }
+    }
+    if (openingHour !== null && closingHour !== null && openingHour >= closingHour) {
+      res.status(400).json({ error: 'Opening hour must be before closing hour' });
+      return;
+    }
+
     const room = RoomModel.create({
       name,
       capacity,
       amenities: amenities || [],
       floor,
       address,
-      description
+      description,
+      openingHour: openingHour ?? null,
+      closingHour: closingHour ?? null,
+      lockedToCompanyId: lockedToCompanyId ?? null
     });
 
     res.status(201).json({
@@ -120,7 +141,25 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
 router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, capacity, amenities, floor, address, description, isActive } = req.body;
+    const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyId } = req.body;
+
+    // Validate room-specific hours if provided
+    if (openingHour !== undefined && openingHour !== null) {
+      if (typeof openingHour !== 'number' || openingHour < 0 || openingHour > 23) {
+        res.status(400).json({ error: 'Opening hour must be between 0 and 23' });
+        return;
+      }
+    }
+    if (closingHour !== undefined && closingHour !== null) {
+      if (typeof closingHour !== 'number' || closingHour < 0 || closingHour > 23) {
+        res.status(400).json({ error: 'Closing hour must be between 0 and 23' });
+        return;
+      }
+    }
+    if (openingHour !== null && closingHour !== null && openingHour !== undefined && closingHour !== undefined && openingHour >= closingHour) {
+      res.status(400).json({ error: 'Opening hour must be before closing hour' });
+      return;
+    }
 
     const room = RoomModel.update(id, {
       name,
@@ -129,7 +168,10 @@ router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
       floor,
       address,
       description,
-      isActive
+      isActive,
+      openingHour,
+      closingHour,
+      lockedToCompanyId
     });
 
     if (!room) {

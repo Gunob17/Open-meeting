@@ -398,6 +398,16 @@ body {
   cursor: not-allowed;
 }
 
+.time-slot.unavailable {
+  background: #fef3c7;
+  cursor: not-allowed;
+}
+
+.time-slot.restricted {
+  background: #fce7f3;
+  cursor: not-allowed;
+}
+
 .time-slot.available:not(.past) {
   position: relative;
 }
@@ -475,6 +485,16 @@ body {
 .legend-color.past {
   background: #f3f4f6;
   border-color: #d1d5db;
+}
+
+.legend-color.unavailable {
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+.legend-color.restricted {
+  background: #fce7f3;
+  border-color: #ec4899;
 }
 
 /* Rooms list page */
@@ -1081,4 +1101,77 @@ body {
   .setup-actions button {
     width: 100%;
   }
+}
+
+/* Settings page */
+.settings-page {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+.settings-page h1 {
+  margin-bottom: 1.5rem;
+  color: #1f2937;
+}
+
+.settings-section {
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.settings-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.settings-section h2 {
+  font-size: 1.25rem;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.section-description {
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+.settings-form {
+  max-width: 400px;
+}
+
+.settings-form .form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.text-muted {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.company-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.ml-1 {
+  margin-left: 0.5rem;
+}
+
+.alert-success {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
 }

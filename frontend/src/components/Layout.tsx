@@ -71,6 +71,12 @@ export function Layout({ children }: LayoutProps) {
                 >
                   Companies
                 </Link>
+                <Link
+                  to="/admin/settings"
+                  className={`nav-link ${isActive('/admin/settings') ? 'active' : ''}`}
+                >
+                  Settings
+                </Link>
               </>
             )}
           </div>

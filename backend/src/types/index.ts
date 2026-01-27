@@ -32,7 +32,17 @@ export interface MeetingRoom {
   address: string;
   description: string;
   isActive: boolean;
+  openingHour: number | null;  // Room-specific opening hour (null = use global)
+  closingHour: number | null;  // Room-specific closing hour (null = use global)
+  lockedToCompanyId: string | null; // If set, only this company can book
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface Settings {
+  id: string;
+  openingHour: number;
+  closingHour: number;
   updatedAt: string;
 }
 
@@ -91,6 +101,9 @@ export interface CreateRoomRequest {
   floor: string;
   address: string;
   description?: string;
+  openingHour?: number | null;
+  closingHour?: number | null;
+  lockedToCompanyId?: string | null;
 }
 
 export interface CreateCompanyRequest {

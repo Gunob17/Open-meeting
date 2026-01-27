@@ -10,6 +10,7 @@ import { UsersPage } from './pages/UsersPage';
 import { AdminRoomsPage } from './pages/AdminRoomsPage';
 import { CompaniesPage } from './pages/CompaniesPage';
 import { SetupPage } from './pages/SetupPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { api } from './services/api';
 import './styles.css';
 
@@ -97,6 +98,14 @@ function AppRoutes() {
         element={
           <PrivateRoute adminOnly>
             <CompaniesPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/settings"
+        element={
+          <PrivateRoute adminOnly>
+            <SettingsPage />
           </PrivateRoute>
         }
       />

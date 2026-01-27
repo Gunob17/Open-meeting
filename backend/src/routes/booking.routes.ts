@@ -4,7 +4,46 @@ import { RoomModel } from '../models/room.model';
 import { UserModel } from '../models/user.model';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
 import { sendMeetingInvite, sendCancellationNotice } from '../services/email.service';
-import { UserRole } from '../types';
+import { UserRole, MeetingRoom } from '../types';
+import db from '../models/database';
+
+// Helper to get global settings
+function getGlobalSettings(): { openingHour: number; closingHour: number } {
+  const stmt = db.prepare('SELECT opening_hour, closing_hour FROM settings WHERE id = ?');
+  const row = stmt.get('global') as { opening_hour: number; closing_hour: number } | undefined;
+  return {
+    openingHour: row?.opening_hour ?? 8,
+    closingHour: row?.closing_hour ?? 18
+  };
+}
+
+// Helper to validate booking time against room/global hours
+function validateBookingHours(
+  room: MeetingRoom,
+  startTime: Date,
+  endTime: Date
+): { valid: boolean; error?: string } {
+  const globalSettings = getGlobalSettings();
+
+  // Use room-specific hours if set, otherwise use global
+  const openingHour = room.openingHour ?? globalSettings.openingHour;
+  const closingHour = room.closingHour ?? globalSettings.closingHour;
+
+  const startHour = startTime.getHours();
+  const endHour = endTime.getHours();
+  const endMinutes = endTime.getMinutes();
+
+  if (startHour < openingHour) {
+    return { valid: false, error: `Bookings cannot start before ${openingHour}:00` };
+  }
+
+  // End time check: allow booking to end exactly at closing hour
+  if (endHour > closingHour || (endHour === closingHour && endMinutes > 0)) {
+    return { valid: false, error: `Bookings must end by ${closingHour}:00` };
+  }
+
+  return { valid: true };
+}
 
 const router = Router();
 
@@ -125,6 +164,19 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     if (start < new Date()) {
       res.status(400).json({ error: 'Cannot book in the past' });
+      return;
+    }
+
+    // Check if room is locked to a specific company
+    if (room.lockedToCompanyId && room.lockedToCompanyId !== req.user!.companyId) {
+      res.status(403).json({ error: 'This room is reserved for exclusive use by another company' });
+      return;
+    }
+
+    // Validate booking hours against room/global settings
+    const hoursValidation = validateBookingHours(room, start, end);
+    if (!hoursValidation.valid) {
+      res.status(400).json({ error: hoursValidation.error });
       return;
     }
 
