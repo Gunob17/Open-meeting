@@ -1,0 +1,56 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Node modules (will be installed during build)
+node_modules
+*/node_modules
+
+# Build artifacts
+dist
+build
+*/dist
+*/build
+
+# Local data
+backend/data
+*.db
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test files
+coverage
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__
+
+# Docker files (not needed inside container)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# GitHub
+.github
+
+# OS files
+.DS_Store
+Thumbs.db

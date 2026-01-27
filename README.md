@@ -39,11 +39,28 @@ A comprehensive meeting room booking service for shared offices with a hierarchi
 
 ## Getting Started
 
-### Prerequisites
+### Option 1: Docker (Recommended)
+
+The easiest way to run the application is with Docker:
+
+```bash
+# Pull and run the latest image
+docker pull ghcr.io/gunob17/meetingbooking:latest
+docker run -d -p 80:80 --name meeting-booking ghcr.io/gunob17/meetingbooking:latest
+
+# Or use Docker Compose
+docker-compose up -d
+```
+
+The application will be available at `http://localhost`.
+
+### Option 2: Local Development
+
+#### Prerequisites
 - Node.js 18+
 - npm or yarn
 
-### Installation
+#### Installation
 
 1. Install dependencies:
 ```bash
@@ -158,5 +175,87 @@ MeetingBooking/
 │   │   ├── App.tsx       # Main app component
 │   │   └── styles.css    # Global styles
 │   └── package.json
+├── docker/               # Docker configuration
+│   ├── nginx.conf        # Nginx config for combined container
+│   └── supervisord.conf  # Process manager config
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml     # GitHub Actions CI/CD pipeline
+├── Dockerfile            # Combined container (frontend + backend)
+├── docker-compose.yml    # Production Docker Compose
+├── docker-compose.dev.yml # Development with separate services
 └── package.json          # Root package.json
 ```
+
+## Docker
+
+### Build Locally
+
+```bash
+# Build the combined image
+docker build -t meeting-booking .
+
+# Run the container
+docker run -d -p 80:80 --name meeting-booking meeting-booking
+```
+
+### Docker Compose
+
+```bash
+# Production (combined container)
+docker-compose up -d
+
+# Development (separate backend and frontend)
+docker-compose -f docker-compose.dev.yml up -d
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `JWT_SECRET` | Secret key for JWT tokens | (change in production!) |
+| `SMTP_HOST` | SMTP server hostname | - |
+| `SMTP_PORT` | SMTP server port | 587 |
+| `SMTP_USER` | SMTP username | - |
+| `SMTP_PASS` | SMTP password | - |
+| `SMTP_FROM` | Email from address | Meeting Booking <noreply@meetingbooking.com> |
+
+### Persistent Data
+
+The SQLite database is stored in `/app/backend/data`. Mount a volume to persist data:
+
+```bash
+docker run -d -p 80:80 -v meeting-data:/app/backend/data meeting-booking
+```
+
+## CI/CD Pipeline
+
+The project includes a GitHub Actions workflow that:
+
+1. **Build & Test**: Compiles TypeScript for both backend and frontend
+2. **Docker Build**: Creates multi-architecture images (amd64, arm64)
+3. **Push to Registry**: Publishes to GitHub Container Registry (ghcr.io)
+4. **Release**: Creates GitHub releases with changelog for tagged versions
+
+### Creating a Release
+
+To create a new release:
+
+```bash
+# Tag a new version
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The CI/CD pipeline will automatically:
+- Build and push the Docker image with the version tag
+- Create a GitHub release with changelog
+- Tag the image as `latest` if it's the main branch
+
+### Docker Image Tags
+
+| Tag | Description |
+|-----|-------------|
+| `latest` | Latest build from main/master branch |
+| `v1.0.0` | Specific version tag |
+| `sha-abc1234` | Specific commit SHA |
