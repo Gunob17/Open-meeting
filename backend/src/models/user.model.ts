@@ -1,0 +1,106 @@
+import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcryptjs';
+import db from './database';
+import { User, UserRole, CreateUserRequest } from '../types';
+
+export class UserModel {
+  static async create(data: CreateUserRequest): Promise<User> {
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+
+    const stmt = db.prepare(`
+      INSERT INTO users (id, email, password, name, role, company_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(id, data.email, hashedPassword, data.name, data.role, data.companyId, now, now);
+
+    return this.findById(id)!;
+  }
+
+  static findById(id: string): User | null {
+    const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
+    const row = stmt.get(id) as any;
+
+    if (!row) return null;
+
+    return this.mapRowToUser(row);
+  }
+
+  static findByEmail(email: string): User | null {
+    const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
+    const row = stmt.get(email) as any;
+
+    if (!row) return null;
+
+    return this.mapRowToUser(row);
+  }
+
+  static findByCompany(companyId: string): User[] {
+    const stmt = db.prepare('SELECT * FROM users WHERE company_id = ? ORDER BY name');
+    const rows = stmt.all(companyId) as any[];
+
+    return rows.map(this.mapRowToUser);
+  }
+
+  static findAll(): User[] {
+    const stmt = db.prepare('SELECT * FROM users ORDER BY name');
+    const rows = stmt.all() as any[];
+
+    return rows.map(this.mapRowToUser);
+  }
+
+  static async update(id: string, data: Partial<CreateUserRequest>): Promise<User | null> {
+    const existing = this.findById(id);
+    if (!existing) return null;
+
+    const now = new Date().toISOString();
+    let hashedPassword = existing.password;
+
+    if (data.password) {
+      hashedPassword = await bcrypt.hash(data.password, 10);
+    }
+
+    const stmt = db.prepare(`
+      UPDATE users
+      SET email = ?, password = ?, name = ?, role = ?, company_id = ?, updated_at = ?
+      WHERE id = ?
+    `);
+
+    stmt.run(
+      data.email ?? existing.email,
+      hashedPassword,
+      data.name ?? existing.name,
+      data.role ?? existing.role,
+      data.companyId ?? existing.companyId,
+      now,
+      id
+    );
+
+    return this.findById(id);
+  }
+
+  static delete(id: string): boolean {
+    const stmt = db.prepare('DELETE FROM users WHERE id = ?');
+    const result = stmt.run(id);
+    return result.changes > 0;
+  }
+
+  static async validatePassword(user: User, password: string): Promise<boolean> {
+    return bcrypt.compare(password, user.password);
+  }
+
+  private static mapRowToUser(row: any): User {
+    return {
+      id: row.id,
+      email: row.email,
+      password: row.password,
+      name: row.name,
+      role: row.role as UserRole,
+      companyId: row.company_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+}
