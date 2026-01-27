@@ -240,7 +240,16 @@ The project includes a GitHub Actions workflow that:
 
 ### Creating a Release
 
-To create a new release:
+#### Option 1: From GitHub UI (Recommended)
+
+1. Go to the **Actions** tab in GitHub
+2. Select **CI/CD Pipeline** from the workflows list
+3. Click **Run workflow**
+4. Enter the version (e.g., `v1.0.0`)
+5. Optionally check "Mark as pre-release"
+6. Click **Run workflow**
+
+#### Option 2: From Terminal
 
 ```bash
 # Tag a new version
