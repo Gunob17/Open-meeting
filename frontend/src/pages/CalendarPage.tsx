@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { format, startOfWeek, endOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO } from 'date-fns';
+import { format, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { api } from '../services/api';
 import { Booking, MeetingRoom, Settings } from '../types';
 import { BookingModal } from '../components/BookingModal';
@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 export function CalendarPage() {
   const { user } = useAuth();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [startDate, setStartDate] = useState(new Date());
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -19,9 +19,9 @@ export function CalendarPage() {
   } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  const weekStart = useMemo(() => startOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
-  const weekEnd = useMemo(() => endOfWeek(currentDate, { weekStartsOn: 1 }), [currentDate]);
-  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  // Show 7 days starting from startDate
+  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate]);
+  const endDate = useMemo(() => addDays(startDate, 7), [startDate]);
 
   // Generate hours based on global settings
   const hours = useMemo(() => {
@@ -35,7 +35,7 @@ export function CalendarPage() {
     try {
       const [roomsData, bookingsData, settingsData] = await Promise.all([
         api.getRooms(),
-        api.getBookings(weekStart.toISOString(), addDays(weekEnd, 1).toISOString()),
+        api.getBookings(startDate.toISOString(), endDate.toISOString()),
         api.getSettings()
       ]);
       setRooms(roomsData);
@@ -46,7 +46,7 @@ export function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }, [weekStart, weekEnd]);
+  }, [startDate, endDate]);
 
   // Check if a slot is available for booking based on room-specific or global hours
   const isSlotAvailable = useCallback((room: MeetingRoom, hour: number): boolean => {
@@ -116,17 +116,17 @@ export function CalendarPage() {
       <div className="calendar-header">
         <h1>Meeting Room Calendar</h1>
         <div className="calendar-nav">
-          <button onClick={() => setCurrentDate(subWeeks(currentDate, 1))} className="btn btn-secondary">
-            Previous Week
+          <button onClick={() => setStartDate(subDays(startDate, 7))} className="btn btn-secondary">
+            Previous 7 Days
           </button>
-          <button onClick={() => setCurrentDate(new Date())} className="btn btn-secondary">
+          <button onClick={() => setStartDate(new Date())} className="btn btn-secondary">
             Today
           </button>
-          <button onClick={() => setCurrentDate(addWeeks(currentDate, 1))} className="btn btn-secondary">
-            Next Week
+          <button onClick={() => setStartDate(addDays(startDate, 7))} className="btn btn-secondary">
+            Next 7 Days
           </button>
         </div>
-        <h2>{format(weekStart, 'MMM d')} - {format(weekEnd, 'MMM d, yyyy')}</h2>
+        <h2>{format(startDate, 'MMM d')} - {format(addDays(startDate, 6), 'MMM d, yyyy')}</h2>
         <div className="calendar-legend">
           <div className="legend-item">
             <span className="legend-color available"></span>
@@ -165,7 +165,7 @@ export function CalendarPage() {
           ))}
 
           {/* Calendar body */}
-          {weekDays.map(day => (
+          {days.map(day => (
             <React.Fragment key={day.toISOString()}>
               {/* Day header spanning all room columns */}
               <div className="day-header" style={{ gridColumn: `1 / span ${rooms.length + 1}` }}>
