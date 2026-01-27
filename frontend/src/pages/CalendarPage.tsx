@@ -18,6 +18,7 @@ export function CalendarPage() {
     hour: number;
   } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
 
   // Show 7 days starting from startDate
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate]);
@@ -65,26 +66,43 @@ export function CalendarPage() {
     loadData();
   }, [loadData]);
 
-  const getBookingsForSlot = (roomId: string, date: Date, hour: number) => {
+  // Get booking that overlaps with this slot
+  const getBookingForSlot = (roomId: string, date: Date, hour: number): Booking | null => {
     const slotStart = new Date(date);
     slotStart.setHours(hour, 0, 0, 0);
     const slotEnd = new Date(date);
     slotEnd.setHours(hour + 1, 0, 0, 0);
 
-    return bookings.filter(booking => {
-      if (booking.roomId !== roomId || booking.status === 'cancelled') return false;
-      const bookingStart = parseISO(booking.startTime);
-      const bookingEnd = parseISO(booking.endTime);
-      return (
-        (bookingStart < slotEnd && bookingEnd > slotStart)
-      );
+    const booking = bookings.find(b => {
+      if (b.roomId !== roomId || b.status === 'cancelled') return false;
+      const bookingStart = parseISO(b.startTime);
+      const bookingEnd = parseISO(b.endTime);
+      return bookingStart < slotEnd && bookingEnd > slotStart;
     });
+
+    return booking || null;
+  };
+
+  // Check if this slot is the START of a booking (to render the spanning indicator)
+  const isBookingStart = (booking: Booking, date: Date, hour: number): boolean => {
+    const bookingStart = parseISO(booking.startTime);
+    const slotStart = new Date(date);
+    slotStart.setHours(hour, 0, 0, 0);
+
+    return isSameDay(bookingStart, slotStart) && bookingStart.getHours() === hour;
+  };
+
+  // Calculate booking duration in hours for spanning display
+  const getBookingDuration = (booking: Booking): number => {
+    const start = parseISO(booking.startTime);
+    const end = parseISO(booking.endTime);
+    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60));
   };
 
   const handleSlotClick = (room: MeetingRoom, date: Date, hour: number) => {
-    const slotBookings = getBookingsForSlot(room.id, date, hour);
-    if (slotBookings.length > 0) {
-      setSelectedBooking(slotBookings[0]);
+    const booking = getBookingForSlot(room.id, date, hour);
+    if (booking) {
+      setSelectedBooking(booking);
     } else {
       setSelectedSlot({ room, date, hour });
     }
@@ -92,6 +110,7 @@ export function CalendarPage() {
 
   const handleBookingCreated = () => {
     setSelectedSlot(null);
+    setEditingBooking(null);
     loadData();
   };
 
@@ -105,6 +124,29 @@ export function CalendarPage() {
         console.error('Failed to cancel booking:', error);
       }
     }
+  };
+
+  const handleDeleteBooking = async () => {
+    if (selectedBooking && window.confirm('Are you sure you want to delete this booking?')) {
+      try {
+        await api.deleteBooking(selectedBooking.id);
+        setSelectedBooking(null);
+        loadData();
+      } catch (error) {
+        console.error('Failed to delete booking:', error);
+      }
+    }
+  };
+
+  const handleEditBooking = () => {
+    if (selectedBooking) {
+      setEditingBooking(selectedBooking);
+      setSelectedBooking(null);
+    }
+  };
+
+  const isOwnBooking = (booking: Booking): boolean => {
+    return booking.userId === user?.id;
   };
 
   if (loading) {
@@ -180,13 +222,16 @@ export function CalendarPage() {
                     {format(new Date().setHours(hour, 0), 'h:mm a')}
                   </div>
                   {rooms.map(room => {
-                    const slotBookings = getBookingsForSlot(room.id, day, hour);
-                    const isBooked = slotBookings.length > 0;
-                    const booking = slotBookings[0];
+                    const booking = getBookingForSlot(room.id, day, hour);
+                    const isBooked = booking !== null;
                     const isPast = new Date(day).setHours(hour) < Date.now();
                     const isAvailable = isSlotAvailable(room, hour);
                     const canBook = canUserBookRoom(room);
                     const isRestricted = !isAvailable || !canBook;
+
+                    // Check if this is the start of the booking (to show spanning indicator)
+                    const showBookingStart = isBooked && isBookingStart(booking, day, hour);
+                    const bookingDuration = showBookingStart ? getBookingDuration(booking) : 0;
 
                     let slotClass = 'time-slot';
                     let title = '';
@@ -212,14 +257,21 @@ export function CalendarPage() {
                       <div
                         key={`${room.id}-${day.toISOString()}-${hour}`}
                         className={slotClass}
-                        onClick={() => !isPast && !isRestricted && handleSlotClick(room, day, hour)}
+                        onClick={() => !isPast && handleSlotClick(room, day, hour)}
                         title={title}
                       >
-                        {isBooked ? (
-                          <div className="booking-indicator">
+                        {showBookingStart && (
+                          <div
+                            className="booking-indicator booking-span"
+                            style={{ height: `calc(${bookingDuration * 100}% + ${(bookingDuration - 1) * 2}px)` }}
+                          >
                             <span className="booking-title">{booking.title}</span>
+                            <span className="booking-time">
+                              {format(parseISO(booking.startTime), 'h:mm a')} - {format(parseISO(booking.endTime), 'h:mm a')}
+                            </span>
                           </div>
-                        ) : !isPast && !isRestricted && (
+                        )}
+                        {!isBooked && !isPast && !isRestricted && (
                           <div className="slot-available-indicator">
                             <span className="plus-icon">+</span>
                           </div>
@@ -234,13 +286,25 @@ export function CalendarPage() {
         </div>
       </div>
 
-      {/* Booking Modal */}
+      {/* Booking Modal for new bookings */}
       {selectedSlot && (
         <BookingModal
           room={selectedSlot.room}
           initialDate={selectedSlot.date}
           initialHour={selectedSlot.hour}
           onClose={() => setSelectedSlot(null)}
+          onBooked={handleBookingCreated}
+        />
+      )}
+
+      {/* Booking Modal for editing */}
+      {editingBooking && (
+        <BookingModal
+          room={rooms.find(r => r.id === editingBooking.roomId)!}
+          initialDate={parseISO(editingBooking.startTime)}
+          initialHour={parseISO(editingBooking.startTime).getHours()}
+          existingBooking={editingBooking}
+          onClose={() => setEditingBooking(null)}
           onBooked={handleBookingCreated}
         />
       )}
@@ -268,9 +332,19 @@ export function CalendarPage() {
               <button className="btn btn-secondary" onClick={() => setSelectedBooking(null)}>
                 Close
               </button>
-              <button className="btn btn-danger" onClick={handleBookingCancelled}>
-                Cancel Booking
-              </button>
+              {isOwnBooking(selectedBooking) && (
+                <>
+                  <button className="btn btn-primary" onClick={handleEditBooking}>
+                    Edit
+                  </button>
+                  <button className="btn btn-warning" onClick={handleBookingCancelled}>
+                    Cancel Booking
+                  </button>
+                  <button className="btn btn-danger" onClick={handleDeleteBooking}>
+                    Delete
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

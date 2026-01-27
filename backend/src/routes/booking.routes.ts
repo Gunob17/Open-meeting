@@ -25,19 +25,27 @@ function validateBookingHours(
 ): { valid: boolean; error?: string } {
   const globalSettings = getGlobalSettings();
 
-  // Use room-specific hours if set, otherwise use global
-  const openingHour = room.openingHour ?? globalSettings.openingHour;
-  const closingHour = room.closingHour ?? globalSettings.closingHour;
+  // Use room-specific hours if set (not null/undefined), otherwise use global
+  const openingHour = (room.openingHour !== null && room.openingHour !== undefined)
+    ? room.openingHour
+    : globalSettings.openingHour;
+  const closingHour = (room.closingHour !== null && room.closingHour !== undefined)
+    ? room.closingHour
+    : globalSettings.closingHour;
 
   const startHour = startTime.getHours();
+  const startMinutes = startTime.getMinutes();
   const endHour = endTime.getHours();
   const endMinutes = endTime.getMinutes();
 
-  if (startHour < openingHour) {
+  // Check if start time is before opening hour
+  // Allow exact opening hour (e.g., 8:00 is valid if openingHour is 8)
+  if (startHour < openingHour || (startHour === openingHour && startMinutes < 0)) {
     return { valid: false, error: `Bookings cannot start before ${openingHour}:00` };
   }
 
-  // End time check: allow booking to end exactly at closing hour
+  // Check if end time is after closing hour
+  // Allow booking to end exactly at closing hour (e.g., 18:00 is valid if closingHour is 18)
   if (endHour > closingHour || (endHour === closingHour && endMinutes > 0)) {
     return { valid: false, error: `Bookings must end by ${closingHour}:00` };
   }

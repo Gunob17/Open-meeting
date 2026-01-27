@@ -1,26 +1,35 @@
 import React, { useState } from 'react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { api } from '../services/api';
-import { MeetingRoom } from '../types';
+import { MeetingRoom, Booking } from '../types';
 
 interface BookingModalProps {
   room: MeetingRoom;
   initialDate: Date;
   initialHour: number;
+  existingBooking?: Booking;
   onClose: () => void;
   onBooked: () => void;
 }
 
-export function BookingModal({ room, initialDate, initialHour, onClose, onBooked }: BookingModalProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+export function BookingModal({ room, initialDate, initialHour, existingBooking, onClose, onBooked }: BookingModalProps) {
+  const isEditing = !!existingBooking;
+
+  const [title, setTitle] = useState(existingBooking?.title || '');
+  const [description, setDescription] = useState(existingBooking?.description || '');
   const [startTime, setStartTime] = useState(
-    format(new Date(initialDate).setHours(initialHour, 0), "yyyy-MM-dd'T'HH:mm")
+    existingBooking
+      ? format(parseISO(existingBooking.startTime), "yyyy-MM-dd'T'HH:mm")
+      : format(new Date(initialDate).setHours(initialHour, 0), "yyyy-MM-dd'T'HH:mm")
   );
   const [endTime, setEndTime] = useState(
-    format(new Date(initialDate).setHours(initialHour + 1, 0), "yyyy-MM-dd'T'HH:mm")
+    existingBooking
+      ? format(parseISO(existingBooking.endTime), "yyyy-MM-dd'T'HH:mm")
+      : format(new Date(initialDate).setHours(initialHour + 1, 0), "yyyy-MM-dd'T'HH:mm")
   );
-  const [attendees, setAttendees] = useState('');
+  const [attendees, setAttendees] = useState(
+    existingBooking?.attendees?.join(', ') || ''
+  );
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -35,18 +44,28 @@ export function BookingModal({ room, initialDate, initialHour, onClose, onBooked
         .map(email => email.trim())
         .filter(email => email.length > 0);
 
-      await api.createBooking({
-        roomId: room.id,
-        title,
-        description,
-        startTime: new Date(startTime).toISOString(),
-        endTime: new Date(endTime).toISOString(),
-        attendees: attendeeList
-      });
+      if (isEditing) {
+        await api.updateBooking(existingBooking.id, {
+          title,
+          description,
+          startTime: new Date(startTime).toISOString(),
+          endTime: new Date(endTime).toISOString(),
+          attendees: attendeeList
+        });
+      } else {
+        await api.createBooking({
+          roomId: room.id,
+          title,
+          description,
+          startTime: new Date(startTime).toISOString(),
+          endTime: new Date(endTime).toISOString(),
+          attendees: attendeeList
+        });
+      }
 
       onBooked();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create booking');
+      setError(err instanceof Error ? err.message : `Failed to ${isEditing ? 'update' : 'create'} booking`);
     } finally {
       setLoading(false);
     }
@@ -56,7 +75,7 @@ export function BookingModal({ room, initialDate, initialHour, onClose, onBooked
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Book {room.name}</h2>
+          <h2>{isEditing ? 'Edit Booking' : `Book ${room.name}`}</h2>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -65,6 +84,7 @@ export function BookingModal({ room, initialDate, initialHour, onClose, onBooked
             {error && <div className="alert alert-error">{error}</div>}
 
             <div className="room-details">
+              <p><strong>Room:</strong> {room.name}</p>
               <p><strong>Capacity:</strong> {room.capacity} people</p>
               <p><strong>Floor:</strong> {room.floor}</p>
               <p><strong>Amenities:</strong> {room.amenities.join(', ')}</p>
@@ -136,7 +156,7 @@ export function BookingModal({ room, initialDate, initialHour, onClose, onBooked
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Booking...' : 'Book Room'}
+              {loading ? (isEditing ? 'Saving...' : 'Booking...') : (isEditing ? 'Save Changes' : 'Book Room')}
             </button>
           </div>
         </form>
