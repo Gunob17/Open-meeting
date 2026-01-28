@@ -1,4 +1,4 @@
-import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings } from '../types';
+import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -271,6 +271,48 @@ class ApiService {
 
   async deleteBooking(id: string): Promise<void> {
     await this.request(`/bookings/${id}`, { method: 'DELETE' });
+  }
+
+  // Devices
+  async getDevices(includeInactive = false): Promise<Device[]> {
+    const query = includeInactive ? '?includeInactive=true' : '';
+    return this.request<Device[]>(`/devices${query}`);
+  }
+
+  async getDevice(id: string): Promise<Device> {
+    return this.request<Device>(`/devices/${id}`);
+  }
+
+  async getDevicesByRoom(roomId: string): Promise<Device[]> {
+    return this.request<Device[]>(`/devices/room/${roomId}`);
+  }
+
+  async createDevice(data: { name: string; roomId: string }): Promise<Device> {
+    return this.request<Device>('/devices', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateDevice(id: string, data: {
+    name?: string;
+    roomId?: string;
+    isActive?: boolean;
+  }): Promise<Device> {
+    return this.request<Device>(`/devices/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async regenerateDeviceToken(id: string): Promise<Device> {
+    return this.request<Device>(`/devices/${id}/regenerate-token`, {
+      method: 'POST'
+    });
+  }
+
+  async deleteDevice(id: string): Promise<void> {
+    await this.request(`/devices/${id}`, { method: 'DELETE' });
   }
 }
 

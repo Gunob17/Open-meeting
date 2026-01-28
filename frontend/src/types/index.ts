@@ -69,3 +69,16 @@ export interface AuthResponse {
 export interface ApiError {
   error: string;
 }
+
+// Screen device types
+export interface Device {
+  id: string;
+  name: string;
+  token: string;
+  roomId: string;
+  isActive: boolean;
+  lastSeenAt: string | null;
+  room?: MeetingRoom;
+  createdAt?: string;
+  updatedAt?: string;
+}
