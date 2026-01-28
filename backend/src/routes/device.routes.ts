@@ -31,7 +31,12 @@ router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =>
 router.get('/room/:roomId', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const { roomId } = req.params;
+    console.log('Fetching devices for room:', roomId);
     const devices = DeviceModel.findByRoom(roomId);
+    console.log('Found devices:', devices.length, 'devices');
+    if (devices.length > 0) {
+      console.log('First device has token:', !!devices[0].token, 'token length:', devices[0].token?.length);
+    }
 
     const devicesWithParsedData = devices.map(d => ({
       ...d,
@@ -76,6 +81,7 @@ router.get('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
 router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const { name, roomId } = req.body;
+    console.log('Creating device:', { name, roomId });
 
     if (!name || !roomId) {
       res.status(400).json({ error: 'Name and room ID are required' });
@@ -90,6 +96,7 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
     }
 
     const device = DeviceModel.create({ name, roomId });
+    console.log('Created device with id:', device.id, 'token present:', !!device.token, 'token length:', device.token?.length);
 
     res.status(201).json({
       ...device,
