@@ -373,9 +373,9 @@ body {
 
 .time-slot {
   position: relative;
-  padding: 0.25rem;
+  padding: 0;
   border: 1px solid #e5e7eb;
-  min-height: 40px;
+  height: 44px;
   cursor: pointer;
   transition: background 0.2s;
   overflow: visible;
@@ -452,7 +452,6 @@ body {
 
 .booking-indicator.booking-span {
   position: absolute;
-  top: 2px;
   left: 2px;
   right: 2px;
   z-index: 10;
@@ -460,6 +459,7 @@ body {
   flex-direction: column;
   white-space: normal;
   overflow: hidden;
+  min-height: 20px;
 }
 
 .booking-indicator .booking-title {

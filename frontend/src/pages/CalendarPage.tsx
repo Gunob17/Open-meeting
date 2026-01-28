@@ -92,11 +92,33 @@ export function CalendarPage() {
     return isSameDay(bookingStart, slotStart) && bookingStart.getHours() === hour;
   };
 
-  // Calculate booking duration in hours for spanning display
-  const getBookingDuration = (booking: Booking): number => {
+  // Calculate booking display info for proper visual representation
+  const getBookingDisplayInfo = (booking: Booking, slotHour: number): {
+    topOffset: number; // percentage from top of slot
+    height: number; // number of slot heights to span
+    slots: number; // number of full slots
+  } => {
     const start = parseISO(booking.startTime);
     const end = parseISO(booking.endTime);
-    return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60));
+
+    // Calculate start offset within the hour (0-59 minutes -> 0-100%)
+    const startMinutes = start.getMinutes();
+    const topOffset = (startMinutes / 60) * 100;
+
+    // Calculate total duration in minutes
+    const durationMs = end.getTime() - start.getTime();
+    const durationMinutes = durationMs / (1000 * 60);
+
+    // Calculate height as percentage of slot height
+    // Each slot is 1 hour = 60 minutes = 100%
+    const height = (durationMinutes / 60) * 100;
+
+    // Calculate number of slots this booking spans
+    const endHour = end.getHours();
+    const endMinutes = end.getMinutes();
+    const slots = endHour - slotHour + (endMinutes > 0 ? 1 : 0);
+
+    return { topOffset, height, slots };
   };
 
   const handleSlotClick = (room: MeetingRoom, date: Date, hour: number) => {
@@ -231,7 +253,7 @@ export function CalendarPage() {
 
                     // Check if this is the start of the booking (to show spanning indicator)
                     const showBookingStart = isBooked && isBookingStart(booking, day, hour);
-                    const bookingDuration = showBookingStart ? getBookingDuration(booking) : 0;
+                    const displayInfo = showBookingStart ? getBookingDisplayInfo(booking, hour) : null;
 
                     let slotClass = 'time-slot';
                     let title = '';
@@ -260,10 +282,13 @@ export function CalendarPage() {
                         onClick={() => !isPast && handleSlotClick(room, day, hour)}
                         title={title}
                       >
-                        {showBookingStart && (
+                        {showBookingStart && displayInfo && (
                           <div
                             className="booking-indicator booking-span"
-                            style={{ height: `calc(${bookingDuration * 100}% + ${(bookingDuration - 1) * 2}px)` }}
+                            style={{
+                              top: `calc(${displayInfo.topOffset}% + 2px)`,
+                              height: `calc(${displayInfo.height}% - 4px)`
+                            }}
                           >
                             <span className="booking-title">{booking.title}</span>
                             <span className="booking-time">
