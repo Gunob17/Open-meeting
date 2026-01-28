@@ -1,6 +1,7 @@
 #include "ui_manager.h"
 
-UIManager::UIManager(TFT_eSPI& tft) : _tft(tft), _currentState(UI_LOADING), _buttonCount(0) {
+UIManager::UIManager(TFT_eSPI& tft, TouchController& touch)
+    : _tft(tft), _touch(touch), _currentState(UI_LOADING), _buttonCount(0) {
     _tokenInput = "";
     _apiUrlInput = "";
 }
@@ -9,10 +10,6 @@ void UIManager::begin() {
     _tft.init();
     _tft.setRotation(TFT_ROTATION);
     _tft.fillScreen(COLOR_BG);
-
-    // Initialize touch
-    uint16_t calData[5] = {TOUCH_MIN_X, TOUCH_MAX_X, TOUCH_MIN_Y, TOUCH_MAX_Y, 1};
-    _tft.setTouch(calData);
 }
 
 void UIManager::setRotation(uint8_t rotation) {
@@ -31,17 +28,11 @@ void UIManager::addButton(int x, int y, int w, int h, const String& label, uint1
 }
 
 bool UIManager::isTouched() {
-    return _tft.getTouch(nullptr, nullptr);
+    return _touch.isTouched();
 }
 
 bool UIManager::getTouchPoint(int& x, int& y) {
-    uint16_t tx, ty;
-    if (_tft.getTouch(&tx, &ty)) {
-        x = tx;
-        y = ty;
-        return true;
-    }
-    return false;
+    return _touch.getPoint(x, y);
 }
 
 int UIManager::checkButtonPress(int touchX, int touchY) {

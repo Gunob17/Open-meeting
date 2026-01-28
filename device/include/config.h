@@ -6,11 +6,22 @@
 #define SCREEN_HEIGHT 240
 #define TFT_ROTATION 1  // Landscape mode
 
-// Touch calibration (adjust for your specific display)
-#define TOUCH_MIN_X 300
-#define TOUCH_MAX_X 3800
-#define TOUCH_MIN_Y 300
-#define TOUCH_MAX_Y 3800
+// Capacitive touch I2C pins (CST820/GT911)
+#ifndef TOUCH_SDA
+#define TOUCH_SDA 33
+#endif
+#ifndef TOUCH_SCL
+#define TOUCH_SCL 32
+#endif
+#ifndef TOUCH_INT
+#define TOUCH_INT 21
+#endif
+#ifndef TOUCH_RST
+#define TOUCH_RST 25
+#endif
+
+// Touch I2C address (CST820 uses 0x15)
+#define TOUCH_I2C_ADDR 0x15
 
 // Colors (RGB565)
 #define COLOR_BG          0x0000  // Black

@@ -15,7 +15,7 @@ Firmware for ESP32-2432S028 (CYD - Cheap Yellow Display) 2.8" TFT with touch scr
 - ESP32-2432S028 (CYD 2.8") or compatible ESP32 with ILI9341 display
 - The board should have:
   - 2.8" TFT display (320x240, ILI9341 driver)
-  - Resistive touch screen (XPT2046)
+  - Capacitive touch screen
   - ESP32 microcontroller
 
 ## Software Requirements

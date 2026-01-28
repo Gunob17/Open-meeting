@@ -7,10 +7,12 @@
 #include "config.h"
 #include "api_client.h"
 #include "ui_manager.h"
+#include "touch.h"
 
 // Global objects
 TFT_eSPI tft = TFT_eSPI();
-UIManager ui(tft);
+TouchController touch;
+UIManager ui(tft, touch);
 ApiClient apiClient;
 Preferences preferences;
 WebServer server(80);
@@ -40,6 +42,9 @@ void performQuickBook(int duration);
 void setup() {
     Serial.begin(115200);
     Serial.println("\n\nMeeting Room Display Starting...");
+
+    // Initialize capacitive touch controller
+    touch.begin(TOUCH_SDA, TOUCH_SCL, TOUCH_RST, TOUCH_INT);
 
     // Initialize display
     ui.begin();

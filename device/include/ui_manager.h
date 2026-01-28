@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 #include "config.h"
 #include "api_client.h"
+#include "touch.h"
 
 // UI States
 enum UIState {
@@ -28,7 +29,7 @@ struct Button {
 
 class UIManager {
 public:
-    UIManager(TFT_eSPI& tft);
+    UIManager(TFT_eSPI& tft, TouchController& touch);
 
     void begin();
     void setRotation(uint8_t rotation);
@@ -61,6 +62,7 @@ public:
 
 private:
     TFT_eSPI& _tft;
+    TouchController& _touch;
     UIState _currentState;
     Button _buttons[8];
     int _buttonCount;
