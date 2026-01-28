@@ -110,3 +110,36 @@ export interface CreateCompanyRequest {
   name: string;
   address: string;
 }
+
+// Screen device types
+export interface Device {
+  id: string;
+  name: string;
+  token: string;
+  roomId: string;
+  isActive: boolean;
+  lastSeenAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeviceWithRoom extends Device {
+  room?: MeetingRoom;
+}
+
+export interface CreateDeviceRequest {
+  name: string;
+  roomId: string;
+}
+
+export interface DeviceRoomStatus {
+  room: MeetingRoom;
+  currentBooking: BookingWithDetails | null;
+  upcomingBookings: BookingWithDetails[];
+  isAvailable: boolean;
+}
+
+export interface DeviceQuickBookingRequest {
+  title: string;
+  durationMinutes: number; // Quick booking duration (e.g., 15, 30, 60 minutes)
+}

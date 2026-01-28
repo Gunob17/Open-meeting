@@ -79,8 +79,25 @@ export function initializeDatabase(): void {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- Screen devices table for room display screens
+    CREATE TABLE IF NOT EXISTS devices (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      room_id TEXT NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      last_seen_at TEXT DEFAULT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (room_id) REFERENCES meeting_rooms(id) ON DELETE CASCADE
+    );
+
     -- Insert default settings if not exists
     INSERT OR IGNORE INTO settings (id, opening_hour, closing_hour) VALUES ('global', 8, 18);
+
+    -- Create index for device token lookup
+    CREATE INDEX IF NOT EXISTS idx_devices_token ON devices(token);
+    CREATE INDEX IF NOT EXISTS idx_devices_room_id ON devices(room_id);
 
     -- Create indexes for better query performance
     CREATE INDEX IF NOT EXISTS idx_bookings_room_id ON bookings(room_id);
