@@ -165,7 +165,8 @@ void loadConfig() {
     String token = preferences.getString(PREF_DEVICE_TOKEN, "");
 
     Serial.println("Loaded config - API URL: " + apiUrl);
-    Serial.println("Loaded config - Token: " + (token.length() > 0 ? "[present]" : "[empty]"));
+    Serial.print("Loaded config - Token: ");
+    Serial.println(token.length() > 0 ? "[present]" : "[empty]");
 
     apiClient.setApiUrl(apiUrl);
     apiClient.setDeviceToken(token);
