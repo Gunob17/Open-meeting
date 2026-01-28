@@ -108,7 +108,7 @@ RoomStatus ApiClient::getRoomStatus() {
     }
 
     // Check for error response
-    if (doc.containsKey("error")) {
+    if (!doc["error"].isNull()) {
         status.errorMessage = doc["error"].as<String>();
         return status;
     }
@@ -169,7 +169,7 @@ QuickBookResult ApiClient::quickBook(const String& title, int durationMinutes) {
     }
 
     // Check for error
-    if (responseDoc.containsKey("error")) {
+    if (!responseDoc["error"].isNull()) {
         result.message = responseDoc["error"].as<String>();
         return result;
     }

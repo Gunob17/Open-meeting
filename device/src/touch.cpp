@@ -60,7 +60,7 @@ uint8_t TouchController::readRegister(uint8_t reg) {
         return 0xFF;
     }
 
-    Wire.requestFrom(TOUCH_I2C_ADDR, (uint8_t)1);
+    Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)1);
     if (Wire.available()) {
         return Wire.read();
     }
@@ -101,7 +101,7 @@ bool TouchController::getPoint(int& x, int& y) {
         return false;
     }
 
-    Wire.requestFrom(TOUCH_I2C_ADDR, (uint8_t)5);
+    Wire.requestFrom((uint8_t)TOUCH_I2C_ADDR, (uint8_t)5);
     if (Wire.available() < 5) {
         return false;
     }
