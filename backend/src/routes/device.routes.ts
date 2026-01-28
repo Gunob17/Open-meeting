@@ -27,6 +27,27 @@ router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =>
   }
 });
 
+// Get devices for a room (admin only) - MUST be before /:id to avoid route conflict
+router.get('/room/:roomId', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+  try {
+    const { roomId } = req.params;
+    const devices = DeviceModel.findByRoom(roomId);
+
+    const devicesWithParsedData = devices.map(d => ({
+      ...d,
+      room: d.room ? {
+        ...d.room,
+        amenities: JSON.parse(d.room.amenities)
+      } : undefined
+    }));
+
+    res.json(devicesWithParsedData);
+  } catch (error) {
+    console.error('Get devices by room error:', error);
+    res.status(500).json({ error: 'Failed to get devices' });
+  }
+});
+
 // Get single device (admin only)
 router.get('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
@@ -48,27 +69,6 @@ router.get('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
   } catch (error) {
     console.error('Get device error:', error);
     res.status(500).json({ error: 'Failed to get device' });
-  }
-});
-
-// Get devices for a room (admin only)
-router.get('/room/:roomId', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
-  try {
-    const { roomId } = req.params;
-    const devices = DeviceModel.findByRoom(roomId);
-
-    const devicesWithParsedData = devices.map(d => ({
-      ...d,
-      room: d.room ? {
-        ...d.room,
-        amenities: JSON.parse(d.room.amenities)
-      } : undefined
-    }));
-
-    res.json(devicesWithParsedData);
-  } catch (error) {
-    console.error('Get devices by room error:', error);
-    res.status(500).json({ error: 'Failed to get devices' });
   }
 });
 
