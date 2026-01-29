@@ -177,6 +177,8 @@ void saveConfig() {
     Serial.println("Config saved");
 }
 
+void handleReset();
+
 void setupWebServer() {
     if (webServerRunning) {
         return;  // Already running
@@ -184,6 +186,7 @@ void setupWebServer() {
     server.on("/", handleRoot);
     server.on("/setup", HTTP_GET, handleSetup);
     server.on("/save", HTTP_POST, handleSaveConfig);
+    server.on("/reset", HTTP_POST, handleReset);
     server.begin();
     webServerRunning = true;
     Serial.println("Web server started on port 80");
@@ -222,13 +225,45 @@ void handleRoot() {
     html += "<div class=\"current\">Get this from Admin Panel &gt; Rooms &gt; Devices</div>";
     html += "</div>";
     html += "<button type=\"submit\">Save Configuration</button>";
-    html += "</form></div></body></html>";
+    html += "</form>";
+    html += "<hr style=\"margin: 20px 0; border: none; border-top: 1px solid #ddd;\">";
+    html += "<form action=\"/reset\" method=\"POST\">";
+    html += "<button type=\"submit\" style=\"background: #ef4444;\">Reset WiFi &amp; Config</button>";
+    html += "<div class=\"current\" style=\"margin-top: 5px;\">This will clear all settings and restart the device</div>";
+    html += "</form>";
+    html += "</div></body></html>";
 
     server.send(200, "text/html", html);
 }
 
 void handleSetup() {
     handleRoot();
+}
+
+void handleReset() {
+    // Clear all preferences
+    preferences.clear();
+    apiClient.setApiUrl("");
+    apiClient.setDeviceToken("");
+
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
+    html += "<title>Reset Complete</title>";
+    html += "<style>body { font-family: Arial, sans-serif; margin: 20px; background: #f3f4f6; text-align: center; }";
+    html += ".container { max-width: 500px; margin: 50px auto; background: white; padding: 30px; border-radius: 8px; }";
+    html += "h1 { color: #ef4444; }</style></head><body>";
+    html += "<div class=\"container\">";
+    html += "<h1>Reset Complete</h1>";
+    html += "<p>Device will restart and enter WiFi setup mode.</p>";
+    html += "<p>Connect to: <strong>MeetingRoom-Setup</strong></p>";
+    html += "</div></body></html>";
+
+    server.send(200, "text/html", html);
+    delay(2000);
+
+    // Reset WiFiManager settings and restart
+    wifiManager.resetSettings();
+    ESP.restart();
 }
 
 void handleSaveConfig() {
@@ -281,8 +316,17 @@ void updateRoomStatus() {
     if (currentStatus.isValid) {
         ui.showRoomStatus(currentStatus);
     } else {
-        ui.showError(currentStatus.errorMessage.length() > 0 ?
-                     currentStatus.errorMessage : "Failed to get room status");
+        // If we can't connect and device wasn't working before, show setup screen
+        if (!deviceConfigured || currentStatus.errorMessage == "Failed to connect to server") {
+            deviceConfigured = false;
+            Serial.println("Server connection failed - showing setup screen");
+            Serial.print("Configure at: http://");
+            Serial.println(WiFi.localIP());
+            ui.showTokenSetup(WiFi.localIP().toString());
+        } else {
+            ui.showError(currentStatus.errorMessage.length() > 0 ?
+                         currentStatus.errorMessage : "Failed to get room status");
+        }
     }
 }
 
