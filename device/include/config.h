@@ -61,4 +61,15 @@
 // Default timezone offset in hours (0 = UTC)
 #define DEFAULT_TIMEZONE_OFFSET 0
 
+// RGB LED pins (active LOW on CYD boards)
+#define LED_RED_PIN 4
+#define LED_GREEN_PIN 16
+#define LED_BLUE_PIN 17
+
+// Screen timeout (turn off backlight after inactivity)
+#define SCREEN_TIMEOUT_MS 120000  // 2 minutes
+
+// Connection retry interval when server is unreachable
+#define CONNECTION_RETRY_INTERVAL 30000  // 30 seconds
+
 #endif // CONFIG_H

@@ -23,9 +23,13 @@ bool wifiConnected = false;
 bool deviceConfigured = false;
 bool webServerRunning = false;
 bool setupMode = false;  // True when showing setup screen after connection failure
+bool screenOn = true;    // Track screen backlight state
+bool connectionLost = false;  // Track if we lost connection to server
 unsigned long lastStatusUpdate = 0;
 unsigned long lastPing = 0;
 unsigned long lastTouchTime = 0;
+unsigned long lastActivityTime = 0;  // For screen timeout
+unsigned long lastConnectionRetry = 0;  // For connection retry
 int selectedDuration = 0;
 RoomStatus currentStatus;
 
@@ -40,16 +44,26 @@ void checkWiFi();
 void updateRoomStatus();
 void handleTouch();
 void performQuickBook(int duration);
+void setupRgbLed();
+void setLedColor(bool available);
+void setLedOff();
+void checkScreenTimeout();
+void wakeScreen();
 
 void setup() {
     Serial.begin(115200);
     Serial.println("\n\nMeeting Room Display Starting...");
+
+    // Initialize RGB LED
+    setupRgbLed();
+    setLedOff();  // Start with LED off
 
     // Initialize capacitive touch controller
     touch.begin(TOUCH_SDA, TOUCH_SCL, TOUCH_RST, TOUCH_INT);
 
     // Initialize display
     ui.begin();
+    lastActivityTime = millis();  // Initialize activity timer
 
     // Show startup screen with instructions
     ui.showStartupScreen();
@@ -121,6 +135,7 @@ void loop() {
         if (wifiConnected) {
             wifiConnected = false;
             webServerRunning = false;
+            setLedOff();
             ui.showError("WiFi disconnected. Restarting...");
             delay(3000);
             ESP.restart();
@@ -131,18 +146,34 @@ void loop() {
 
     // If in setup mode, just wait for config via web interface
     if (setupMode) {
+        setLedOff();  // No LED color during setup
         delay(100);
         return;
     }
 
     // If not configured, wait for config via web interface
     if (!deviceConfigured) {
+        setLedOff();
         delay(100);
         return;
     }
 
     // Handle touch input
     handleTouch();
+
+    // Check screen timeout
+    checkScreenTimeout();
+
+    // If connection was lost, retry every 30 seconds
+    if (connectionLost) {
+        if (millis() - lastConnectionRetry > CONNECTION_RETRY_INTERVAL) {
+            Serial.println("Retrying server connection...");
+            updateRoomStatus();
+            lastConnectionRetry = millis();
+        }
+        delay(50);
+        return;
+    }
 
     // Periodic status update
     if (millis() - lastStatusUpdate > STATUS_POLL_INTERVAL) {
@@ -339,19 +370,31 @@ void updateRoomStatus() {
 
     if (currentStatus.isValid) {
         setupMode = false;  // Connection successful, exit setup mode
+        connectionLost = false;  // Connection restored
         ui.showRoomStatus(currentStatus);
+        // Update LED based on room availability
+        setLedColor(currentStatus.isAvailable);
     } else {
-        // If we can't connect and device wasn't working before, show setup screen
-        if (!deviceConfigured || currentStatus.errorMessage == "Failed to connect to server") {
+        // Check if this is a first-time setup (no config) or connection lost
+        if (!apiClient.isConfigured()) {
+            // Device has no config at all - show setup screen
             deviceConfigured = false;
-            setupMode = true;  // Enter setup mode to prevent retry loop
-            Serial.println("Server connection failed - showing setup screen");
+            setupMode = true;
+            setLedOff();
+            Serial.println("Device not configured - showing setup screen");
             Serial.print("Configure at: http://");
             Serial.println(WiFi.localIP());
             ui.showTokenSetup(WiFi.localIP().toString());
         } else {
-            ui.showError(currentStatus.errorMessage.length() > 0 ?
-                         currentStatus.errorMessage : "Failed to get room status");
+            // Device is configured but can't reach server - show error and retry
+            connectionLost = true;
+            lastConnectionRetry = millis();
+            setLedOff();
+            String errorMsg = currentStatus.errorMessage.length() > 0 ?
+                             currentStatus.errorMessage : "Cannot reach server";
+            errorMsg += "\n\nRetrying in 30s...";
+            Serial.println("Connection lost - will retry in 30 seconds");
+            ui.showError(errorMsg);
         }
     }
 }
@@ -360,6 +403,17 @@ void handleTouch() {
     int touchX, touchY;
 
     if (!ui.getTouchPoint(touchX, touchY)) {
+        return;
+    }
+
+    // Any touch wakes the screen and resets activity timer
+    lastActivityTime = millis();
+
+    // If screen was off, wake it up first
+    if (!screenOn) {
+        wakeScreen();
+        // Debounce - don't process this touch as a button press
+        lastTouchTime = millis();
         return;
     }
 
@@ -414,7 +468,8 @@ void handleTouch() {
             break;
 
         case UI_ERROR:
-            // Retry button
+            // Retry button - immediately try to reconnect
+            connectionLost = false;  // Reset connection lost flag
             ui.showLoading("Retrying...");
             updateRoomStatus();
             break;
@@ -448,4 +503,62 @@ void performQuickBook(int duration) {
     // Auto-return to status after 3 seconds
     delay(3000);
     updateRoomStatus();
+}
+
+// RGB LED functions (active LOW on CYD boards)
+void setupRgbLed() {
+    pinMode(LED_RED_PIN, OUTPUT);
+    pinMode(LED_GREEN_PIN, OUTPUT);
+    pinMode(LED_BLUE_PIN, OUTPUT);
+    // Turn all off (HIGH = off for active LOW)
+    digitalWrite(LED_RED_PIN, HIGH);
+    digitalWrite(LED_GREEN_PIN, HIGH);
+    digitalWrite(LED_BLUE_PIN, HIGH);
+}
+
+void setLedColor(bool available) {
+    if (available) {
+        // Green for available
+        digitalWrite(LED_RED_PIN, HIGH);    // Off
+        digitalWrite(LED_GREEN_PIN, LOW);   // On
+        digitalWrite(LED_BLUE_PIN, HIGH);   // Off
+    } else {
+        // Red for occupied
+        digitalWrite(LED_RED_PIN, LOW);     // On
+        digitalWrite(LED_GREEN_PIN, HIGH);  // Off
+        digitalWrite(LED_BLUE_PIN, HIGH);   // Off
+    }
+}
+
+void setLedOff() {
+    digitalWrite(LED_RED_PIN, HIGH);
+    digitalWrite(LED_GREEN_PIN, HIGH);
+    digitalWrite(LED_BLUE_PIN, HIGH);
+}
+
+// Screen timeout functions
+void checkScreenTimeout() {
+    if (!screenOn) {
+        return;  // Already off
+    }
+
+    if (millis() - lastActivityTime > SCREEN_TIMEOUT_MS) {
+        // Turn off backlight but keep LED showing status
+        screenOn = false;
+        ui.setBacklight(false);
+        Serial.println("Screen timeout - backlight off");
+    }
+}
+
+void wakeScreen() {
+    if (!screenOn) {
+        screenOn = true;
+        ui.setBacklight(true);
+        Serial.println("Screen wake - backlight on");
+        // Refresh the display
+        if (currentStatus.isValid) {
+            ui.showRoomStatus(currentStatus);
+        }
+    }
+    lastActivityTime = millis();
 }
