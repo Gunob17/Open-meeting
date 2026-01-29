@@ -62,6 +62,10 @@ public:
     String getTokenInput() const { return _tokenInput; }
     void clearTokenInput() { _tokenInput = ""; }
 
+    // Timezone
+    void setTimezoneOffset(int hours) { _timezoneOffset = hours; }
+    int getTimezoneOffset() const { return _timezoneOffset; }
+
 private:
     TFT_eSPI& _tft;
     TouchController& _touch;
@@ -70,6 +74,7 @@ private:
     int _buttonCount;
     String _tokenInput;
     String _apiUrlInput;
+    int _timezoneOffset = 0;  // Timezone offset in hours
 
     // Drawing helpers
     void drawHeader(const String& title, uint16_t bgColor = COLOR_PRIMARY);

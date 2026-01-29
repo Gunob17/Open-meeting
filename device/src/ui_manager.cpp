@@ -86,8 +86,28 @@ void UIManager::drawCenteredText(const String& text, int y, uint8_t font) {
 String UIManager::formatTime(const String& isoTime) {
     int tIndex = isoTime.indexOf('T');
     if (tIndex == -1) return isoTime;
+
+    // Extract hours and minutes
     String timePart = isoTime.substring(tIndex + 1, tIndex + 6);
-    return timePart;
+    int colonIdx = timePart.indexOf(':');
+    if (colonIdx == -1) return timePart;
+
+    int hours = timePart.substring(0, colonIdx).toInt();
+    String minutes = timePart.substring(colonIdx + 1);
+
+    // Apply timezone offset
+    hours += _timezoneOffset;
+
+    // Handle day wraparound
+    if (hours >= 24) hours -= 24;
+    if (hours < 0) hours += 24;
+
+    // Format with leading zero
+    String result = "";
+    if (hours < 10) result += "0";
+    result += String(hours) + ":" + minutes;
+
+    return result;
 }
 
 String UIManager::formatTimeRange(const String& start, const String& end) {

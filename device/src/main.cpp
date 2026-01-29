@@ -163,18 +163,23 @@ void loop() {
 void loadConfig() {
     String apiUrl = preferences.getString(PREF_API_URL, "");
     String token = preferences.getString(PREF_DEVICE_TOKEN, "");
+    int tzOffset = preferences.getInt(PREF_TIMEZONE_OFFSET, DEFAULT_TIMEZONE_OFFSET);
 
     Serial.println("Loaded config - API URL: " + apiUrl);
     Serial.print("Loaded config - Token: ");
     Serial.println(token.length() > 0 ? "[present]" : "[empty]");
+    Serial.println("Loaded config - Timezone: UTC" + String(tzOffset >= 0 ? "+" : "") + String(tzOffset));
 
     apiClient.setApiUrl(apiUrl);
     apiClient.setDeviceToken(token);
+    apiClient.setTimezoneOffset(tzOffset);
+    ui.setTimezoneOffset(tzOffset);
 }
 
 void saveConfig() {
     preferences.putString(PREF_API_URL, apiClient.getApiUrl());
     preferences.putString(PREF_DEVICE_TOKEN, apiClient.getDeviceToken());
+    preferences.putInt(PREF_TIMEZONE_OFFSET, apiClient.getTimezoneOffset());
     Serial.println("Config saved");
 }
 
@@ -196,6 +201,8 @@ void setupWebServer() {
 }
 
 void handleRoot() {
+    int currentTz = apiClient.getTimezoneOffset();
+
     String html = "<!DOCTYPE html><html><head>";
     html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
     html += "<title>Meeting Room Display Setup</title>";
@@ -205,7 +212,7 @@ void handleRoot() {
     html += "h1 { color: #4f46e5; }";
     html += ".form-group { margin-bottom: 15px; }";
     html += "label { display: block; margin-bottom: 5px; font-weight: bold; }";
-    html += "input[type=text] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }";
+    html += "input[type=text], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }";
     html += "button { background: #4f46e5; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }";
     html += "button:hover { background: #4338ca; }";
     html += ".info { background: #e0e7ff; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }";
@@ -224,6 +231,17 @@ void handleRoot() {
     html += "<label>Device Token</label>";
     html += "<input type=\"text\" name=\"token\" placeholder=\"Paste token from admin panel\" value=\"" + apiClient.getDeviceToken() + "\">";
     html += "<div class=\"current\">Get this from Admin Panel &gt; Rooms &gt; Devices</div>";
+    html += "</div>";
+    html += "<div class=\"form-group\">";
+    html += "<label>Timezone</label>";
+    html += "<select name=\"timezone\">";
+    for (int tz = -12; tz <= 14; tz++) {
+        String selected = (tz == currentTz) ? " selected" : "";
+        String label = "UTC" + String(tz >= 0 ? "+" : "") + String(tz);
+        html += "<option value=\"" + String(tz) + "\"" + selected + ">" + label + "</option>";
+    }
+    html += "</select>";
+    html += "<div class=\"current\">Select your local timezone</div>";
     html += "</div>";
     html += "<button type=\"submit\">Save Configuration</button>";
     html += "</form>";
@@ -270,10 +288,14 @@ void handleReset() {
 void handleSaveConfig() {
     String apiUrl = server.arg("apiUrl");
     String token = server.arg("token");
+    String tzStr = server.arg("timezone");
+    int timezone = tzStr.length() > 0 ? tzStr.toInt() : 0;
 
     if (apiUrl.length() > 0 && token.length() > 0) {
         apiClient.setApiUrl(apiUrl);
         apiClient.setDeviceToken(token);
+        apiClient.setTimezoneOffset(timezone);
+        ui.setTimezoneOffset(timezone);
         saveConfig();
 
         String html = R"(

@@ -56,5 +56,9 @@
 #define PREFS_NAMESPACE "meetingroom"
 #define PREF_API_URL "api_url"
 #define PREF_DEVICE_TOKEN "device_token"
+#define PREF_TIMEZONE_OFFSET "tz_offset"
+
+// Default timezone offset in hours (0 = UTC)
+#define DEFAULT_TIMEZONE_OFFSET 0
 
 #endif // CONFIG_H
