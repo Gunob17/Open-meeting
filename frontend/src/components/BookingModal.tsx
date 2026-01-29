@@ -7,12 +7,13 @@ interface BookingModalProps {
   room: MeetingRoom;
   initialDate: Date;
   initialHour: number;
+  initialMinute?: number;
   existingBooking?: Booking;
   onClose: () => void;
   onBooked: () => void;
 }
 
-export function BookingModal({ room, initialDate, initialHour, existingBooking, onClose, onBooked }: BookingModalProps) {
+export function BookingModal({ room, initialDate, initialHour, initialMinute = 0, existingBooking, onClose, onBooked }: BookingModalProps) {
   const isEditing = !!existingBooking;
 
   const [title, setTitle] = useState(existingBooking?.title || '');
@@ -20,12 +21,12 @@ export function BookingModal({ room, initialDate, initialHour, existingBooking, 
   const [startTime, setStartTime] = useState(
     existingBooking
       ? format(parseISO(existingBooking.startTime), "yyyy-MM-dd'T'HH:mm")
-      : format(new Date(initialDate).setHours(initialHour, 0), "yyyy-MM-dd'T'HH:mm")
+      : format(new Date(initialDate).setHours(initialHour, initialMinute), "yyyy-MM-dd'T'HH:mm")
   );
   const [endTime, setEndTime] = useState(
     existingBooking
       ? format(parseISO(existingBooking.endTime), "yyyy-MM-dd'T'HH:mm")
-      : format(new Date(initialDate).setHours(initialHour + 1, 0), "yyyy-MM-dd'T'HH:mm")
+      : format(new Date(new Date(initialDate).setHours(initialHour, initialMinute)).getTime() + 60 * 60 * 1000, "yyyy-MM-dd'T'HH:mm")
   );
   const [attendees, setAttendees] = useState(
     existingBooking?.attendees?.join(', ') || ''

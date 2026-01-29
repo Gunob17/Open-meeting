@@ -167,15 +167,13 @@ export function CalendarPage() {
   };
 
   const handleSlotClick = (room: MeetingRoom, date: Date, hour: number) => {
-    const booking = getBookingForSlot(room.id, date, hour);
+    // Always open booking modal for creating new booking
+    setSelectedSlot({ room, date, hour });
+  };
 
-    if (booking) {
-      // Slot has a booking - show booking details
-      setSelectedBooking(booking);
-    } else {
-      // Slot is available - allow creating new booking
-      setSelectedSlot({ room, date, hour });
-    }
+  const handleBookingClick = (e: React.MouseEvent, booking: Booking) => {
+    e.stopPropagation(); // Prevent slot click from firing
+    setSelectedBooking(booking);
   };
 
   const handleBookingCreated = () => {
@@ -381,8 +379,10 @@ export function CalendarPage() {
                             className="booking-indicator booking-span"
                             style={{
                               top: `calc(${displayInfo.topOffset}% + 2px)`,
-                              height: `calc(${displayInfo.height}% - 4px)`
+                              height: `calc(${displayInfo.height}% - 4px)`,
+                              cursor: 'pointer'
                             }}
+                            onClick={(e) => handleBookingClick(e, booking)}
                           >
                             <span className="booking-title">{booking.title}</span>
                             <span className="booking-time">
@@ -406,15 +406,22 @@ export function CalendarPage() {
       </div>
 
       {/* Booking Modal for new bookings */}
-      {selectedSlot && (
-        <BookingModal
-          room={selectedSlot.room}
-          initialDate={selectedSlot.date}
-          initialHour={selectedSlot.hour}
-          onClose={() => setSelectedSlot(null)}
-          onBooked={handleBookingCreated}
-        />
-      )}
+      {selectedSlot && (() => {
+        const now = new Date();
+        const isCurrentHour = selectedSlot.date.toDateString() === now.toDateString() &&
+                              selectedSlot.hour === now.getHours();
+        const initialMinute = isCurrentHour ? Math.ceil(now.getMinutes() / 5) * 5 : 0;
+        return (
+          <BookingModal
+            room={selectedSlot.room}
+            initialDate={selectedSlot.date}
+            initialHour={selectedSlot.hour}
+            initialMinute={initialMinute}
+            onClose={() => setSelectedSlot(null)}
+            onBooked={handleBookingCreated}
+          />
+        );
+      })()}
 
       {/* Booking Modal for editing */}
       {editingBooking && (
