@@ -135,7 +135,7 @@ void UIManager::showWiFiSetup(const String& apName, const String& apPassword) {
     _tft.drawString("192.168.4.1", SCREEN_WIDTH/2, 200, 4);
 }
 
-void UIManager::showTokenSetup(const String& currentToken) {
+void UIManager::showTokenSetup(const String& ipAddress) {
     _currentState = UI_TOKEN_SETUP;
     clearButtons();
 
@@ -145,31 +145,23 @@ void UIManager::showTokenSetup(const String& currentToken) {
     _tft.setTextColor(COLOR_TEXT);
     _tft.setTextDatum(MC_DATUM);
 
-    _tft.drawString("Enter device token from", SCREEN_WIDTH/2, 60, 2);
-    _tft.drawString("admin panel", SCREEN_WIDTH/2, 80, 2);
-
-    // Token input field
-    drawCard(20, 100, SCREEN_WIDTH - 40, 40, COLOR_CARD_BG);
-    _tft.setTextColor(COLOR_TEXT);
-    _tft.setTextDatum(ML_DATUM);
-
-    String displayToken = currentToken.length() > 0 ? currentToken : "Paste token here...";
-    if (displayToken.length() > 30) {
-        displayToken = displayToken.substring(0, 27) + "...";
-    }
-    _tft.drawString(displayToken, 30, 120, 2);
+    _tft.drawString("WiFi Connected!", SCREEN_WIDTH/2, 55, 2);
 
     _tft.setTextColor(COLOR_TEXT_MUTED);
-    _tft.setTextDatum(MC_DATUM);
-    _tft.drawString("Use web interface to enter token", SCREEN_WIDTH/2, 160, 1);
-    _tft.drawString("Go to: 192.168.4.1/setup", SCREEN_WIDTH/2, 175, 2);
+    _tft.drawString("Configure this device at:", SCREEN_WIDTH/2, 85, 2);
 
-    // Buttons
-    drawButton(20, 200, 130, 35, "Clear", COLOR_DANGER, COLOR_TEXT);
-    addButton(20, 200, 130, 35, "Clear", COLOR_DANGER, COLOR_TEXT);
+    // Show IP address prominently
+    _tft.setTextColor(COLOR_SUCCESS);
+    String url = "http://" + ipAddress;
+    _tft.drawString(url, SCREEN_WIDTH/2, 115, 4);
 
-    drawButton(170, 200, 130, 35, "Save", COLOR_SUCCESS, COLOR_TEXT);
-    addButton(170, 200, 130, 35, "Save", COLOR_SUCCESS, COLOR_TEXT);
+    _tft.setTextColor(COLOR_TEXT_MUTED);
+    _tft.drawString("Open this address in your browser", SCREEN_WIDTH/2, 150, 1);
+    _tft.drawString("to enter API URL and device token", SCREEN_WIDTH/2, 165, 1);
+
+    _tft.setTextColor(COLOR_TEXT);
+    _tft.drawString("Get the token from:", SCREEN_WIDTH/2, 195, 1);
+    _tft.drawString("Admin > Rooms > Devices", SCREEN_WIDTH/2, 212, 2);
 }
 
 void UIManager::showRoomStatus(const RoomStatus& status) {

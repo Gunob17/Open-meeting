@@ -21,6 +21,7 @@ WiFiManager wifiManager;
 // State variables
 bool wifiConnected = false;
 bool deviceConfigured = false;
+bool webServerRunning = false;
 unsigned long lastStatusUpdate = 0;
 unsigned long lastPing = 0;
 unsigned long lastTouchTime = 0;
@@ -60,83 +61,78 @@ void setup() {
     ui.showConnecting();
 
     // Configure WiFiManager
-    wifiManager.setConfigPortalTimeout(0);  // No timeout - wait forever
+    wifiManager.setConfigPortalTimeout(180);  // 3 minute timeout for config portal
+    wifiManager.setConnectTimeout(30);  // 30 second connection timeout
     wifiManager.setAPCallback([](WiFiManager* mgr) {
         Serial.println("Entered config portal");
         ui.showWiFiSetup(WIFI_AP_NAME, WIFI_AP_PASSWORD);
     });
 
-    // Custom parameters for API URL and Token
-    WiFiManagerParameter apiUrlParam("apiurl", "API Server URL", apiClient.getApiUrl().c_str(), 100);
-    WiFiManagerParameter tokenParam("token", "Device Token", apiClient.getDeviceToken().c_str(), 70);
-    wifiManager.addParameter(&apiUrlParam);
-    wifiManager.addParameter(&tokenParam);
-
-    wifiManager.setSaveParamsCallback([&apiUrlParam, &tokenParam]() {
-        Serial.println("Saving WiFiManager params...");
-        apiClient.setApiUrl(apiUrlParam.getValue());
-        apiClient.setDeviceToken(tokenParam.getValue());
-        saveConfig();
+    wifiManager.setSaveConfigCallback([]() {
+        Serial.println("WiFi config saved, will restart...");
     });
 
-    // Try to connect to WiFi
-    if (!wifiManager.autoConnect(WIFI_AP_NAME, WIFI_AP_PASSWORD)) {
-        Serial.println("Failed to connect to WiFi");
-        ui.showWiFiSetup(WIFI_AP_NAME, WIFI_AP_PASSWORD);
-    } else {
-        Serial.println("Connected to WiFi!");
-        Serial.print("IP: ");
-        Serial.println(WiFi.localIP());
-        wifiConnected = true;
+    // Try to connect to WiFi (blocking call)
+    Serial.println("Attempting WiFi connection...");
+    bool connected = wifiManager.autoConnect(WIFI_AP_NAME, WIFI_AP_PASSWORD);
 
-        // Check if device is configured
-        if (apiClient.isConfigured()) {
-            deviceConfigured = true;
-            ui.showLoading("Loading room status...");
-            updateRoomStatus();
-        } else {
-            // Start config server
-            setupWebServer();
-            ui.showTokenSetup(apiClient.getDeviceToken());
-        }
+    if (!connected) {
+        Serial.println("Failed to connect to WiFi, starting AP mode");
+        ui.showWiFiSetup(WIFI_AP_NAME, WIFI_AP_PASSWORD);
+        // WiFiManager will handle the config portal
+        return;
     }
 
-    // Always set up web server for configuration access
-    if (wifiConnected && !deviceConfigured) {
-        setupWebServer();
+    // Connected to WiFi
+    Serial.println("Connected to WiFi!");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+    wifiConnected = true;
+
+    // Start our own web server for device configuration
+    setupWebServer();
+
+    // Check if device is configured with API token
+    if (apiClient.isConfigured()) {
+        deviceConfigured = true;
+        ui.showLoading("Loading room status...");
+        updateRoomStatus();
+    } else {
+        // Show setup instructions with IP address
+        Serial.println("Device not configured - showing setup screen");
+        Serial.print("Configure at: http://");
+        Serial.println(WiFi.localIP());
+        ui.showTokenSetup(WiFi.localIP().toString());
     }
 }
 
 void loop() {
-    // Handle WiFiManager
-    wifiManager.process();
-
-    // Handle web server
-    server.handleClient();
+    // Handle web server requests
+    if (webServerRunning) {
+        server.handleClient();
+    }
 
     // Check WiFi connection
     if (WiFi.status() != WL_CONNECTED) {
         if (wifiConnected) {
             wifiConnected = false;
-            ui.showError("WiFi disconnected");
+            webServerRunning = false;
+            ui.showError("WiFi disconnected. Restarting...");
+            delay(3000);
+            ESP.restart();
         }
         delay(100);
         return;
     }
 
-    if (!wifiConnected) {
-        wifiConnected = true;
+    // If not configured, wait for config via web interface
+    if (!deviceConfigured) {
+        // Check if configured via web interface
         if (apiClient.isConfigured()) {
             deviceConfigured = true;
+            ui.showLoading("Loading room status...");
             updateRoomStatus();
-        } else {
-            setupWebServer();
-            ui.showTokenSetup(apiClient.getDeviceToken());
         }
-    }
-
-    // If not configured, wait for config
-    if (!deviceConfigured) {
         delay(100);
         return;
     }
@@ -179,11 +175,17 @@ void saveConfig() {
 }
 
 void setupWebServer() {
+    if (webServerRunning) {
+        return;  // Already running
+    }
     server.on("/", handleRoot);
     server.on("/setup", HTTP_GET, handleSetup);
     server.on("/save", HTTP_POST, handleSaveConfig);
     server.begin();
+    webServerRunning = true;
     Serial.println("Web server started on port 80");
+    Serial.print("Access at: http://");
+    Serial.println(WiFi.localIP());
 }
 
 void handleRoot() {
