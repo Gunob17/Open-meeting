@@ -192,48 +192,38 @@ void setupWebServer() {
 }
 
 void handleRoot() {
-    String html = R"(
-<!DOCTYPE html>
-<html>
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Meeting Room Display Setup</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f3f4f6; }
-        .container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h1 { color: #4f46e5; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
-        button { background: #4f46e5; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }
-        button:hover { background: #4338ca; }
-        .info { background: #e0e7ff; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }
-        .current { color: #6b7280; font-size: 12px; word-break: break-all; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Meeting Room Display</h1>
-        <div class="info">
-            Configure this device to connect to your meeting room booking system.
-        </div>
-        <form action="/save" method="POST">
-            <div class="form-group">
-                <label>API Server URL</label>
-                <input type="text" name="apiUrl" placeholder="http://your-server:3001" value=")" + apiClient.getApiUrl() + R"(">
-                <div class="current">Example: http://192.168.1.100:3001</div>
-            </div>
-            <div class="form-group">
-                <label>Device Token</label>
-                <input type="text" name="token" placeholder="Paste token from admin panel" value=")" + apiClient.getDeviceToken() + R"(">
-                <div class="current">Get this from Admin Panel > Rooms > Devices</div>
-            </div>
-            <button type="submit">Save Configuration</button>
-        </form>
-    </div>
-</body>
-</html>
-)";
+    String html = "<!DOCTYPE html><html><head>";
+    html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
+    html += "<title>Meeting Room Display Setup</title>";
+    html += "<style>";
+    html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f3f4f6; }";
+    html += ".container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }";
+    html += "h1 { color: #4f46e5; }";
+    html += ".form-group { margin-bottom: 15px; }";
+    html += "label { display: block; margin-bottom: 5px; font-weight: bold; }";
+    html += "input[type=text] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }";
+    html += "button { background: #4f46e5; color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 16px; }";
+    html += "button:hover { background: #4338ca; }";
+    html += ".info { background: #e0e7ff; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px; }";
+    html += ".current { color: #6b7280; font-size: 12px; word-break: break-all; }";
+    html += "</style></head><body>";
+    html += "<div class=\"container\">";
+    html += "<h1>Meeting Room Display</h1>";
+    html += "<div class=\"info\">Configure this device to connect to your meeting room booking system.</div>";
+    html += "<form action=\"/save\" method=\"POST\">";
+    html += "<div class=\"form-group\">";
+    html += "<label>API Server URL</label>";
+    html += "<input type=\"text\" name=\"apiUrl\" placeholder=\"http://your-server:3001\" value=\"" + apiClient.getApiUrl() + "\">";
+    html += "<div class=\"current\">Example: http://192.168.1.100:3001</div>";
+    html += "</div>";
+    html += "<div class=\"form-group\">";
+    html += "<label>Device Token</label>";
+    html += "<input type=\"text\" name=\"token\" placeholder=\"Paste token from admin panel\" value=\"" + apiClient.getDeviceToken() + "\">";
+    html += "<div class=\"current\">Get this from Admin Panel &gt; Rooms &gt; Devices</div>";
+    html += "</div>";
+    html += "<button type=\"submit\">Save Configuration</button>";
+    html += "</form></div></body></html>";
+
     server.send(200, "text/html", html);
 }
 
