@@ -33,8 +33,10 @@ public:
 
     void begin();
     void setRotation(uint8_t rotation);
+    void setBacklight(bool on);
 
     // Screen drawing functions
+    void showStartupScreen();
     void showWiFiSetup(const String& apName, const String& apPassword);
     void showTokenSetup(const String& currentToken);
     void showRoomStatus(const RoomStatus& status);

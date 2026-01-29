@@ -49,7 +49,10 @@ void setup() {
 
     // Initialize display
     ui.begin();
-    ui.showLoading("Starting...");
+
+    // Show startup screen with instructions
+    ui.showStartupScreen();
+    delay(2000);  // Show instructions for 2 seconds
 
     // Initialize preferences
     preferences.begin(PREFS_NAMESPACE, false);

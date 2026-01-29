@@ -10,6 +10,62 @@ void UIManager::begin() {
     _tft.init();
     _tft.setRotation(TFT_ROTATION);
     _tft.fillScreen(COLOR_BG);
+
+    // Turn on backlight
+    #ifdef TFT_BL
+    pinMode(TFT_BL, OUTPUT);
+    digitalWrite(TFT_BL, HIGH);
+    #endif
+}
+
+void UIManager::setBacklight(bool on) {
+    #ifdef TFT_BL
+    digitalWrite(TFT_BL, on ? HIGH : LOW);
+    #endif
+}
+
+void UIManager::showStartupScreen() {
+    _currentState = UI_LOADING;
+    clearButtons();
+
+    _tft.fillScreen(COLOR_BG);
+    drawHeader("Meeting Room Display", COLOR_PRIMARY);
+
+    _tft.setTextColor(COLOR_TEXT);
+    _tft.setTextDatum(MC_DATUM);
+
+    _tft.drawString("Setup Instructions", SCREEN_WIDTH/2, 60, 2);
+
+    _tft.setTextColor(COLOR_TEXT_MUTED);
+    _tft.setTextDatum(TL_DATUM);
+
+    int y = 85;
+    int x = 20;
+
+    _tft.drawString("1. Connect to WiFi:", x, y, 2);
+    y += 20;
+    _tft.setTextColor(COLOR_SUCCESS);
+    _tft.drawString("   MeetingRoom-Setup", x, y, 2);
+    y += 18;
+    _tft.setTextColor(COLOR_TEXT_MUTED);
+    _tft.drawString("   Password: setup1234", x, y, 1);
+    y += 22;
+
+    _tft.drawString("2. Open browser:", x, y, 2);
+    y += 20;
+    _tft.setTextColor(COLOR_SUCCESS);
+    _tft.drawString("   http://192.168.4.1", x, y, 2);
+    y += 22;
+
+    _tft.setTextColor(COLOR_TEXT_MUTED);
+    _tft.drawString("3. Select your WiFi network", x, y, 2);
+    y += 22;
+
+    _tft.drawString("4. Enter API URL and Token", x, y, 2);
+
+    _tft.setTextColor(COLOR_WARNING);
+    _tft.setTextDatum(MC_DATUM);
+    _tft.drawString("Starting...", SCREEN_WIDTH/2, 220, 2);
 }
 
 void UIManager::setRotation(uint8_t rotation) {
