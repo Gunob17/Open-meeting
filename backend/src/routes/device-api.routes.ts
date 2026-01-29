@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 import { DeviceModel } from '../models/device.model';
 import { BookingModel } from '../models/booking.model';
 import { RoomModel } from '../models/room.model';
@@ -199,7 +200,7 @@ router.post('/quick-book', authenticateDevice, (req: DeviceRequest, res: Respons
     const deviceBookingUserId = `device:${device.id}`;
 
     // Insert booking directly since we're using a special user ID
-    const bookingId = require('uuid').v4();
+    const bookingId = uuidv4();
     const nowIso = new Date().toISOString();
 
     const stmt = db.prepare(`
