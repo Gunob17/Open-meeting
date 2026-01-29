@@ -22,6 +22,7 @@ WiFiManager wifiManager;
 bool wifiConnected = false;
 bool deviceConfigured = false;
 bool webServerRunning = false;
+bool setupMode = false;  // True when showing setup screen after connection failure
 unsigned long lastStatusUpdate = 0;
 unsigned long lastPing = 0;
 unsigned long lastTouchTime = 0;
@@ -128,14 +129,14 @@ void loop() {
         return;
     }
 
+    // If in setup mode, just wait for config via web interface
+    if (setupMode) {
+        delay(100);
+        return;
+    }
+
     // If not configured, wait for config via web interface
     if (!deviceConfigured) {
-        // Check if configured via web interface
-        if (apiClient.isConfigured()) {
-            deviceConfigured = true;
-            ui.showLoading("Loading room status...");
-            updateRoomStatus();
-        }
         delay(100);
         return;
     }
@@ -300,6 +301,7 @@ void handleSaveConfig() {
 )";
         server.send(200, "text/html", html);
 
+        setupMode = false;  // Exit setup mode to try new config
         deviceConfigured = true;
         delay(1000);
         ui.showLoading("Connecting to server...");
@@ -314,11 +316,13 @@ void updateRoomStatus() {
     lastStatusUpdate = millis();
 
     if (currentStatus.isValid) {
+        setupMode = false;  // Connection successful, exit setup mode
         ui.showRoomStatus(currentStatus);
     } else {
         // If we can't connect and device wasn't working before, show setup screen
         if (!deviceConfigured || currentStatus.errorMessage == "Failed to connect to server") {
             deviceConfigured = false;
+            setupMode = true;  // Enter setup mode to prevent retry loop
             Serial.println("Server connection failed - showing setup screen");
             Serial.print("Configure at: http://");
             Serial.println(WiFi.localIP());
