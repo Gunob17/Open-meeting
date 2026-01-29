@@ -256,3 +256,176 @@ export async function sendCancellationNotice(params: MeetingInviteParams): Promi
     console.error('Failed to send cancellation notice:', error);
   }
 }
+
+interface AdminActionParams {
+  booking: Booking;
+  room: MeetingRoom;
+  bookingOwner: Omit<User, 'password'>;
+  admin: Omit<User, 'password'>;
+  attendeeEmails: string[];
+  reason?: string;
+}
+
+export async function sendAdminDeleteNotice(params: AdminActionParams): Promise<void> {
+  const { booking, room, bookingOwner, admin, attendeeEmails, reason } = params;
+
+  if (!bookingOwner.email) {
+    return;
+  }
+
+  try {
+    const startTime = new Date(booking.startTime);
+    const endTime = new Date(booking.endTime);
+    const dateOptions: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    };
+    const timeOptions: Intl.DateTimeFormatOptions = {
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #ef4444; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+    .details { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    .reason { background: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0;">Meeting Deleted by Administrator</h1>
+    </div>
+    <div class="content">
+      <p>Your meeting has been deleted by a system administrator.</p>
+
+      <div class="details">
+        <p><strong>Meeting:</strong> ${booking.title}</p>
+        <p><strong>Date:</strong> ${startTime.toLocaleDateString('en-US', dateOptions)}</p>
+        <p><strong>Time:</strong> ${startTime.toLocaleTimeString('en-US', timeOptions)} - ${endTime.toLocaleTimeString('en-US', timeOptions)}</p>
+        <p><strong>Room:</strong> ${room.name}</p>
+      </div>
+
+      ${reason ? `<div class="reason"><p><strong>Reason:</strong> ${reason}</p></div>` : ''}
+
+      <p>Deleted by: ${admin.name} (${admin.email})</p>
+
+      <p>If you have any questions, please contact the administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const allRecipients = [bookingOwner.email, ...attendeeEmails].filter(Boolean);
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"Meeting Room Booking" <noreply@meetingbooking.com>',
+      to: allRecipients.join(', '),
+      subject: `Meeting Deleted: ${booking.title}`,
+      html: htmlContent
+    });
+
+    console.log(`Admin delete notice sent to: ${allRecipients.join(', ')}`);
+  } catch (error) {
+    console.error('Failed to send admin delete notice:', error);
+  }
+}
+
+interface AdminMoveParams extends AdminActionParams {
+  oldRoom: MeetingRoom;
+  newRoom: MeetingRoom;
+}
+
+export async function sendAdminMoveNotice(params: AdminMoveParams): Promise<void> {
+  const { booking, oldRoom, newRoom, bookingOwner, admin, attendeeEmails, reason } = params;
+
+  if (!bookingOwner.email) {
+    return;
+  }
+
+  try {
+    const startTime = new Date(booking.startTime);
+    const endTime = new Date(booking.endTime);
+    const dateOptions: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    };
+    const timeOptions: Intl.DateTimeFormatOptions = {
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #f59e0b; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+    .details { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    .room-change { display: flex; align-items: center; gap: 10px; margin: 15px 0; }
+    .old-room { background: #fee2e2; padding: 10px; border-radius: 8px; text-decoration: line-through; }
+    .new-room { background: #dcfce7; padding: 10px; border-radius: 8px; font-weight: bold; }
+    .arrow { font-size: 24px; color: #6b7280; }
+    .reason { background: #fef3c7; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f59e0b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0;">Meeting Room Changed</h1>
+    </div>
+    <div class="content">
+      <p>Your meeting has been moved to a different room by a system administrator.</p>
+
+      <div class="details">
+        <p><strong>Meeting:</strong> ${booking.title}</p>
+        <p><strong>Date:</strong> ${startTime.toLocaleDateString('en-US', dateOptions)}</p>
+        <p><strong>Time:</strong> ${startTime.toLocaleTimeString('en-US', timeOptions)} - ${endTime.toLocaleTimeString('en-US', timeOptions)}</p>
+      </div>
+
+      <div class="room-change">
+        <div class="old-room">${oldRoom.name}<br><small>${oldRoom.floor}</small></div>
+        <span class="arrow">→</span>
+        <div class="new-room">${newRoom.name}<br><small>${newRoom.floor}</small></div>
+      </div>
+
+      ${reason ? `<div class="reason"><p><strong>Reason:</strong> ${reason}</p></div>` : ''}
+
+      <p>Changed by: ${admin.name} (${admin.email})</p>
+
+      <p>If you have any questions, please contact the administrator.</p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    const allRecipients = [bookingOwner.email, ...attendeeEmails].filter(Boolean);
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"Meeting Room Booking" <noreply@meetingbooking.com>',
+      to: allRecipients.join(', '),
+      subject: `Meeting Room Changed: ${booking.title}`,
+      html: htmlContent
+    });
+
+    console.log(`Admin move notice sent to: ${allRecipients.join(', ')}`);
+  } catch (error) {
+    console.error('Failed to send admin move notice:', error);
+  }
+}

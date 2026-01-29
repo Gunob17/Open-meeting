@@ -163,18 +163,19 @@ export class BookingModel {
     return result.count > 0;
   }
 
-  static update(id: string, data: Partial<CreateBookingRequest>): Booking | null {
+  static update(id: string, data: Partial<CreateBookingRequest> & { roomId?: string }): Booking | null {
     const existing = this.findById(id);
     if (!existing) return null;
 
     const now = new Date().toISOString();
     const stmt = db.prepare(`
       UPDATE bookings
-      SET title = ?, description = ?, start_time = ?, end_time = ?, attendees = ?, updated_at = ?
+      SET room_id = ?, title = ?, description = ?, start_time = ?, end_time = ?, attendees = ?, updated_at = ?
       WHERE id = ?
     `);
 
     stmt.run(
+      data.roomId ?? existing.roomId,
       data.title ?? existing.title,
       data.description ?? existing.description,
       data.startTime ?? existing.startTime,

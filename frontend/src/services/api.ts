@@ -269,8 +269,18 @@ class ApiService {
     await this.request(`/bookings/${id}/cancel`, { method: 'POST' });
   }
 
-  async deleteBooking(id: string): Promise<void> {
-    await this.request(`/bookings/${id}`, { method: 'DELETE' });
+  async deleteBooking(id: string, reason?: string): Promise<void> {
+    await this.request(`/bookings/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason })
+    });
+  }
+
+  async moveBooking(id: string, newRoomId: string, reason?: string): Promise<Booking> {
+    return this.request<Booking>(`/bookings/${id}/move`, {
+      method: 'POST',
+      body: JSON.stringify({ newRoomId, reason })
+    });
   }
 
   // Devices

@@ -19,6 +19,11 @@ export function CalendarPage() {
   } | null>(null);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [moveTargetRoom, setMoveTargetRoom] = useState('');
+  const [adminActionReason, setAdminActionReason] = useState('');
+
+  const isAdmin = user?.role === 'admin';
 
   // Show 7 days starting from startDate
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate]);
@@ -193,10 +198,18 @@ export function CalendarPage() {
   };
 
   const handleDeleteBooking = async () => {
-    if (selectedBooking && window.confirm('Are you sure you want to delete this booking?')) {
+    if (!selectedBooking) return;
+
+    const isOwn = isOwnBooking(selectedBooking);
+    const message = isOwn
+      ? 'Are you sure you want to delete this booking?'
+      : 'Are you sure you want to delete this booking? The organizer will be notified.';
+
+    if (window.confirm(message)) {
       try {
-        await api.deleteBooking(selectedBooking.id);
+        await api.deleteBooking(selectedBooking.id, isOwn ? undefined : adminActionReason || undefined);
         setSelectedBooking(null);
+        setAdminActionReason('');
         loadData();
       } catch (error) {
         console.error('Failed to delete booking:', error);
@@ -211,8 +224,37 @@ export function CalendarPage() {
     }
   };
 
+  const handleMoveBooking = async () => {
+    if (!selectedBooking || !moveTargetRoom) return;
+
+    try {
+      await api.moveBooking(selectedBooking.id, moveTargetRoom, adminActionReason || undefined);
+      setSelectedBooking(null);
+      setShowMoveDialog(false);
+      setMoveTargetRoom('');
+      setAdminActionReason('');
+      loadData();
+    } catch (error: any) {
+      alert(error.message || 'Failed to move booking');
+    }
+  };
+
+  const openMoveDialog = () => {
+    setShowMoveDialog(true);
+    setMoveTargetRoom('');
+    setAdminActionReason('');
+  };
+
   const isOwnBooking = (booking: Booking): boolean => {
     return booking.userId === user?.id;
+  };
+
+  const canModifyBooking = (booking: Booking): boolean => {
+    return isOwnBooking(booking) || isAdmin;
+  };
+
+  const isFutureOrOngoing = (booking: Booking): boolean => {
+    return new Date(booking.endTime) > new Date();
   };
 
   if (loading) {
@@ -388,7 +430,7 @@ export function CalendarPage() {
       )}
 
       {/* Booking Details Modal */}
-      {selectedBooking && (
+      {selectedBooking && !showMoveDialog && (
         <div className="modal-overlay" onClick={() => setSelectedBooking(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
@@ -410,6 +452,7 @@ export function CalendarPage() {
               <button className="btn btn-secondary" onClick={() => setSelectedBooking(null)}>
                 Close
               </button>
+              {/* Own booking actions */}
               {isOwnBooking(selectedBooking) && (
                 <>
                   <button className="btn btn-primary" onClick={handleEditBooking}>
@@ -423,6 +466,84 @@ export function CalendarPage() {
                   </button>
                 </>
               )}
+              {/* Admin actions for other people's bookings */}
+              {isAdmin && !isOwnBooking(selectedBooking) && isFutureOrOngoing(selectedBooking) && (
+                <>
+                  <button className="btn btn-primary" onClick={openMoveDialog}>
+                    Move to Room
+                  </button>
+                  <button className="btn btn-danger" onClick={handleDeleteBooking}>
+                    Delete (Admin)
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Move Booking Dialog */}
+      {showMoveDialog && selectedBooking && (
+        <div className="modal-overlay" onClick={() => setShowMoveDialog(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Move Booking to Another Room</h2>
+              <button className="modal-close" onClick={() => setShowMoveDialog(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p><strong>Meeting:</strong> {selectedBooking.title}</p>
+              <p><strong>Current Room:</strong> {selectedBooking.room?.name}</p>
+              <p><strong>Time:</strong> {format(parseISO(selectedBooking.startTime), 'MMM d, yyyy h:mm a')} - {format(parseISO(selectedBooking.endTime), 'h:mm a')}</p>
+
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label htmlFor="targetRoom"><strong>Move to Room:</strong></label>
+                <select
+                  id="targetRoom"
+                  value={moveTargetRoom}
+                  onChange={(e) => setMoveTargetRoom(e.target.value)}
+                  className="form-control"
+                  style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
+                >
+                  <option value="">Select a room...</option>
+                  {rooms
+                    .filter(r => r.id !== selectedBooking.roomId && r.isActive)
+                    .map(room => (
+                      <option key={room.id} value={room.id}>
+                        {room.name} (Floor: {room.floor}, Capacity: {room.capacity})
+                      </option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '1rem' }}>
+                <label htmlFor="reason"><strong>Reason (optional):</strong></label>
+                <input
+                  type="text"
+                  id="reason"
+                  value={adminActionReason}
+                  onChange={(e) => setAdminActionReason(e.target.value)}
+                  placeholder="e.g., Room maintenance, double booking fix..."
+                  className="form-control"
+                  style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
+                />
+              </div>
+
+              <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.875rem' }}>
+                The meeting organizer will be notified via email about this change.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowMoveDialog(false)}>
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleMoveBooking}
+                disabled={!moveTargetRoom}
+              >
+                Move Booking
+              </button>
             </div>
           </div>
         </div>

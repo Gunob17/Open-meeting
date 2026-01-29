@@ -3,7 +3,7 @@ import { BookingModel } from '../models/booking.model';
 import { RoomModel } from '../models/room.model';
 import { UserModel } from '../models/user.model';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
-import { sendMeetingInvite, sendCancellationNotice } from '../services/email.service';
+import { sendMeetingInvite, sendCancellationNotice, sendAdminDeleteNotice, sendAdminMoveNotice } from '../services/email.service';
 import { UserRole, MeetingRoom } from '../types';
 import db from '../models/database';
 
@@ -365,10 +365,11 @@ router.post('/:id/cancel', authenticate, async (req: AuthRequest, res: Response)
   }
 });
 
-// Delete booking (admin only)
-router.delete('/:id', authenticate, (req: AuthRequest, res: Response) => {
+// Delete booking (admin can delete any, users can delete own)
+router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const { reason } = req.body;
 
     const booking = BookingModel.findById(id);
     if (!booking) {
@@ -376,17 +377,124 @@ router.delete('/:id', authenticate, (req: AuthRequest, res: Response) => {
       return;
     }
 
+    const isAdmin = req.user!.role === UserRole.ADMIN;
+    const isOwner = booking.userId === req.user!.userId;
+
     // Only admin or booking owner can delete
-    if (booking.userId !== req.user!.userId && req.user!.role !== UserRole.ADMIN) {
+    if (!isOwner && !isAdmin) {
       res.status(403).json({ error: 'Cannot delete bookings made by others' });
       return;
     }
 
+    // Get details for email notification before deleting
+    const room = RoomModel.findById(booking.roomId);
+    const bookingOwner = UserModel.findById(booking.userId);
+    const admin = UserModel.findById(req.user!.userId);
+
     BookingModel.delete(id);
+
+    // If admin deleted someone else's booking, send notification
+    if (isAdmin && !isOwner && room && bookingOwner && admin) {
+      await sendAdminDeleteNotice({
+        booking,
+        room,
+        bookingOwner: { ...bookingOwner, password: undefined } as any,
+        admin: { ...admin, password: undefined } as any,
+        attendeeEmails: JSON.parse(booking.attendees),
+        reason
+      });
+    }
+
     res.status(204).send();
   } catch (error) {
     console.error('Delete booking error:', error);
     res.status(500).json({ error: 'Failed to delete booking' });
+  }
+});
+
+// Move booking to another room (admin only)
+router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { newRoomId, reason } = req.body;
+
+    // Only admins can move bookings
+    if (req.user!.role !== UserRole.ADMIN) {
+      res.status(403).json({ error: 'Only administrators can move bookings' });
+      return;
+    }
+
+    if (!newRoomId) {
+      res.status(400).json({ error: 'New room ID is required' });
+      return;
+    }
+
+    const booking = BookingModel.findById(id);
+    if (!booking) {
+      res.status(404).json({ error: 'Booking not found' });
+      return;
+    }
+
+    const oldRoom = RoomModel.findById(booking.roomId);
+    const newRoom = RoomModel.findById(newRoomId);
+
+    if (!newRoom) {
+      res.status(404).json({ error: 'New room not found' });
+      return;
+    }
+
+    if (!newRoom.isActive) {
+      res.status(400).json({ error: 'New room is not available for booking' });
+      return;
+    }
+
+    if (booking.roomId === newRoomId) {
+      res.status(400).json({ error: 'Booking is already in this room' });
+      return;
+    }
+
+    // Check for conflicts in the new room
+    const hasConflict = BookingModel.checkConflict(newRoomId, booking.startTime, booking.endTime);
+    if (hasConflict) {
+      res.status(409).json({ error: 'New room is already booked for this time slot' });
+      return;
+    }
+
+    // Update the booking with the new room
+    const updatedBooking = BookingModel.update(id, { roomId: newRoomId });
+    if (!updatedBooking) {
+      res.status(500).json({ error: 'Failed to move booking' });
+      return;
+    }
+
+    // Send notification to booking owner
+    const bookingOwner = UserModel.findById(booking.userId);
+    const admin = UserModel.findById(req.user!.userId);
+
+    if (oldRoom && newRoom && bookingOwner && admin) {
+      await sendAdminMoveNotice({
+        booking: updatedBooking,
+        room: newRoom,
+        oldRoom,
+        newRoom,
+        bookingOwner: { ...bookingOwner, password: undefined } as any,
+        admin: { ...admin, password: undefined } as any,
+        attendeeEmails: JSON.parse(booking.attendees),
+        reason
+      });
+    }
+
+    res.json({
+      ...updatedBooking,
+      attendees: JSON.parse(updatedBooking.attendees),
+      room: {
+        ...newRoom,
+        amenities: JSON.parse(newRoom.amenities)
+      }
+    });
+  } catch (error) {
+    console.error('Move booking error:', error);
+    res.status(500).json({ error: 'Failed to move booking' });
   }
 });
 
