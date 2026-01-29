@@ -61,6 +61,8 @@ router.get('/status', authenticateDevice, (req: DeviceRequest, res: Response) =>
     const todayEnd = new Date(now);
     todayEnd.setHours(23, 59, 59, 999);
 
+    console.log('Device status check - Server time:', now.toISOString(), 'Local:', now.toString());
+
     // Get all bookings for today and beyond for this room
     const bookings = BookingModel.findByRoom(
       room.id,
@@ -68,11 +70,18 @@ router.get('/status', authenticateDevice, (req: DeviceRequest, res: Response) =>
       new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() // Next 7 days
     );
 
+    console.log('Found', bookings.length, 'bookings for room', room.name);
+    bookings.forEach(b => {
+      console.log('  Booking:', b.title, 'Start:', b.startTime, 'End:', b.endTime);
+    });
+
     // Find current booking (now falls within booking time)
     const currentBooking = bookings.find(b => {
       const start = new Date(b.startTime);
       const end = new Date(b.endTime);
-      return now >= start && now < end;
+      const isCurrentlyActive = now >= start && now < end;
+      console.log('  Checking booking:', b.title, '| now >= start:', now >= start, '| now < end:', now < end, '| active:', isCurrentlyActive);
+      return isCurrentlyActive;
     });
 
     // Find upcoming bookings (start time is in the future)
@@ -99,6 +108,8 @@ router.get('/status', authenticateDevice, (req: DeviceRequest, res: Response) =>
       upcomingBookings: bookingsWithDetails,
       isAvailable: !currentBooking
     };
+
+    console.log('Room status:', room.name, '| Available:', !currentBooking, '| Current booking:', currentBooking?.title || 'none');
 
     res.json(status);
   } catch (error) {

@@ -23,18 +23,18 @@
 // Touch I2C address (CST820 uses 0x15)
 #define TOUCH_I2C_ADDR 0x15
 
-// Colors (RGB565)
-#define COLOR_BG          0x0000  // Black
-#define COLOR_PRIMARY     0x4A49  // Indigo (similar to #4f46e5)
-#define COLOR_SUCCESS     0x07E0  // Green
-#define COLOR_DANGER      0xF800  // Red
-#define COLOR_WARNING     0xFD20  // Orange
-#define COLOR_TEXT        0xFFFF  // White
-#define COLOR_TEXT_DARK   0x0000  // Black
-#define COLOR_TEXT_MUTED  0x7BEF  // Gray
-#define COLOR_CARD_BG     0x2104  // Dark gray
-#define COLOR_AVAILABLE   0x07E0  // Green
-#define COLOR_OCCUPIED    0xF800  // Red
+// Colors (RGB565) - Modern muted palette
+#define COLOR_BG          0x1082  // Dark blue-gray (#18181b)
+#define COLOR_PRIMARY     0x4A69  // Muted indigo (#4f46e5)
+#define COLOR_SUCCESS     0x2D8A  // Muted teal (#2dd4bf -> softer green)
+#define COLOR_DANGER      0xD186  // Muted coral (#ef4444 -> softer red)
+#define COLOR_WARNING     0xDC80  // Muted amber (#f59e0b -> softer orange)
+#define COLOR_TEXT        0xE71C  // Off-white (#e4e4e7)
+#define COLOR_TEXT_DARK   0x1082  // Dark (#18181b)
+#define COLOR_TEXT_MUTED  0x8C51  // Gray (#9ca3af)
+#define COLOR_CARD_BG     0x2124  // Darker card (#27272a)
+#define COLOR_AVAILABLE   0x2D8A  // Muted teal (same as success)
+#define COLOR_OCCUPIED    0xD186  // Muted coral (same as danger)
 
 // API settings
 #define API_TIMEOUT 10000        // 10 seconds
