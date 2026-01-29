@@ -338,7 +338,7 @@ export function CalendarPage() {
                     const hasBooking = booking !== null;
                     const fullyBooked = hasBooking && isSlotFullyBooked(room.id, day, hour);
                     const partiallyBooked = hasBooking && !fullyBooked;
-                    const isPast = new Date(day).setHours(hour) < Date.now();
+                    const isPast = new Date(day).setHours(hour + 1) < Date.now();
                     const isAvailable = isSlotAvailable(room, hour);
                     const canBook = canUserBookRoom(room);
                     const isRestricted = !isAvailable || !canBook;
