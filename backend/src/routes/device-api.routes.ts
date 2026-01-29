@@ -44,6 +44,15 @@ function authenticateDevice(req: DeviceRequest, res: Response, next: NextFunctio
   next();
 }
 
+// Helper function to parse booking time (handles both ISO with and without timezone)
+function parseBookingTime(timeStr: string): Date {
+  // If time string doesn't end with Z or timezone offset, treat as UTC
+  if (timeStr && !timeStr.endsWith('Z') && !timeStr.match(/[+-]\d{2}:\d{2}$/)) {
+    return new Date(timeStr + ':00.000Z');
+  }
+  return new Date(timeStr);
+}
+
 // Get room status and upcoming bookings
 router.get('/status', authenticateDevice, (req: DeviceRequest, res: Response) => {
   try {
@@ -77,16 +86,16 @@ router.get('/status', authenticateDevice, (req: DeviceRequest, res: Response) =>
 
     // Find current booking (now falls within booking time)
     const currentBooking = bookings.find(b => {
-      const start = new Date(b.startTime);
-      const end = new Date(b.endTime);
+      const start = parseBookingTime(b.startTime);
+      const end = parseBookingTime(b.endTime);
       const isCurrentlyActive = now >= start && now < end;
-      console.log('  Checking booking:', b.title, '| now >= start:', now >= start, '| now < end:', now < end, '| active:', isCurrentlyActive);
+      console.log('  Checking booking:', b.title, '| start:', start.toISOString(), '| end:', end.toISOString(), '| now >= start:', now >= start, '| now < end:', now < end, '| active:', isCurrentlyActive);
       return isCurrentlyActive;
     });
 
     // Find upcoming bookings (start time is in the future)
     const upcomingBookings = bookings
-      .filter(b => new Date(b.startTime) > now)
+      .filter(b => parseBookingTime(b.startTime) > now)
       .slice(0, 3); // Next 3 bookings
 
     // Get user details for bookings (without password)
