@@ -195,11 +195,10 @@ router.post('/quick-book', authenticateDevice, (req: DeviceRequest, res: Respons
       return;
     }
 
-    // Create booking with device as the "user" - use a special system user ID
-    // For quick bookings, we'll use a placeholder user ID that indicates it was booked from a device
-    const deviceBookingUserId = `device:${device.id}`;
+    // Use the system user for device quick bookings
+    const deviceBookingUserId = 'device-booking-user';
 
-    // Insert booking directly since we're using a special user ID
+    // Insert booking directly since we're using the system user
     const bookingId = uuidv4();
     const nowIso = new Date().toISOString();
 

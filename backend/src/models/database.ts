@@ -95,6 +95,13 @@ export function initializeDatabase(): void {
     -- Insert default settings if not exists
     INSERT OR IGNORE INTO settings (id, opening_hour, closing_hour) VALUES ('global', 8, 18);
 
+    -- Create system company for device bookings
+    INSERT OR IGNORE INTO companies (id, name, address) VALUES ('system', 'System', 'Internal');
+
+    -- Create system user for device quick bookings
+    INSERT OR IGNORE INTO users (id, email, password, name, role, company_id)
+    VALUES ('device-booking-user', 'device@system.local', '', 'Device Booking', 'user', 'system');
+
     -- Create index for device token lookup
     CREATE INDEX IF NOT EXISTS idx_devices_token ON devices(token);
     CREATE INDEX IF NOT EXISTS idx_devices_room_id ON devices(room_id);
