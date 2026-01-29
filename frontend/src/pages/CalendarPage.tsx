@@ -168,13 +168,12 @@ export function CalendarPage() {
 
   const handleSlotClick = (room: MeetingRoom, date: Date, hour: number) => {
     const booking = getBookingForSlot(room.id, date, hour);
-    const fullyBooked = isSlotFullyBooked(room.id, date, hour);
 
-    if (booking && fullyBooked) {
-      // Slot is fully booked - show booking details
+    if (booking) {
+      // Slot has a booking - show booking details
       setSelectedBooking(booking);
     } else {
-      // Slot is available or only partially booked - allow creating new booking
+      // Slot is available - allow creating new booking
       setSelectedSlot({ room, date, hour });
     }
   };
