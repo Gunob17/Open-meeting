@@ -103,7 +103,7 @@ export class DeviceModel {
     const stmt = db.prepare(query);
     const rows = stmt.all() as any[];
 
-    return rows.map(this.mapRowToDeviceWithRoom);
+    return rows.map(row => this.mapRowToDeviceWithRoom(row));
   }
 
   static findByRoom(roomId: string): DeviceWithRoom[] {
@@ -122,7 +122,7 @@ export class DeviceModel {
     `);
     const rows = stmt.all(roomId) as any[];
 
-    return rows.map(this.mapRowToDeviceWithRoom);
+    return rows.map(row => this.mapRowToDeviceWithRoom(row));
   }
 
   static update(id: string, data: Partial<{ name: string; roomId: string; isActive: boolean }>): Device | null {
