@@ -395,6 +395,24 @@ body {
   border-color: #ef4444;
 }
 
+.time-slot.partial {
+  background: linear-gradient(135deg, #dcfce7 50%, #fee2e2 50%);
+  cursor: pointer;
+}
+
+.time-slot.partial:hover {
+  background: linear-gradient(135deg, #bbf7d0 50%, #fecaca 50%);
+  border-color: #22c55e;
+}
+
+.time-slot.partial .slot-available-indicator {
+  opacity: 0.7;
+}
+
+.time-slot.partial:hover .slot-available-indicator {
+  opacity: 1;
+}
+
 .time-slot.past {
   background: #f3f4f6;
   cursor: not-allowed;
@@ -507,6 +525,11 @@ body {
 .legend-color.booked {
   background: #fee2e2;
   border-color: #ef4444;
+}
+
+.legend-color.partial {
+  background: linear-gradient(135deg, #dcfce7 50%, #fee2e2 50%);
+  border-color: #22c55e;
 }
 
 .legend-color.past {

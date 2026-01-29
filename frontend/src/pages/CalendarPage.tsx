@@ -121,11 +121,55 @@ export function CalendarPage() {
     return { topOffset, height, slots };
   };
 
+  // Check if slot is fully booked (entire hour is covered by one or more bookings)
+  const isSlotFullyBooked = (roomId: string, date: Date, hour: number): boolean => {
+    const slotStart = new Date(date);
+    slotStart.setHours(hour, 0, 0, 0);
+    const slotEnd = new Date(date);
+    slotEnd.setHours(hour + 1, 0, 0, 0);
+
+    // Get all bookings for this slot
+    const slotBookings = bookings.filter(b => {
+      if (b.roomId !== roomId || b.status === 'cancelled') return false;
+      const bookingStart = parseISO(b.startTime);
+      const bookingEnd = parseISO(b.endTime);
+      return bookingStart < slotEnd && bookingEnd > slotStart;
+    });
+
+    if (slotBookings.length === 0) return false;
+
+    // Check if the entire hour is covered
+    // Sort bookings by start time
+    const sorted = slotBookings
+      .map(b => ({
+        start: Math.max(parseISO(b.startTime).getTime(), slotStart.getTime()),
+        end: Math.min(parseISO(b.endTime).getTime(), slotEnd.getTime())
+      }))
+      .sort((a, b) => a.start - b.start);
+
+    // Check for gaps
+    let coveredUntil = slotStart.getTime();
+    for (const booking of sorted) {
+      if (booking.start > coveredUntil) {
+        // There's a gap - not fully booked
+        return false;
+      }
+      coveredUntil = Math.max(coveredUntil, booking.end);
+    }
+
+    // Check if we've covered the entire slot
+    return coveredUntil >= slotEnd.getTime();
+  };
+
   const handleSlotClick = (room: MeetingRoom, date: Date, hour: number) => {
     const booking = getBookingForSlot(room.id, date, hour);
-    if (booking) {
+    const fullyBooked = isSlotFullyBooked(room.id, date, hour);
+
+    if (booking && fullyBooked) {
+      // Slot is fully booked - show booking details
       setSelectedBooking(booking);
     } else {
+      // Slot is available or only partially booked - allow creating new booking
       setSelectedSlot({ room, date, hour });
     }
   };
@@ -197,8 +241,12 @@ export function CalendarPage() {
             <span>Available - Click to book</span>
           </div>
           <div className="legend-item">
+            <span className="legend-color partial"></span>
+            <span>Partially booked - Click to book free time</span>
+          </div>
+          <div className="legend-item">
             <span className="legend-color booked"></span>
-            <span>Booked - Click for details</span>
+            <span>Fully booked - Click for details</span>
           </div>
           <div className="legend-item">
             <span className="legend-color unavailable"></span>
@@ -245,14 +293,16 @@ export function CalendarPage() {
                   </div>
                   {rooms.map(room => {
                     const booking = getBookingForSlot(room.id, day, hour);
-                    const isBooked = booking !== null;
+                    const hasBooking = booking !== null;
+                    const fullyBooked = hasBooking && isSlotFullyBooked(room.id, day, hour);
+                    const partiallyBooked = hasBooking && !fullyBooked;
                     const isPast = new Date(day).setHours(hour) < Date.now();
                     const isAvailable = isSlotAvailable(room, hour);
                     const canBook = canUserBookRoom(room);
                     const isRestricted = !isAvailable || !canBook;
 
                     // Check if this is the start of the booking (to show spanning indicator)
-                    const showBookingStart = isBooked && isBookingStart(booking, day, hour);
+                    const showBookingStart = hasBooking && isBookingStart(booking, day, hour);
                     const displayInfo = showBookingStart ? getBookingDisplayInfo(booking, hour) : null;
 
                     let slotClass = 'time-slot';
@@ -261,9 +311,12 @@ export function CalendarPage() {
                     if (isPast) {
                       slotClass += ' past';
                       title = 'Past time slot';
-                    } else if (isBooked) {
+                    } else if (fullyBooked) {
                       slotClass += ' booked';
                       title = `${booking.title} - Click for details`;
+                    } else if (partiallyBooked) {
+                      slotClass += ' partial';
+                      title = `Partially booked - Click to book remaining time`;
                     } else if (!isAvailable) {
                       slotClass += ' unavailable';
                       title = 'Outside room booking hours';
@@ -296,7 +349,7 @@ export function CalendarPage() {
                             </span>
                           </div>
                         )}
-                        {!isBooked && !isPast && !isRestricted && (
+                        {(!hasBooking || partiallyBooked) && !isPast && !isRestricted && (
                           <div className="slot-available-indicator">
                             <span className="plus-icon">+</span>
                           </div>
