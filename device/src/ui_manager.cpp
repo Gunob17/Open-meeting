@@ -87,10 +87,28 @@ String UIManager::formatTime(const String& isoTime) {
     int tIndex = isoTime.indexOf('T');
     if (tIndex == -1) return isoTime;
 
-    // Extract hours and minutes - times from backend are already in local time
-    // so we don't apply timezone offset here
+    // Parse UTC time from ISO string and convert to local time
     String timePart = isoTime.substring(tIndex + 1, tIndex + 6);
-    return timePart;
+    int colonIndex = timePart.indexOf(':');
+    if (colonIndex == -1) return timePart;
+
+    int hours = timePart.substring(0, colonIndex).toInt();
+    int minutes = timePart.substring(colonIndex + 1).toInt();
+
+    // Apply timezone offset (convert UTC to local time)
+    hours += _timezoneOffset;
+
+    // Handle day wraparound
+    if (hours >= 24) {
+        hours -= 24;
+    } else if (hours < 0) {
+        hours += 24;
+    }
+
+    // Format with leading zeros
+    char buffer[6];
+    snprintf(buffer, sizeof(buffer), "%02d:%02d", hours, minutes);
+    return String(buffer);
 }
 
 String UIManager::formatTimeRange(const String& start, const String& end) {

@@ -44,14 +44,17 @@ export function BookingModal({ room, initialDate, initialHour, existingBooking, 
         .map(email => email.trim())
         .filter(email => email.length > 0);
 
-      // Send local time string directly - backend will handle it
-      // This preserves the user's intended local time for validation
+      // Convert local time to UTC for storage
+      // datetime-local gives us a string like "2026-01-29T09:00" which is interpreted as local time
+      const startTimeUTC = new Date(startTime).toISOString();
+      const endTimeUTC = new Date(endTime).toISOString();
+
       if (isEditing) {
         await api.updateBooking(existingBooking.id, {
           title,
           description,
-          startTime: startTime,
-          endTime: endTime,
+          startTime: startTimeUTC,
+          endTime: endTimeUTC,
           attendees: attendeeList
         });
       } else {
@@ -59,8 +62,8 @@ export function BookingModal({ room, initialDate, initialHour, existingBooking, 
           roomId: room.id,
           title,
           description,
-          startTime: startTime,
-          endTime: endTime,
+          startTime: startTimeUTC,
+          endTime: endTimeUTC,
           attendees: attendeeList
         });
       }
