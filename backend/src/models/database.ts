@@ -126,40 +126,45 @@ export function initializeDatabase(): void {
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
   `);
 
+  // Helper function to check if a column exists in a table
+  const columnExists = (table: string, column: string): boolean => {
+    const stmt = db.prepare(`PRAGMA table_info(${table})`);
+    const columns = stmt.all() as { name: string }[];
+    return columns.some(col => col.name === column);
+  };
+
   // Add new columns to meeting_rooms if they don't exist (migration)
-  try {
+  if (!columnExists('meeting_rooms', 'opening_hour')) {
     db.exec(`ALTER TABLE meeting_rooms ADD COLUMN opening_hour INTEGER DEFAULT NULL`);
-  } catch (e) { /* Column may already exist */ }
+  }
 
-  try {
+  if (!columnExists('meeting_rooms', 'closing_hour')) {
     db.exec(`ALTER TABLE meeting_rooms ADD COLUMN closing_hour INTEGER DEFAULT NULL`);
-  } catch (e) { /* Column may already exist */ }
+  }
 
-  try {
-    db.exec(`ALTER TABLE meeting_rooms ADD COLUMN locked_to_company_id TEXT DEFAULT NULL REFERENCES companies(id)`);
-  } catch (e) { /* Column may already exist */ }
+  if (!columnExists('meeting_rooms', 'locked_to_company_id')) {
+    db.exec(`ALTER TABLE meeting_rooms ADD COLUMN locked_to_company_id TEXT DEFAULT NULL`);
+  }
 
-  try {
+  if (!columnExists('meeting_rooms', 'quick_book_durations')) {
     db.exec(`ALTER TABLE meeting_rooms ADD COLUMN quick_book_durations TEXT DEFAULT '[30, 60, 90, 120]'`);
-  } catch (e) { /* Column may already exist */ }
+  }
 
   // Multi-park migration: add park_id columns
-  try {
-    // Create default park if none exists
-    db.exec(`INSERT OR IGNORE INTO parks (id, name, address, description) VALUES ('default', 'Default Park', 'Default Location', 'Default park for existing data')`);
-  } catch (e) { /* May already exist */ }
+  // Create default park if none exists
+  db.exec(`INSERT OR IGNORE INTO parks (id, name, address, description) VALUES ('default', 'Default Park', 'Default Location', 'Default park for existing data')`);
 
-  try {
-    db.exec(`ALTER TABLE companies ADD COLUMN park_id TEXT DEFAULT 'default' REFERENCES parks(id)`);
-  } catch (e) { /* Column may already exist */ }
+  if (!columnExists('companies', 'park_id')) {
+    db.exec(`ALTER TABLE companies ADD COLUMN park_id TEXT DEFAULT 'default'`);
+  }
 
-  try {
-    db.exec(`ALTER TABLE users ADD COLUMN park_id TEXT DEFAULT NULL REFERENCES parks(id)`);
-  } catch (e) { /* Column may already exist */ }
+  if (!columnExists('users', 'park_id')) {
+    db.exec(`ALTER TABLE users ADD COLUMN park_id TEXT DEFAULT NULL`);
+  }
 
-  try {
-    db.exec(`ALTER TABLE meeting_rooms ADD COLUMN park_id TEXT DEFAULT 'default' REFERENCES parks(id)`);
-  } catch (e) { /* Column may already exist */ }
+  if (!columnExists('meeting_rooms', 'park_id')) {
+    db.exec(`ALTER TABLE meeting_rooms ADD COLUMN park_id TEXT DEFAULT 'default'`);
+  }
 
   // Migrate existing 'admin' role to 'park_admin' for non-super admins
   try {
