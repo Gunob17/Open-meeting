@@ -36,20 +36,26 @@ router.post('/demo', async (req, res: Response) => {
       return;
     }
 
+    // Use default park for demo data
+    const defaultParkId = 'default';
+
     // Create demo companies
     const sharedOffice = CompanyModel.create({
       name: 'Shared Office Management',
-      address: '123 Business Center, Suite 100, New York, NY 10001'
+      address: '123 Business Center, Suite 100, New York, NY 10001',
+      parkId: defaultParkId
     });
 
     const techCorp = CompanyModel.create({
       name: 'TechCorp Inc.',
-      address: '456 Innovation Drive, San Francisco, CA 94105'
+      address: '456 Innovation Drive, San Francisco, CA 94105',
+      parkId: defaultParkId
     });
 
     const startupHub = CompanyModel.create({
       name: 'StartupHub',
-      address: '789 Entrepreneur Way, Austin, TX 78701'
+      address: '789 Entrepreneur Way, Austin, TX 78701',
+      parkId: defaultParkId
     });
 
     // Create demo users
@@ -57,8 +63,9 @@ router.post('/demo', async (req, res: Response) => {
       email: 'admin@sharedoffice.com',
       password: 'admin123',
       name: 'System Administrator',
-      role: UserRole.ADMIN,
-      companyId: sharedOffice.id
+      role: UserRole.SUPER_ADMIN,
+      companyId: sharedOffice.id,
+      parkId: null  // Super admin has no park restriction
     });
 
     await UserModel.create({
@@ -66,7 +73,8 @@ router.post('/demo', async (req, res: Response) => {
       password: 'techcorp123',
       name: 'TechCorp Admin',
       role: UserRole.COMPANY_ADMIN,
-      companyId: techCorp.id
+      companyId: techCorp.id,
+      parkId: defaultParkId
     });
 
     await UserModel.create({
@@ -74,7 +82,8 @@ router.post('/demo', async (req, res: Response) => {
       password: 'startup123',
       name: 'StartupHub Admin',
       role: UserRole.COMPANY_ADMIN,
-      companyId: startupHub.id
+      companyId: startupHub.id,
+      parkId: defaultParkId
     });
 
     await UserModel.create({
@@ -82,7 +91,8 @@ router.post('/demo', async (req, res: Response) => {
       password: 'john123',
       name: 'John Smith',
       role: UserRole.USER,
-      companyId: techCorp.id
+      companyId: techCorp.id,
+      parkId: defaultParkId
     });
 
     await UserModel.create({
@@ -90,7 +100,8 @@ router.post('/demo', async (req, res: Response) => {
       password: 'jane123',
       name: 'Jane Doe',
       role: UserRole.USER,
-      companyId: techCorp.id
+      companyId: techCorp.id,
+      parkId: defaultParkId
     });
 
     await UserModel.create({
@@ -98,7 +109,8 @@ router.post('/demo', async (req, res: Response) => {
       password: 'bob123',
       name: 'Bob Wilson',
       role: UserRole.USER,
-      companyId: startupHub.id
+      companyId: startupHub.id,
+      parkId: defaultParkId
     });
 
     // Create demo meeting rooms
@@ -108,7 +120,8 @@ router.post('/demo', async (req, res: Response) => {
       amenities: ['Projector', 'Whiteboard', 'Video Conferencing', 'Air Conditioning'],
       floor: '3rd Floor',
       address: '123 Business Center, Suite 100, Room 301, New York, NY 10001',
-      description: 'Large meeting room ideal for workshops and presentations'
+      description: 'Large meeting room ideal for workshops and presentations',
+      parkId: defaultParkId
     });
 
     RoomModel.create({
@@ -117,7 +130,8 @@ router.post('/demo', async (req, res: Response) => {
       amenities: ['Whiteboard', 'TV Screen', 'Standing Desk'],
       floor: '2nd Floor',
       address: '123 Business Center, Suite 100, Room 205, New York, NY 10001',
-      description: 'Creative space for team brainstorming sessions'
+      description: 'Creative space for team brainstorming sessions',
+      parkId: defaultParkId
     });
 
     RoomModel.create({
@@ -126,7 +140,8 @@ router.post('/demo', async (req, res: Response) => {
       amenities: ['Video Conferencing', 'Projector', 'Conference Phone', 'Catering Service'],
       floor: '4th Floor',
       address: '123 Business Center, Suite 100, Room 401, New York, NY 10001',
-      description: 'Premium meeting room for executive meetings and client presentations'
+      description: 'Premium meeting room for executive meetings and client presentations',
+      parkId: defaultParkId
     });
 
     RoomModel.create({
@@ -135,7 +150,8 @@ router.post('/demo', async (req, res: Response) => {
       amenities: ['TV Screen', 'Whiteboard'],
       floor: '1st Floor',
       address: '123 Business Center, Suite 100, Room 102, New York, NY 10001',
-      description: 'Small meeting pod for quick discussions'
+      description: 'Small meeting pod for quick discussions',
+      parkId: defaultParkId
     });
 
     RoomModel.create({
@@ -144,7 +160,8 @@ router.post('/demo', async (req, res: Response) => {
       amenities: ['TV Screen', 'Whiteboard'],
       floor: '1st Floor',
       address: '123 Business Center, Suite 100, Room 103, New York, NY 10001',
-      description: 'Small meeting pod for quick discussions'
+      description: 'Small meeting pod for quick discussions',
+      parkId: defaultParkId
     });
 
     RoomModel.create({
@@ -153,7 +170,8 @@ router.post('/demo', async (req, res: Response) => {
       amenities: ['Projector', 'Multiple Screens', 'Microphones', 'Recording Equipment', 'Air Conditioning'],
       floor: '5th Floor',
       address: '123 Business Center, Suite 100, Room 501, New York, NY 10001',
-      description: 'Large training room for seminars and workshops'
+      description: 'Large training room for seminars and workshops',
+      parkId: defaultParkId
     });
 
     res.json({
@@ -196,19 +214,24 @@ router.post('/production', async (req, res: Response) => {
       return;
     }
 
+    // Use default park
+    const defaultParkId = 'default';
+
     // Create the company
     const company = CompanyModel.create({
       name: companyName,
-      address: companyAddress
+      address: companyAddress,
+      parkId: defaultParkId
     });
 
-    // Create the admin user
+    // Create the admin user (super admin for first setup)
     const admin = await UserModel.create({
       email: adminEmail,
       password: adminPassword,
       name: adminName,
-      role: UserRole.ADMIN,
-      companyId: company.id
+      role: UserRole.SUPER_ADMIN,
+      companyId: company.id,
+      parkId: null  // Super admin has no park restriction
     });
 
     res.json({

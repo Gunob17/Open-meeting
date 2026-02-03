@@ -1,7 +1,18 @@
 export enum UserRole {
-  ADMIN = 'admin',
+  SUPER_ADMIN = 'super_admin',
+  PARK_ADMIN = 'park_admin',
   COMPANY_ADMIN = 'company_admin',
   USER = 'user'
+}
+
+export interface Park {
+  id: string;
+  name: string;
+  address: string;
+  description: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface User {
@@ -10,6 +21,7 @@ export interface User {
   name: string;
   role: UserRole;
   companyId: string;
+  parkId?: string | null;
   createdAt?: string;
 }
 
@@ -17,6 +29,7 @@ export interface Company {
   id: string;
   name: string;
   address: string;
+  parkId: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -30,6 +43,7 @@ export interface MeetingRoom {
   address: string;
   description: string;
   isActive: boolean;
+  parkId: string;
   openingHour?: number | null;
   closingHour?: number | null;
   lockedToCompanyId?: string | null;

@@ -7,7 +7,9 @@ interface AuthContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
-  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isParkAdmin: boolean;
+  isAdmin: boolean; // Legacy: park admin or above
   isCompanyAdmin: boolean;
 }
 
@@ -41,11 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const isAdmin = user?.role === UserRole.ADMIN;
-  const isCompanyAdmin = user?.role === UserRole.COMPANY_ADMIN || user?.role === UserRole.ADMIN;
+  const isSuperAdmin = user?.role === UserRole.SUPER_ADMIN;
+  const isParkAdmin = user?.role === UserRole.PARK_ADMIN || user?.role === UserRole.SUPER_ADMIN;
+  const isAdmin = isParkAdmin; // Legacy alias
+  const isCompanyAdmin = user?.role === UserRole.COMPANY_ADMIN || isParkAdmin;
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAdmin, isCompanyAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isSuperAdmin, isParkAdmin, isAdmin, isCompanyAdmin }}>
       {children}
     </AuthContext.Provider>
   );

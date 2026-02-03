@@ -257,7 +257,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     // Check ownership or admin
-    if (existingBooking.userId !== req.user!.userId && req.user!.role !== UserRole.ADMIN) {
+    if (existingBooking.userId !== req.user!.userId && (req.user!.role !== UserRole.SUPER_ADMIN && req.user!.role !== UserRole.PARK_ADMIN)) {
       res.status(403).json({ error: 'Cannot modify bookings made by others' });
       return;
     }
@@ -334,7 +334,7 @@ router.post('/:id/cancel', authenticate, async (req: AuthRequest, res: Response)
     }
 
     // Check ownership or admin
-    if (booking.userId !== req.user!.userId && req.user!.role !== UserRole.ADMIN) {
+    if (booking.userId !== req.user!.userId && (req.user!.role !== UserRole.SUPER_ADMIN && req.user!.role !== UserRole.PARK_ADMIN)) {
       res.status(403).json({ error: 'Cannot cancel bookings made by others' });
       return;
     }
@@ -377,7 +377,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const isAdmin = req.user!.role === UserRole.ADMIN;
+    const isAdmin = (req.user!.role === UserRole.SUPER_ADMIN || req.user!.role === UserRole.PARK_ADMIN);
     const isOwner = booking.userId === req.user!.userId;
 
     // Only admin or booking owner can delete
@@ -419,7 +419,7 @@ router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) =
     const { newRoomId, reason } = req.body;
 
     // Only admins can move bookings
-    if (req.user!.role !== UserRole.ADMIN) {
+    if ((req.user!.role !== UserRole.SUPER_ADMIN && req.user!.role !== UserRole.PARK_ADMIN)) {
       res.status(403).json({ error: 'Only administrators can move bookings' });
       return;
     }

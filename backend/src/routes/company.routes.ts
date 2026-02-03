@@ -1,13 +1,16 @@
 import { Router, Response } from 'express';
 import { CompanyModel } from '../models/company.model';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
+import { UserRole } from '../types';
 
 const router = Router();
 
-// Get all companies
+// Get all companies (filtered by park for non-super admins)
 router.get('/', authenticate, (req: AuthRequest, res: Response) => {
   try {
-    const companies = CompanyModel.findAll();
+    // Super admins see all companies, others see only their park's companies
+    const parkId = req.user?.role === UserRole.SUPER_ADMIN ? undefined : req.user?.parkId;
+    const companies = CompanyModel.findAll(parkId);
     res.json(companies);
   } catch (error) {
     console.error('Get companies error:', error);
@@ -33,17 +36,31 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
   }
 });
 
-// Create company (admin only)
+// Create company (park admin or above)
 router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
-    const { name, address } = req.body;
+    const { name, address, parkId } = req.body;
 
     if (!name || !address) {
       res.status(400).json({ error: 'Name and address are required' });
       return;
     }
 
-    const company = CompanyModel.create({ name, address });
+    // Determine which park to create the company in
+    let targetParkId = parkId;
+    if (req.user?.role === UserRole.SUPER_ADMIN) {
+      // Super admin can specify parkId, defaults to 'default' if not provided
+      targetParkId = parkId || 'default';
+    } else {
+      // Park admins can only create companies in their own park
+      targetParkId = req.user?.parkId;
+      if (!targetParkId) {
+        res.status(400).json({ error: 'User is not assigned to a park' });
+        return;
+      }
+    }
+
+    const company = CompanyModel.create({ name, address, parkId: targetParkId });
     res.status(201).json(company);
   } catch (error) {
     console.error('Create company error:', error);
@@ -51,13 +68,19 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
   }
 });
 
-// Update company (admin only)
+// Update company (park admin or above)
 router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, address } = req.body;
+    const { name, address, parkId } = req.body;
 
-    const company = CompanyModel.update(id, { name, address });
+    // Only super admins can change parkId
+    const updateData: any = { name, address };
+    if (req.user?.role === UserRole.SUPER_ADMIN && parkId !== undefined) {
+      updateData.parkId = parkId;
+    }
+
+    const company = CompanyModel.update(id, updateData);
     if (!company) {
       res.status(404).json({ error: 'Company not found' });
       return;
@@ -70,7 +93,7 @@ router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
   }
 });
 
-// Delete company (admin only)
+// Delete company (park admin or above)
 router.delete('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;

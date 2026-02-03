@@ -122,7 +122,7 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
     }
 
     // Only system admins can create admin users
-    if (role === UserRole.ADMIN && req.user!.role !== UserRole.ADMIN) {
+    if (role === UserRole.PARK_ADMIN && req.user!.role !== UserRole.PARK_ADMIN) {
       res.status(403).json({ error: 'Only admins can create admin users' });
       return;
     }
@@ -173,7 +173,7 @@ router.put('/:id', authenticate, requireCompanyAdminOrAbove, async (req: AuthReq
     }
 
     // Cannot change admin's role unless you're an admin
-    if (existingUser.role === UserRole.ADMIN && req.user!.role !== UserRole.ADMIN) {
+    if (existingUser.role === UserRole.PARK_ADMIN && req.user!.role !== UserRole.PARK_ADMIN) {
       res.status(403).json({ error: 'Cannot modify admin users' });
       return;
     }
@@ -190,8 +190,8 @@ router.put('/:id', authenticate, requireCompanyAdminOrAbove, async (req: AuthReq
     const updateData: any = {};
     if (email) updateData.email = email;
     if (name) updateData.name = name;
-    if (role && req.user!.role === UserRole.ADMIN) updateData.role = role;
-    if (companyId && req.user!.role === UserRole.ADMIN) updateData.companyId = companyId;
+    if (role && req.user!.role === UserRole.PARK_ADMIN) updateData.role = role;
+    if (companyId && req.user!.role === UserRole.PARK_ADMIN) updateData.companyId = companyId;
     if (password) updateData.password = password;
 
     const user = await UserModel.update(id, updateData);
@@ -240,7 +240,7 @@ router.delete('/:id', authenticate, requireCompanyAdminOrAbove, (req: AuthReques
     }
 
     // Only admins can delete admin users
-    if (user.role === UserRole.ADMIN && req.user!.role !== UserRole.ADMIN) {
+    if (user.role === UserRole.PARK_ADMIN && req.user!.role !== UserRole.PARK_ADMIN) {
       res.status(403).json({ error: 'Cannot delete admin users' });
       return;
     }

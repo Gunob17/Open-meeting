@@ -50,7 +50,7 @@ export class DeviceModel {
              r.description as room_description, r.is_active as room_is_active,
              r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
              r.locked_to_company_id as room_locked_to_company_id,
-             r.quick_book_durations as room_quick_book_durations,
+             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
              r.created_at as room_created_at, r.updated_at as room_updated_at
       FROM devices d
       LEFT JOIN meeting_rooms r ON d.room_id = r.id
@@ -71,7 +71,7 @@ export class DeviceModel {
              r.description as room_description, r.is_active as room_is_active,
              r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
              r.locked_to_company_id as room_locked_to_company_id,
-             r.quick_book_durations as room_quick_book_durations,
+             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
              r.created_at as room_created_at, r.updated_at as room_updated_at
       FROM devices d
       LEFT JOIN meeting_rooms r ON d.room_id = r.id
@@ -92,7 +92,7 @@ export class DeviceModel {
              r.description as room_description, r.is_active as room_is_active,
              r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
              r.locked_to_company_id as room_locked_to_company_id,
-             r.quick_book_durations as room_quick_book_durations,
+             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
              r.created_at as room_created_at, r.updated_at as room_updated_at
       FROM devices d
       LEFT JOIN meeting_rooms r ON d.room_id = r.id
@@ -117,7 +117,7 @@ export class DeviceModel {
              r.description as room_description, r.is_active as room_is_active,
              r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
              r.locked_to_company_id as room_locked_to_company_id,
-             r.quick_book_durations as room_quick_book_durations,
+             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
              r.created_at as room_created_at, r.updated_at as room_updated_at
       FROM devices d
       LEFT JOIN meeting_rooms r ON d.room_id = r.id
@@ -217,6 +217,7 @@ export class DeviceModel {
       address: row.room_address,
       description: row.room_description,
       isActive: row.room_is_active === 1,
+      parkId: row.room_park_id,
       openingHour: row.room_opening_hour,
       closingHour: row.room_closing_hour,
       lockedToCompanyId: row.room_locked_to_company_id,
