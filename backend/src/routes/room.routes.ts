@@ -85,7 +85,7 @@ router.get('/:id/availability', authenticate, (req: AuthRequest, res: Response) 
 // Create room (admin only)
 router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
-    const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyId } = req.body;
+    const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyId, quickBookDurations } = req.body;
 
     if (!name || !capacity || !floor || !address) {
       res.status(400).json({ error: 'Name, capacity, floor, and address are required' });
@@ -124,7 +124,8 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
       description,
       openingHour: openingHour ?? null,
       closingHour: closingHour ?? null,
-      lockedToCompanyId: lockedToCompanyId ?? null
+      lockedToCompanyId: lockedToCompanyId ?? null,
+      quickBookDurations: quickBookDurations ?? [30, 60, 90, 120]
     });
 
     res.status(201).json({
@@ -141,7 +142,7 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
 router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyId } = req.body;
+    const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyId, quickBookDurations } = req.body;
 
     // Validate room-specific hours if provided
     if (openingHour !== undefined && openingHour !== null) {
@@ -171,7 +172,8 @@ router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
       isActive,
       openingHour,
       closingHour,
-      lockedToCompanyId
+      lockedToCompanyId,
+      quickBookDurations
     });
 
     if (!room) {

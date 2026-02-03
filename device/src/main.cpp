@@ -373,10 +373,10 @@ void updateRoomStatus() {
     if (currentStatus.isValid) {
         setupMode = false;  // Connection successful, exit setup mode
         connectionLost = false;  // Connection restored
-        if (!roomStatusesAreEqual(currentStatus, lastStatus)){
-            ui.showRoomStatus(currentStatus);
-            lastStatus = currentStatus;
-        }
+        // Always show room status to ensure we exit loading screens
+        // The UI will handle avoiding unnecessary redraws internally
+        ui.showRoomStatus(currentStatus);
+        lastStatus = currentStatus;
         // Update LED based on room availability
         setLedColor(currentStatus.isAvailable);
     } else {
