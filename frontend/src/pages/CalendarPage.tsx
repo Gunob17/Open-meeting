@@ -207,9 +207,10 @@ export function CalendarPage() {
         await api.deleteBooking(selectedBooking.id, isOwn ? undefined : adminActionReason || undefined);
         setSelectedBooking(null);
         setAdminActionReason('');
-        loadData();
-      } catch (error) {
+        await loadData();
+      } catch (error: any) {
         console.error('Failed to delete booking:', error);
+        alert(error.message || 'Failed to delete booking');
       }
     }
   };
@@ -224,13 +225,18 @@ export function CalendarPage() {
   const handleMoveBooking = async () => {
     if (!selectedBooking || !moveTargetRoom) return;
 
+    const targetRoom = rooms.find(r => r.id === moveTargetRoom);
+    if (!window.confirm(`Move "${selectedBooking.title}" to ${targetRoom?.name}?`)) {
+      return;
+    }
+
     try {
       await api.moveBooking(selectedBooking.id, moveTargetRoom, adminActionReason || undefined);
-      setSelectedBooking(null);
       setShowMoveDialog(false);
+      setSelectedBooking(null);
       setMoveTargetRoom('');
       setAdminActionReason('');
-      loadData();
+      await loadData();
     } catch (error: any) {
       alert(error.message || 'Failed to move booking');
     }

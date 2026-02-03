@@ -45,7 +45,8 @@ export class UserModel {
   }
 
   static findAll(): User[] {
-    const stmt = db.prepare('SELECT * FROM users ORDER BY name');
+    // Exclude system users (like device-booking-user)
+    const stmt = db.prepare("SELECT * FROM users WHERE company_id != 'system' ORDER BY name");
     const rows = stmt.all() as any[];
 
     return rows.map(this.mapRowToUser);

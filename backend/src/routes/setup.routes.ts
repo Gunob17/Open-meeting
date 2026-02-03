@@ -10,7 +10,8 @@ const router = Router();
 // Check if system has been set up
 router.get('/status', (req, res: Response) => {
   try {
-    const stmt = db.prepare('SELECT COUNT(*) as count FROM users');
+    // Count only real users (exclude system users like device-booking-user)
+    const stmt = db.prepare("SELECT COUNT(*) as count FROM users WHERE company_id != 'system'");
     const result = stmt.get() as { count: number };
 
     res.json({
@@ -26,8 +27,8 @@ router.get('/status', (req, res: Response) => {
 // Initialize with demo data
 router.post('/demo', async (req, res: Response) => {
   try {
-    // Check if already set up
-    const stmt = db.prepare('SELECT COUNT(*) as count FROM users');
+    // Check if already set up (exclude system users)
+    const stmt = db.prepare("SELECT COUNT(*) as count FROM users WHERE company_id != 'system'");
     const result = stmt.get() as { count: number };
 
     if (result.count > 0) {
@@ -186,8 +187,8 @@ router.post('/production', async (req, res: Response) => {
       return;
     }
 
-    // Check if already set up
-    const stmt = db.prepare('SELECT COUNT(*) as count FROM users');
+    // Check if already set up (exclude system users)
+    const stmt = db.prepare("SELECT COUNT(*) as count FROM users WHERE company_id != 'system'");
     const result = stmt.get() as { count: number };
 
     if (result.count > 0) {

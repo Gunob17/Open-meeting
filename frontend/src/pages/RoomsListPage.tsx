@@ -153,7 +153,10 @@ export function RoomsListPage() {
                 {isAvailable && nextBooking && (
                   <div className="next-booking">
                     <strong>Next Booking:</strong>
-                    <p>{format(parseISO(nextBooking.startTime), 'h:mm a')} - {nextBooking.title}</p>
+                    <p>{nextBooking.title}</p>
+                    <p className="booking-time">
+                      {format(parseISO(nextBooking.startTime), 'h:mm a')} - {format(parseISO(nextBooking.endTime), 'h:mm a')}
+                    </p>
                   </div>
                 )}
               </div>
