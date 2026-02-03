@@ -441,7 +441,7 @@ void handleTouch() {
         case UI_ROOM_STATUS:
             if (buttonIndex == 0 && currentStatus.isAvailable) {
                 // Book Now button
-                ui.showQuickBookMenu();
+                ui.showQuickBookMenu(currentStatus);
             } else if (buttonIndex == 1 || (buttonIndex == 0 && !currentStatus.isAvailable)) {
                 // Refresh button
                 ui.showLoading("Refreshing...");
