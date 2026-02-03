@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { api } from '../services/api';
-import { Booking, MeetingRoom, Settings } from '../types';
+import { Booking, MeetingRoom, Settings, UserRole } from '../types';
 import { BookingModal } from '../components/BookingModal';
 import { useAuth } from '../context/AuthContext';
 
 export function CalendarPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [startDate, setStartDate] = useState(new Date());
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -22,8 +22,6 @@ export function CalendarPage() {
   const [showMoveDialog, setShowMoveDialog] = useState(false);
   const [moveTargetRoom, setMoveTargetRoom] = useState('');
   const [adminActionReason, setAdminActionReason] = useState('');
-
-  const isAdmin = user?.role === 'admin';
 
   // Show 7 days starting from startDate
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate]);
