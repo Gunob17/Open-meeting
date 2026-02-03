@@ -50,6 +50,7 @@ export class DeviceModel {
              r.description as room_description, r.is_active as room_is_active,
              r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
              r.locked_to_company_id as room_locked_to_company_id,
+             r.quick_book_durations as room_quick_book_durations,
              r.created_at as room_created_at, r.updated_at as room_updated_at
       FROM devices d
       LEFT JOIN meeting_rooms r ON d.room_id = r.id
@@ -70,6 +71,7 @@ export class DeviceModel {
              r.description as room_description, r.is_active as room_is_active,
              r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
              r.locked_to_company_id as room_locked_to_company_id,
+             r.quick_book_durations as room_quick_book_durations,
              r.created_at as room_created_at, r.updated_at as room_updated_at
       FROM devices d
       LEFT JOIN meeting_rooms r ON d.room_id = r.id
@@ -90,6 +92,7 @@ export class DeviceModel {
              r.description as room_description, r.is_active as room_is_active,
              r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
              r.locked_to_company_id as room_locked_to_company_id,
+             r.quick_book_durations as room_quick_book_durations,
              r.created_at as room_created_at, r.updated_at as room_updated_at
       FROM devices d
       LEFT JOIN meeting_rooms r ON d.room_id = r.id
@@ -114,6 +117,7 @@ export class DeviceModel {
              r.description as room_description, r.is_active as room_is_active,
              r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
              r.locked_to_company_id as room_locked_to_company_id,
+             r.quick_book_durations as room_quick_book_durations,
              r.created_at as room_created_at, r.updated_at as room_updated_at
       FROM devices d
       LEFT JOIN meeting_rooms r ON d.room_id = r.id
@@ -194,6 +198,16 @@ export class DeviceModel {
   private static mapRowToDeviceWithRoom(row: any): DeviceWithRoom {
     const device = this.mapRowToDevice(row);
 
+    // Parse quickBookDurations from JSON string
+    let quickBookDurations = [30, 60, 90, 120];
+    try {
+      if (row.room_quick_book_durations) {
+        quickBookDurations = JSON.parse(row.room_quick_book_durations);
+      }
+    } catch (e) {
+      // Keep default durations
+    }
+
     const room: MeetingRoom | undefined = row.room_name ? {
       id: row.room_id,
       name: row.room_name,
@@ -206,6 +220,7 @@ export class DeviceModel {
       openingHour: row.room_opening_hour,
       closingHour: row.room_closing_hour,
       lockedToCompanyId: row.room_locked_to_company_id,
+      quickBookDurations: quickBookDurations,
       createdAt: row.room_created_at,
       updatedAt: row.room_updated_at
     } : undefined;
