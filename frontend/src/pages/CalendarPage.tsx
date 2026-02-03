@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { format, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { api } from '../services/api';
-import { Booking, MeetingRoom, Settings, UserRole } from '../types';
+import { Booking, MeetingRoom, Settings } from '../types';
 import { BookingModal } from '../components/BookingModal';
 import { useAuth } from '../context/AuthContext';
 
@@ -248,10 +248,6 @@ export function CalendarPage() {
 
   const isOwnBooking = (booking: Booking): boolean => {
     return booking.userId === user?.id;
-  };
-
-  const canModifyBooking = (booking: Booking): boolean => {
-    return isOwnBooking(booking) || isAdmin;
   };
 
   const isFutureOrOngoing = (booking: Booking): boolean => {
