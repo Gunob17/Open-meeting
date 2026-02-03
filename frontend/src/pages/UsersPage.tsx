@@ -4,7 +4,7 @@ import { User, Company, UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
 
 export function UsersPage() {
-  const { user: currentUser, isAdmin } = useAuth();
+  const { user: currentUser, isAdmin, isSuperAdmin } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -237,7 +237,8 @@ export function UsersPage() {
                       >
                         <option value={UserRole.USER}>User</option>
                         <option value={UserRole.COMPANY_ADMIN}>Company Admin</option>
-                        <option value={UserRole.ADMIN}>Admin</option>
+                        {isSuperAdmin && <option value={UserRole.PARK_ADMIN}>Park Admin</option>}
+                        {isSuperAdmin && <option value={UserRole.SUPER_ADMIN}>Super Admin</option>}
                       </select>
                     </div>
 

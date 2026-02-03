@@ -722,7 +722,12 @@ body {
   text-transform: capitalize;
 }
 
-.role-badge.admin {
+.role-badge.super_admin {
+  background: #fecaca;
+  color: #dc2626;
+}
+
+.role-badge.park_admin {
   background: #ddd6fe;
   color: #7c3aed;
 }
