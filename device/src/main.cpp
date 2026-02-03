@@ -32,6 +32,7 @@ unsigned long lastActivityTime = 0;  // For screen timeout
 unsigned long lastConnectionRetry = 0;  // For connection retry
 int selectedDuration = 0;
 RoomStatus currentStatus;
+RoomStatus lastStatus;
 
 // Function declarations
 void setupWebServer();
@@ -49,6 +50,7 @@ void setLedColor(bool available);
 void setLedOff();
 void checkScreenTimeout();
 void wakeScreen();
+bool roomStatusesAreEqual(RoomStatus first, RoomStatus secound);
 
 void setup() {
     Serial.begin(115200);
@@ -66,8 +68,8 @@ void setup() {
     lastActivityTime = millis();  // Initialize activity timer
 
     // Show startup screen with instructions
-    ui.showStartupScreen();
-    delay(2000);  // Show instructions for 2 seconds
+    //ui.showStartupScreen();
+    //delay(2000);  // Show instructions for 2 seconds
 
     // Initialize preferences
     preferences.begin(PREFS_NAMESPACE, false);
@@ -371,7 +373,10 @@ void updateRoomStatus() {
     if (currentStatus.isValid) {
         setupMode = false;  // Connection successful, exit setup mode
         connectionLost = false;  // Connection restored
-        ui.showRoomStatus(currentStatus);
+        if (!roomStatusesAreEqual(currentStatus, lastStatus)){
+            ui.showRoomStatus(currentStatus);
+            lastStatus = currentStatus;
+        }
         // Update LED based on room availability
         setLedColor(currentStatus.isAvailable);
     } else {
@@ -561,4 +566,24 @@ void wakeScreen() {
         }
     }
     lastActivityTime = millis();
+}
+
+bool roomStatusesAreEqual(RoomStatus first, RoomStatus secound){
+
+    if (first.isAvailable != secound.isValid){
+        return false;
+    }
+    else if(first.upcomingCount != secound.upcomingCount){
+        return false;
+    }
+    else if(first.room.name != secound.room.name){
+        return false;
+    }
+    else if(first.upcomingBookings[0].id != secound.upcomingBookings[0].id 
+        || first.upcomingBookings[1].id != secound.upcomingBookings[1].id 
+        || first.upcomingBookings[2].id != secound.upcomingBookings[2].id ){
+            return false;
+        }
+    return true;
+    
 }

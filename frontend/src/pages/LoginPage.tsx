@@ -68,15 +68,6 @@ export function LoginPage() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-
-        <div className="login-demo">
-          <p>Demo Accounts:</p>
-          <ul>
-            <li><strong>Admin:</strong> admin@sharedoffice.com / admin123</li>
-            <li><strong>Company Admin:</strong> admin@techcorp.com / techcorp123</li>
-            <li><strong>User:</strong> john@techcorp.com / john123</li>
-          </ul>
-        </div>
       </div>
     </div>
   );

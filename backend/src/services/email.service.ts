@@ -10,7 +10,9 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.SMTP_USER || 'test@ethereal.email',
     pass: process.env.SMTP_PASS || 'testpassword'
-  }
+  },
+  logger: true,
+  debug: true
 });
 
 interface MeetingInviteParams {
@@ -170,7 +172,7 @@ export async function sendMeetingInvite(params: MeetingInviteParams): Promise<vo
     const allRecipients = [organizer.email, ...attendeeEmails].filter(Boolean);
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || '"Meeting Room Booking" <noreply@meetingbooking.com>',
+      from: process.env.SMTP_FROM || '"Meeting Room Booking" <noreply@open-meeting.com>',
       to: allRecipients.join(', '),
       subject: `Meeting Invitation: ${booking.title}`,
       html: htmlContent,
