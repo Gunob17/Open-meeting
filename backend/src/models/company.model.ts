@@ -8,11 +8,11 @@ export class CompanyModel {
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO companies (id, name, address, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO companies (id, name, address, park_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, data.name, data.address, now, now);
+    stmt.run(id, data.name, data.address, data.parkId, now, now);
 
     return this.findById(id)!;
   }
@@ -26,9 +26,26 @@ export class CompanyModel {
     return this.mapRowToCompany(row);
   }
 
-  static findAll(): Company[] {
-    const stmt = db.prepare('SELECT * FROM companies ORDER BY name');
-    const rows = stmt.all() as any[];
+  static findAll(parkId?: string | null): Company[] {
+    // Exclude system company
+    let query = "SELECT * FROM companies WHERE id != 'system'";
+    const params: any[] = [];
+
+    if (parkId) {
+      query += ' AND park_id = ?';
+      params.push(parkId);
+    }
+
+    query += ' ORDER BY name';
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...params) as any[];
+
+    return rows.map(this.mapRowToCompany);
+  }
+
+  static findByPark(parkId: string): Company[] {
+    const stmt = db.prepare("SELECT * FROM companies WHERE park_id = ? AND id != 'system' ORDER BY name");
+    const rows = stmt.all(parkId) as any[];
 
     return rows.map(this.mapRowToCompany);
   }
@@ -40,13 +57,14 @@ export class CompanyModel {
     const now = new Date().toISOString();
     const stmt = db.prepare(`
       UPDATE companies
-      SET name = ?, address = ?, updated_at = ?
+      SET name = ?, address = ?, park_id = ?, updated_at = ?
       WHERE id = ?
     `);
 
     stmt.run(
       data.name ?? existing.name,
       data.address ?? existing.address,
+      data.parkId !== undefined ? data.parkId : existing.parkId,
       now,
       id
     );
@@ -55,6 +73,9 @@ export class CompanyModel {
   }
 
   static delete(id: string): boolean {
+    // Don't delete system company
+    if (id === 'system') return false;
+
     const stmt = db.prepare('DELETE FROM companies WHERE id = ?');
     const result = stmt.run(id);
     return result.changes > 0;
@@ -65,6 +86,7 @@ export class CompanyModel {
       id: row.id,
       name: row.name,
       address: row.address,
+      parkId: row.park_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

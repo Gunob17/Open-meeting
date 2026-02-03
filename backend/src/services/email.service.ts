@@ -70,7 +70,7 @@ Organizer: ${organizer.name} (${organizer.email})`,
     sequence: 0,
     status: 'CONFIRMED' as const,
     busyStatus: 'BUSY' as const,
-    productId: 'Meeting Room Booking System'
+    productId: 'Open Meeting System'
   };
 
   return new Promise((resolve, reject) => {
@@ -160,7 +160,7 @@ export async function sendMeetingInvite(params: MeetingInviteParams): Promise<vo
       ${booking.description ? `<p><strong>Description:</strong><br>${booking.description}</p>` : ''}
 
       <p class="footer">
-        This invitation was sent from the Meeting Room Booking System.<br>
+        This invitation was sent from Open Meeting.<br>
         Please add the attached .ics file to your calendar.
       </p>
     </div>
@@ -172,7 +172,7 @@ export async function sendMeetingInvite(params: MeetingInviteParams): Promise<vo
     const allRecipients = [organizer.email, ...attendeeEmails].filter(Boolean);
 
     const mailOptions = {
-      from: process.env.SMTP_FROM || '"Meeting Room Booking" <noreply@open-meeting.com>',
+      from: process.env.SMTP_FROM || '"Open Meeting" <noreply@openmeeting.com>',
       to: allRecipients.join(', '),
       subject: `Meeting Invitation: ${booking.title}`,
       html: htmlContent,
@@ -247,7 +247,7 @@ export async function sendCancellationNotice(params: MeetingInviteParams): Promi
     const allRecipients = [organizer.email, ...attendeeEmails].filter(Boolean);
 
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"Meeting Room Booking" <noreply@meetingbooking.com>',
+      from: process.env.SMTP_FROM || '"Open Meeting" <noreply@openmeeting.com>',
       to: allRecipients.join(', '),
       subject: `Meeting Cancelled: ${booking.title}`,
       html: htmlContent
@@ -331,7 +331,7 @@ export async function sendAdminDeleteNotice(params: AdminActionParams): Promise<
     const allRecipients = [bookingOwner.email, ...attendeeEmails].filter(Boolean);
 
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"Meeting Room Booking" <noreply@meetingbooking.com>',
+      from: process.env.SMTP_FROM || '"Open Meeting" <noreply@openmeeting.com>',
       to: allRecipients.join(', '),
       subject: `Meeting Deleted: ${booking.title}`,
       html: htmlContent
@@ -420,7 +420,7 @@ export async function sendAdminMoveNotice(params: AdminMoveParams): Promise<void
     const allRecipients = [bookingOwner.email, ...attendeeEmails].filter(Boolean);
 
     await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"Meeting Room Booking" <noreply@meetingbooking.com>',
+      from: process.env.SMTP_FROM || '"Open Meeting" <noreply@openmeeting.com>',
       to: allRecipients.join(', '),
       subject: `Meeting Room Changed: ${booking.title}`,
       html: htmlContent

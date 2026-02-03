@@ -54,7 +54,7 @@ bool roomStatusesAreEqual(RoomStatus first, RoomStatus secound);
 
 void setup() {
     Serial.begin(115200);
-    Serial.println("\n\nMeeting Room Display Starting...");
+    Serial.println("\n\nOpen Meeting Display Starting...");
 
     // Initialize RGB LED
     setupRgbLed();
@@ -238,7 +238,7 @@ void handleRoot() {
 
     String html = "<!DOCTYPE html><html><head>";
     html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
-    html += "<title>Meeting Room Display Setup</title>";
+    html += "<title>Open Meeting Display Setup</title>";
     html += "<style>";
     html += "body { font-family: Arial, sans-serif; margin: 20px; background: #f3f4f6; }";
     html += ".container { max-width: 500px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }";
@@ -252,8 +252,8 @@ void handleRoot() {
     html += ".current { color: #6b7280; font-size: 12px; word-break: break-all; }";
     html += "</style></head><body>";
     html += "<div class=\"container\">";
-    html += "<h1>Meeting Room Display</h1>";
-    html += "<div class=\"info\">Configure this device to connect to your meeting room booking system.</div>";
+    html += "<h1>Open Meeting Display</h1>";
+    html += "<div class=\"info\">Configure this device to connect to your Open Meeting system.</div>";
     html += "<form action=\"/save\" method=\"POST\">";
     html += "<div class=\"form-group\">";
     html += "<label>API Server URL</label>";

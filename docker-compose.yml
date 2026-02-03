@@ -12,12 +12,12 @@ services:
       - app-data:/app/backend/data
     environment:
       - NODE_ENV=production
-      - JWT_SECRET=${JWT_SECRET:-meeting-booking-secret-key-change-in-production}
+      - JWT_SECRET=${JWT_SECRET:-open-meeting-secret-key-change-in-production}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
-      - SMTP_FROM=${SMTP_FROM:-"Meeting Booking <noreply@meetingbooking.com>"}
+      - SMTP_FROM=${SMTP_FROM:-"Open Meeting <noreply@openmeeting.com>"}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/api/health"]

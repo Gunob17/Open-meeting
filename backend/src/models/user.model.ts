@@ -10,11 +10,11 @@ export class UserModel {
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
     const stmt = db.prepare(`
-      INSERT INTO users (id, email, password, name, role, company_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO users (id, email, password, name, role, company_id, park_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, data.email, hashedPassword, data.name, data.role, data.companyId, now, now);
+    stmt.run(id, data.email, hashedPassword, data.name, data.role, data.companyId, data.parkId || null, now, now);
 
     return this.findById(id)!;
   }
@@ -44,10 +44,26 @@ export class UserModel {
     return rows.map(this.mapRowToUser);
   }
 
-  static findAll(): User[] {
+  static findAll(parkId?: string | null): User[] {
     // Exclude system users (like device-booking-user)
-    const stmt = db.prepare("SELECT * FROM users WHERE company_id != 'system' ORDER BY name");
-    const rows = stmt.all() as any[];
+    let query = "SELECT * FROM users WHERE company_id != 'system'";
+    const params: any[] = [];
+
+    if (parkId) {
+      query += " AND park_id = ?";
+      params.push(parkId);
+    }
+
+    query += " ORDER BY name";
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...params) as any[];
+
+    return rows.map(this.mapRowToUser);
+  }
+
+  static findByPark(parkId: string): User[] {
+    const stmt = db.prepare("SELECT * FROM users WHERE park_id = ? AND company_id != 'system' ORDER BY name");
+    const rows = stmt.all(parkId) as any[];
 
     return rows.map(this.mapRowToUser);
   }
@@ -65,7 +81,7 @@ export class UserModel {
 
     const stmt = db.prepare(`
       UPDATE users
-      SET email = ?, password = ?, name = ?, role = ?, company_id = ?, updated_at = ?
+      SET email = ?, password = ?, name = ?, role = ?, company_id = ?, park_id = ?, updated_at = ?
       WHERE id = ?
     `);
 
@@ -75,6 +91,7 @@ export class UserModel {
       data.name ?? existing.name,
       data.role ?? existing.role,
       data.companyId ?? existing.companyId,
+      data.parkId !== undefined ? data.parkId : existing.parkId,
       now,
       id
     );
@@ -100,6 +117,7 @@ export class UserModel {
       name: row.name,
       role: row.role as UserRole,
       companyId: row.company_id,
+      parkId: row.park_id,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

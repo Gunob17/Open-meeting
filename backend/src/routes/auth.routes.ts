@@ -30,7 +30,8 @@ router.post('/login', async (req, res: Response) => {
       userId: user.id,
       email: user.email,
       role: user.role,
-      companyId: user.companyId
+      companyId: user.companyId,
+      parkId: user.parkId
     });
 
     res.json({
@@ -40,7 +41,8 @@ router.post('/login', async (req, res: Response) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        companyId: user.companyId
+        companyId: user.companyId,
+        parkId: user.parkId
       }
     });
   } catch (error) {
@@ -68,7 +70,8 @@ router.get('/me', authenticate, (req: AuthRequest, res: Response) => {
       email: user.email,
       name: user.name,
       role: user.role,
-      companyId: user.companyId
+      companyId: user.companyId,
+      parkId: user.parkId
     });
   } catch (error) {
     console.error('Get user error:', error);

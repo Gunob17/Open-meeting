@@ -1,7 +1,18 @@
 export enum UserRole {
-  ADMIN = 'admin',           // System administrator - can manage rooms and all users
+  SUPER_ADMIN = 'super_admin',     // Super administrator - can manage multiple parks
+  PARK_ADMIN = 'park_admin',       // Park administrator - can manage rooms and users within their park
   COMPANY_ADMIN = 'company_admin', // Company administrator - can manage users in their company
-  USER = 'user'              // Regular user - can book meeting rooms
+  USER = 'user'                    // Regular user - can book meeting rooms
+}
+
+export interface Park {
+  id: string;
+  name: string;
+  address: string;
+  description: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface User {
@@ -11,6 +22,7 @@ export interface User {
   name: string;
   role: UserRole;
   companyId: string;
+  parkId: string | null;  // null for super_admin who can access all parks
   createdAt: string;
   updatedAt: string;
 }
@@ -19,6 +31,7 @@ export interface Company {
   id: string;
   name: string;
   address: string;
+  parkId: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,6 +45,7 @@ export interface MeetingRoom {
   address: string;
   description: string;
   isActive: boolean;
+  parkId: string;
   openingHour: number | null;  // Room-specific opening hour (null = use global)
   closingHour: number | null;  // Room-specific closing hour (null = use global)
   lockedToCompanyId: string | null; // If set, only this company can book
@@ -71,6 +85,7 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   companyId: string;
+  parkId: string | null;
 }
 
 export interface BookingWithDetails extends Booking {
@@ -93,6 +108,7 @@ export interface CreateUserRequest {
   name: string;
   role: UserRole;
   companyId: string;
+  parkId?: string | null;
 }
 
 export interface CreateRoomRequest {
@@ -102,6 +118,7 @@ export interface CreateRoomRequest {
   floor: string;
   address: string;
   description?: string;
+  parkId: string;
   openingHour?: number | null;
   closingHour?: number | null;
   lockedToCompanyId?: string | null;
@@ -111,6 +128,13 @@ export interface CreateRoomRequest {
 export interface CreateCompanyRequest {
   name: string;
   address: string;
+  parkId: string;
+}
+
+export interface CreateParkRequest {
+  name: string;
+  address: string;
+  description?: string;
 }
 
 // Screen device types

@@ -1,25 +1,33 @@
-# Meeting Room Booking System
+# Open Meeting
 
-A comprehensive meeting room booking service for shared offices with a hierarchical user structure.
+A comprehensive meeting room booking service for shared offices and parks with multi-tenant support and hierarchical user structure.
 
 ## Features
 
-### User Hierarchy
-- **Administrator**: Can create/delete meeting rooms, create all user types, manage companies
-- **Company Admin**: Can create/delete users for their company
-- **User**: Can book meeting rooms
+### Multi-Park Architecture
+- **Super Admin**: Manages multiple parks, creates park admins
+- **Park Admin**: Manages rooms, companies, and users within their park
+- **Company Admin**: Can create/delete users for their company within their park
+- **User**: Can book meeting rooms within their park
 
 ### Core Features
 - **Calendar View**: Weekly view showing all meeting rooms and their booking status
 - **List View**: Shows rooms with capacity, amenities, and availability status
 - **Booking System**: Book rooms with conflict detection
 - **Email Notifications**: Meeting invites with ICS attachments sent to organizer and attendees
+- **Park Isolation**: Users can only see and book rooms within their assigned park
 
 ### Room Information
 - Capacity (number of occupants)
 - Amenities (projector, whiteboard, video conferencing, etc.)
 - Floor and address information
 - Availability status
+- Configurable quick booking durations per room
+
+### Device Support
+- ESP32-based room display devices
+- Real-time room status with LED indicators
+- Quick booking from the device
 
 ## Tech Stack
 
@@ -45,10 +53,10 @@ The easiest way to run the application is with Docker. Download the latest relea
 
 ```bash
 # Download the image tar file from releases, then load it
-gunzip -c meeting-booking-v1.0.0.tar.gz | docker load
+gunzip -c open-meeting-v1.0.0.tar.gz | docker load
 
 # Run the container
-docker run -d -p 80:80 --name meeting-booking meeting-booking:v1.0.0
+docker run -d -p 80:80 --name open-meeting open-meeting:v1.0.0
 
 # Or use Docker Compose (after building locally)
 docker-compose up -d
@@ -97,7 +105,7 @@ After seeding, you can log in with these accounts:
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@sharedoffice.com | admin123 |
+| Super Admin | admin@sharedoffice.com | admin123 |
 | Company Admin | admin@techcorp.com | techcorp123 |
 | Company Admin | admin@startuphub.com | startup123 |
 | User | john@techcorp.com | john123 |
@@ -111,26 +119,32 @@ After seeding, you can log in with these accounts:
 - `GET /api/auth/me` - Get current user
 - `POST /api/auth/change-password` - Change password
 
-### Companies (Admin only)
-- `GET /api/companies` - List all companies
+### Parks (Super Admin only)
+- `GET /api/parks` - List all parks
+- `POST /api/parks` - Create park
+- `PUT /api/parks/:id` - Update park
+- `DELETE /api/parks/:id` - Delete park
+
+### Companies (Park Admin+)
+- `GET /api/companies` - List companies in park
 - `POST /api/companies` - Create company
 - `PUT /api/companies/:id` - Update company
 - `DELETE /api/companies/:id` - Delete company
 
 ### Users
-- `GET /api/users` - List all users (Admin only)
+- `GET /api/users` - List users (filtered by park)
 - `GET /api/users/company/:companyId` - List company users
 - `POST /api/users` - Create user
 - `PUT /api/users/:id` - Update user
 - `DELETE /api/users/:id` - Delete user
 
 ### Meeting Rooms
-- `GET /api/rooms` - List all rooms
+- `GET /api/rooms` - List rooms (filtered by park)
 - `GET /api/rooms/:id` - Get room details
 - `GET /api/rooms/:id/availability` - Get room availability
-- `POST /api/rooms` - Create room (Admin only)
-- `PUT /api/rooms/:id` - Update room (Admin only)
-- `DELETE /api/rooms/:id` - Delete room (Admin only)
+- `POST /api/rooms` - Create room (Park Admin+)
+- `PUT /api/rooms/:id` - Update room (Park Admin+)
+- `DELETE /api/rooms/:id` - Delete room (Park Admin+)
 
 ### Bookings
 - `GET /api/bookings` - List all bookings (with optional date range)
@@ -150,13 +164,13 @@ SMTP_HOST=your-smtp-host
 SMTP_PORT=587
 SMTP_USER=your-email
 SMTP_PASS=your-password
-SMTP_FROM="Meeting Booking <noreply@yourcompany.com>"
+SMTP_FROM="Open Meeting <noreply@yourcompany.com>"
 ```
 
 ## Project Structure
 
 ```
-MeetingBooking/
+Open-meeting/
 ├── backend/
 │   ├── src/
 │   │   ├── models/       # Database models
@@ -177,6 +191,10 @@ MeetingBooking/
 │   │   ├── App.tsx       # Main app component
 │   │   └── styles.css    # Global styles
 │   └── package.json
+├── device/               # ESP32 device firmware
+│   ├── src/              # Source files
+│   ├── include/          # Header files
+│   └── platformio.ini    # PlatformIO config
 ├── docker/               # Docker configuration
 │   ├── nginx.conf        # Nginx config for combined container
 │   └── supervisord.conf  # Process manager config
@@ -195,10 +213,10 @@ MeetingBooking/
 
 ```bash
 # Build the combined image
-docker build -t meeting-booking .
+docker build -t open-meeting .
 
 # Run the container
-docker run -d -p 80:80 --name meeting-booking meeting-booking
+docker run -d -p 80:80 --name open-meeting open-meeting
 ```
 
 ### Docker Compose
@@ -220,14 +238,14 @@ docker-compose -f docker-compose.dev.yml up -d
 | `SMTP_PORT` | SMTP server port | 587 |
 | `SMTP_USER` | SMTP username | - |
 | `SMTP_PASS` | SMTP password | - |
-| `SMTP_FROM` | Email from address | Meeting Booking <noreply@meetingbooking.com> |
+| `SMTP_FROM` | Email from address | Open Meeting <noreply@openmeeting.com> |
 
 ### Persistent Data
 
 The SQLite database is stored in `/app/backend/data`. Mount a volume to persist data:
 
 ```bash
-docker run -d -p 80:80 -v meeting-data:/app/backend/data meeting-booking
+docker run -d -p 80:80 -v open-meeting-data:/app/backend/data open-meeting
 ```
 
 ## CI/CD Pipeline
@@ -259,18 +277,18 @@ git push origin v1.0.0
 
 The CI/CD pipeline will automatically:
 - Build the Docker image
-- Export it as a compressed tar file (`meeting-booking-v1.0.0.tar.gz`)
+- Export it as a compressed tar file (`open-meeting-v1.0.0.tar.gz`)
 - Create a GitHub release with changelog
 - Attach the Docker image tar file to the release
 
 ### Using a Release
 
-Download the `meeting-booking-vX.X.X.tar.gz` file from the release assets, then:
+Download the `open-meeting-vX.X.X.tar.gz` file from the release assets, then:
 
 ```bash
 # Load the image into Docker
-gunzip -c meeting-booking-v1.0.0.tar.gz | docker load
+gunzip -c open-meeting-v1.0.0.tar.gz | docker load
 
 # Run the container
-docker run -d -p 80:80 --name meeting-booking meeting-booking:v1.0.0
+docker run -d -p 80:80 --name open-meeting open-meeting:v1.0.0
 ```

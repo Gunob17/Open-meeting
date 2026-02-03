@@ -18,6 +18,17 @@ db.pragma('foreign_keys = ON');
 // Initialize database schema
 export function initializeDatabase(): void {
   db.exec(`
+    -- Parks table (multi-tenant support)
+    CREATE TABLE IF NOT EXISTS parks (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      address TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- Companies table
     CREATE TABLE IF NOT EXISTS companies (
       id TEXT PRIMARY KEY,
@@ -33,7 +44,7 @@ export function initializeDatabase(): void {
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       name TEXT NOT NULL,
-      role TEXT NOT NULL CHECK (role IN ('admin', 'company_admin', 'user')),
+      role TEXT NOT NULL CHECK (role IN ('super_admin', 'park_admin', 'admin', 'company_admin', 'user')),
       company_id TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -131,6 +142,41 @@ export function initializeDatabase(): void {
   try {
     db.exec(`ALTER TABLE meeting_rooms ADD COLUMN quick_book_durations TEXT DEFAULT '[30, 60, 90, 120]'`);
   } catch (e) { /* Column may already exist */ }
+
+  // Multi-park migration: add park_id columns
+  try {
+    // Create default park if none exists
+    db.exec(`INSERT OR IGNORE INTO parks (id, name, address, description) VALUES ('default', 'Default Park', 'Default Location', 'Default park for existing data')`);
+  } catch (e) { /* May already exist */ }
+
+  try {
+    db.exec(`ALTER TABLE companies ADD COLUMN park_id TEXT DEFAULT 'default' REFERENCES parks(id)`);
+  } catch (e) { /* Column may already exist */ }
+
+  try {
+    db.exec(`ALTER TABLE users ADD COLUMN park_id TEXT DEFAULT NULL REFERENCES parks(id)`);
+  } catch (e) { /* Column may already exist */ }
+
+  try {
+    db.exec(`ALTER TABLE meeting_rooms ADD COLUMN park_id TEXT DEFAULT 'default' REFERENCES parks(id)`);
+  } catch (e) { /* Column may already exist */ }
+
+  // Migrate existing 'admin' role to 'park_admin' for non-super admins
+  try {
+    db.exec(`UPDATE users SET role = 'park_admin' WHERE role = 'admin' AND company_id != 'system'`);
+  } catch (e) { /* Migration may have already run */ }
+
+  // Set park_id for existing users based on their company's park
+  try {
+    db.exec(`UPDATE users SET park_id = (SELECT park_id FROM companies WHERE companies.id = users.company_id) WHERE park_id IS NULL AND company_id != 'system'`);
+  } catch (e) { /* Migration may have already run */ }
+
+  // Create index for park lookups
+  try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_companies_park_id ON companies(park_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_users_park_id ON users(park_id)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_meeting_rooms_park_id ON meeting_rooms(park_id)`);
+  } catch (e) { /* Indexes may already exist */ }
 }
 
 export default db;

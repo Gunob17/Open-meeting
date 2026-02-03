@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { JwtPayload, UserRole } from '../types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'meeting-booking-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'open-meeting-secret-key-change-in-production';
 
 export interface AuthRequest extends Request {
   user?: JwtPayload;
@@ -56,8 +56,25 @@ export function requireRole(...roles: UserRole[]) {
   };
 }
 
+export function requireSuperAdmin(req: AuthRequest, res: Response, next: NextFunction): void {
+  if (!req.user || req.user.role !== UserRole.SUPER_ADMIN) {
+    res.status(403).json({ error: 'Super admin access required' });
+    return;
+  }
+  next();
+}
+
+export function requireParkAdmin(req: AuthRequest, res: Response, next: NextFunction): void {
+  if (!req.user || (req.user.role !== UserRole.SUPER_ADMIN && req.user.role !== UserRole.PARK_ADMIN)) {
+    res.status(403).json({ error: 'Park admin access required' });
+    return;
+  }
+  next();
+}
+
+// Legacy alias for backward compatibility - now requires park admin or above
 export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction): void {
-  if (!req.user || req.user.role !== UserRole.ADMIN) {
+  if (!req.user || (req.user.role !== UserRole.SUPER_ADMIN && req.user.role !== UserRole.PARK_ADMIN)) {
     res.status(403).json({ error: 'Admin access required' });
     return;
   }
@@ -65,7 +82,7 @@ export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction
 }
 
 export function requireCompanyAdminOrAbove(req: AuthRequest, res: Response, next: NextFunction): void {
-  if (!req.user || (req.user.role !== UserRole.ADMIN && req.user.role !== UserRole.COMPANY_ADMIN)) {
+  if (!req.user || (req.user.role !== UserRole.SUPER_ADMIN && req.user.role !== UserRole.PARK_ADMIN && req.user.role !== UserRole.COMPANY_ADMIN)) {
     res.status(403).json({ error: 'Company admin or admin access required' });
     return;
   }

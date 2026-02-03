@@ -2,14 +2,18 @@ import { Router, Response } from 'express';
 import { RoomModel } from '../models/room.model';
 import { BookingModel } from '../models/booking.model';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
+import { UserRole } from '../types';
 
 const router = Router();
 
-// Get all rooms
+// Get all rooms (filtered by park for non-super admins)
 router.get('/', authenticate, (req: AuthRequest, res: Response) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
-    const rooms = RoomModel.findAll(includeInactive);
+
+    // Super admins see all rooms, others see only their park's rooms
+    const parkId = req.user?.role === UserRole.SUPER_ADMIN ? undefined : req.user?.parkId;
+    const rooms = RoomModel.findAll(includeInactive, parkId);
 
     // Parse amenities JSON for response
     const roomsWithParsedAmenities = rooms.map(room => ({
@@ -82,10 +86,10 @@ router.get('/:id/availability', authenticate, (req: AuthRequest, res: Response) 
   }
 });
 
-// Create room (admin only)
+// Create room (park admin or above)
 router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
-    const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyId, quickBookDurations } = req.body;
+    const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyId, quickBookDurations, parkId } = req.body;
 
     if (!name || !capacity || !floor || !address) {
       res.status(400).json({ error: 'Name, capacity, floor, and address are required' });
@@ -95,6 +99,20 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
     if (typeof capacity !== 'number' || capacity < 1) {
       res.status(400).json({ error: 'Capacity must be a positive number' });
       return;
+    }
+
+    // Determine which park to create the room in
+    let targetParkId = parkId;
+    if (req.user?.role === UserRole.SUPER_ADMIN) {
+      // Super admin can specify parkId, defaults to 'default' if not provided
+      targetParkId = parkId || 'default';
+    } else {
+      // Park admins can only create rooms in their own park
+      targetParkId = req.user?.parkId;
+      if (!targetParkId) {
+        res.status(400).json({ error: 'User is not assigned to a park' });
+        return;
+      }
     }
 
     // Validate room-specific hours if provided
@@ -122,6 +140,7 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
       floor,
       address,
       description,
+      parkId: targetParkId,
       openingHour: openingHour ?? null,
       closingHour: closingHour ?? null,
       lockedToCompanyId: lockedToCompanyId ?? null,

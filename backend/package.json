@@ -1,7 +1,7 @@
 {
-  "name": "meeting-booking-backend",
+  "name": "open-meeting-backend",
   "version": "1.0.0",
-  "description": "Meeting room booking service backend",
+  "description": "Open Meeting backend service",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",

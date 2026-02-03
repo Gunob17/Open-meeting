@@ -1,4 +1,4 @@
-# Meeting Room Display - ESP32 CYD Firmware
+# Open Meeting Display - ESP32 CYD Firmware
 
 Firmware for ESP32-2432S028 (CYD - Cheap Yellow Display) 2.8" TFT with touch screen to display meeting room status and allow quick bookings.
 
@@ -180,4 +180,4 @@ All requests include the `X-Device-Token` header for authentication.
 
 ## License
 
-Part of the Meeting Booking System project.
+Part of the Open Meeting project.

@@ -12,6 +12,7 @@ import setupRoutes from './routes/setup.routes';
 import settingsRoutes from './routes/settings.routes';
 import deviceRoutes from './routes/device.routes';
 import deviceApiRoutes from './routes/device-api.routes';
+import parkRoutes from './routes/park.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +27,7 @@ initializeDatabase();
 // Routes
 app.use('/api/setup', setupRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/parks', parkRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/rooms', roomRoutes);
@@ -46,7 +48,7 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 app.listen(PORT, () => {
-  console.log(`Meeting Booking API server running on port ${PORT}`);
+  console.log(`Open Meeting API server running on port ${PORT}`);
 });
 
 export default app;

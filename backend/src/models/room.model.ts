@@ -9,8 +9,8 @@ export class RoomModel {
     const defaultDurations = [30, 60, 90, 120];
 
     const stmt = db.prepare(`
-      INSERT INTO meeting_rooms (id, name, capacity, amenities, floor, address, description, is_active, opening_hour, closing_hour, locked_to_company_id, quick_book_durations, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO meeting_rooms (id, name, capacity, amenities, floor, address, description, is_active, park_id, opening_hour, closing_hour, locked_to_company_id, quick_book_durations, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -22,6 +22,7 @@ export class RoomModel {
       data.address,
       data.description || '',
       1,
+      data.parkId,
       data.openingHour ?? null,
       data.closingHour ?? null,
       data.lockedToCompanyId ?? null,
@@ -42,15 +43,36 @@ export class RoomModel {
     return this.mapRowToRoom(row);
   }
 
-  static findAll(includeInactive = false): MeetingRoom[] {
-    let query = 'SELECT * FROM meeting_rooms';
+  static findAll(includeInactive = false, parkId?: string | null): MeetingRoom[] {
+    let query = 'SELECT * FROM meeting_rooms WHERE 1=1';
+    const params: any[] = [];
+
     if (!includeInactive) {
-      query += ' WHERE is_active = 1';
+      query += ' AND is_active = 1';
+    }
+
+    if (parkId) {
+      query += ' AND park_id = ?';
+      params.push(parkId);
+    }
+
+    query += ' ORDER BY name';
+
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...params) as any[];
+
+    return rows.map(this.mapRowToRoom);
+  }
+
+  static findByPark(parkId: string, includeInactive = false): MeetingRoom[] {
+    let query = 'SELECT * FROM meeting_rooms WHERE park_id = ?';
+    if (!includeInactive) {
+      query += ' AND is_active = 1';
     }
     query += ' ORDER BY name';
 
     const stmt = db.prepare(query);
-    const rows = stmt.all() as any[];
+    const rows = stmt.all(parkId) as any[];
 
     return rows.map(this.mapRowToRoom);
   }
@@ -124,6 +146,7 @@ export class RoomModel {
       address: row.address,
       description: row.description,
       isActive: row.is_active === 1,
+      parkId: row.park_id,
       openingHour: row.opening_hour,
       closingHour: row.closing_hour,
       lockedToCompanyId: row.locked_to_company_id,

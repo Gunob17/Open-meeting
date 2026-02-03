@@ -1,7 +1,7 @@
 {
-  "name": "meeting-booking-system",
+  "name": "open-meeting",
   "version": "1.0.0",
-  "description": "Meeting room booking service for shared offices",
+  "description": "Open Meeting - Room booking service for shared offices and parks",
   "scripts": {
     "install:backend": "cd backend && npm install",
     "install:frontend": "cd frontend && npm install",
