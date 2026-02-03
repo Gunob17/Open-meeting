@@ -40,8 +40,12 @@ public:
     void showWiFiSetup(const String& apName, const String& apPassword);
     void showTokenSetup(const String& currentToken);
     void showRoomStatus(const RoomStatus& status);
-    void showQuickBookMenu();
+    void showQuickBookMenu(const RoomStatus& status);
     void showBookingConfirm(int duration);
+
+    // Get current quick book durations (for button handling)
+    int getQuickBookDuration(int index) const { return _quickBookDurations[index]; }
+    int getQuickBookDurationCount() const { return _quickBookDurationCount; }
     void showBookingResult(bool success, const String& message);
     void showError(const String& message);
     void showLoading(const String& message);
@@ -75,6 +79,8 @@ private:
     String _tokenInput;
     String _apiUrlInput;
     int _timezoneOffset = 0;  // Timezone offset in hours
+    int _quickBookDurations[4] = {30, 60, 90, 120};  // Current quick book durations
+    int _quickBookDurationCount = 4;
 
     // Drawing helpers
     void drawHeader(const String& title, uint16_t bgColor = COLOR_PRIMARY);

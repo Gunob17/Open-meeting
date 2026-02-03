@@ -309,9 +309,31 @@ void UIManager::showRoomStatus(const RoomStatus& status) {
     addButton(SCREEN_WIDTH - 40, SCREEN_HEIGHT - 35, 30, 30, "Refresh");
 }
 
-void UIManager::showQuickBookMenu() {
+// Helper to format duration label
+String formatDurationLabel(int minutes) {
+    if (minutes < 60) {
+        return String(minutes) + " min";
+    } else if (minutes == 60) {
+        return "1 hour";
+    } else if (minutes % 60 == 0) {
+        return String(minutes / 60) + " hours";
+    } else {
+        float hours = minutes / 60.0;
+        // Format as "1.5 hours" etc.
+        if (minutes == 90) return "1.5 hours";
+        return String(hours, 1) + " hrs";
+    }
+}
+
+void UIManager::showQuickBookMenu(const RoomStatus& status) {
     _currentState = UI_QUICK_BOOK;
     clearButtons();
+
+    // Store the durations for button handling
+    _quickBookDurationCount = status.room.quickBookDurationCount;
+    for (int i = 0; i < 4; i++) {
+        _quickBookDurations[i] = (i < _quickBookDurationCount) ? status.room.quickBookDurations[i] : 0;
+    }
 
     _tft.fillScreen(COLOR_BG);
 
@@ -328,18 +350,19 @@ void UIManager::showQuickBookMenu() {
     int startX = 12;
     int startY = 75;
 
-    // Duration buttons - 2x2 grid
-    drawButton(startX, startY, btnWidth, btnHeight, "15 min", COLOR_CARD_BG, COLOR_TEXT);
-    addButton(startX, startY, btnWidth, btnHeight, "15");
+    // Duration buttons - 2x2 grid (up to 4 durations from room config)
+    int positions[4][2] = {
+        {startX, startY},
+        {startX + btnWidth + gap, startY},
+        {startX, startY + btnHeight + gap},
+        {startX + btnWidth + gap, startY + btnHeight + gap}
+    };
 
-    drawButton(startX + btnWidth + gap, startY, btnWidth, btnHeight, "30 min", COLOR_CARD_BG, COLOR_TEXT);
-    addButton(startX + btnWidth + gap, startY, btnWidth, btnHeight, "30");
-
-    drawButton(startX, startY + btnHeight + gap, btnWidth, btnHeight, "45 min", COLOR_CARD_BG, COLOR_TEXT);
-    addButton(startX, startY + btnHeight + gap, btnWidth, btnHeight, "45");
-
-    drawButton(startX + btnWidth + gap, startY + btnHeight + gap, btnWidth, btnHeight, "60 min", COLOR_CARD_BG, COLOR_TEXT);
-    addButton(startX + btnWidth + gap, startY + btnHeight + gap, btnWidth, btnHeight, "60");
+    for (int i = 0; i < _quickBookDurationCount && i < 4; i++) {
+        String label = formatDurationLabel(_quickBookDurations[i]);
+        drawButton(positions[i][0], positions[i][1], btnWidth, btnHeight, label, COLOR_CARD_BG, COLOR_TEXT);
+        addButton(positions[i][0], positions[i][1], btnWidth, btnHeight, String(_quickBookDurations[i]));
+    }
 
     // Cancel button
     drawButton(12, SCREEN_HEIGHT - 45, SCREEN_WIDTH - 24, 38, "Cancel", COLOR_DANGER, COLOR_TEXT);

@@ -66,6 +66,17 @@
 #define LED_GREEN_PIN 16
 #define LED_BLUE_PIN 17
 
+// LED brightness (0-255, but inverted for active LOW)
+// 75% brightness = 25% duty cycle for active LOW = 64
+#define LED_BRIGHTNESS 64
+
+// PWM settings for LED brightness control
+#define LED_PWM_FREQ 5000
+#define LED_PWM_RESOLUTION 8
+#define LED_RED_CHANNEL 0
+#define LED_GREEN_CHANNEL 1
+#define LED_BLUE_CHANNEL 2
+
 // Screen timeout (turn off backlight after inactivity)
 #define SCREEN_TIMEOUT_MS 120000  // 2 minutes
 

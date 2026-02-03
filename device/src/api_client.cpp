@@ -73,6 +73,14 @@ Booking ApiClient::parseBooking(JsonObject& obj) {
 Room ApiClient::parseRoom(JsonObject& obj) {
     Room room;
     room.isValid = false;
+    room.quickBookDurationCount = 0;
+
+    // Default durations
+    int defaultDurations[] = {30, 60, 90, 120};
+    for (int i = 0; i < 4; i++) {
+        room.quickBookDurations[i] = defaultDurations[i];
+    }
+    room.quickBookDurationCount = 4;
 
     if (obj.isNull()) {
         return room;
@@ -83,6 +91,16 @@ Room ApiClient::parseRoom(JsonObject& obj) {
     room.capacity = obj["capacity"] | 0;
     room.floor = obj["floor"].as<String>();
     room.isValid = room.id.length() > 0;
+
+    // Parse quickBookDurations if present
+    if (!obj["quickBookDurations"].isNull()) {
+        JsonArray durationsArr = obj["quickBookDurations"];
+        room.quickBookDurationCount = 0;
+        for (int i = 0; i < 4 && i < durationsArr.size(); i++) {
+            room.quickBookDurations[i] = durationsArr[i] | 30;
+            room.quickBookDurationCount++;
+        }
+    }
 
     return room;
 }

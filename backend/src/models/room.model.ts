@@ -6,10 +6,11 @@ export class RoomModel {
   static create(data: CreateRoomRequest): MeetingRoom {
     const id = uuidv4();
     const now = new Date().toISOString();
+    const defaultDurations = [30, 60, 90, 120];
 
     const stmt = db.prepare(`
-      INSERT INTO meeting_rooms (id, name, capacity, amenities, floor, address, description, is_active, opening_hour, closing_hour, locked_to_company_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO meeting_rooms (id, name, capacity, amenities, floor, address, description, is_active, opening_hour, closing_hour, locked_to_company_id, quick_book_durations, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -24,6 +25,7 @@ export class RoomModel {
       data.openingHour ?? null,
       data.closingHour ?? null,
       data.lockedToCompanyId ?? null,
+      JSON.stringify(data.quickBookDurations ?? defaultDurations),
       now,
       now
     );
@@ -61,7 +63,7 @@ export class RoomModel {
     const stmt = db.prepare(`
       UPDATE meeting_rooms
       SET name = ?, capacity = ?, amenities = ?, floor = ?, address = ?, description = ?, is_active = ?,
-          opening_hour = ?, closing_hour = ?, locked_to_company_id = ?, updated_at = ?
+          opening_hour = ?, closing_hour = ?, locked_to_company_id = ?, quick_book_durations = ?, updated_at = ?
       WHERE id = ?
     `);
 
@@ -71,6 +73,7 @@ export class RoomModel {
     const openingHour = data.openingHour !== undefined ? data.openingHour : existing.openingHour;
     const closingHour = data.closingHour !== undefined ? data.closingHour : existing.closingHour;
     const lockedToCompanyId = data.lockedToCompanyId !== undefined ? data.lockedToCompanyId : existing.lockedToCompanyId;
+    const quickBookDurations = data.quickBookDurations !== undefined ? JSON.stringify(data.quickBookDurations) : JSON.stringify(existing.quickBookDurations);
 
     stmt.run(
       data.name ?? existing.name,
@@ -83,6 +86,7 @@ export class RoomModel {
       openingHour,
       closingHour,
       lockedToCompanyId,
+      quickBookDurations,
       now,
       id
     );
@@ -103,6 +107,14 @@ export class RoomModel {
   }
 
   private static mapRowToRoom(row: any): MeetingRoom {
+    const defaultDurations = [30, 60, 90, 120];
+    let quickBookDurations = defaultDurations;
+    try {
+      quickBookDurations = row.quick_book_durations ? JSON.parse(row.quick_book_durations) : defaultDurations;
+    } catch (e) {
+      quickBookDurations = defaultDurations;
+    }
+
     return {
       id: row.id,
       name: row.name,
@@ -115,6 +127,7 @@ export class RoomModel {
       openingHour: row.opening_hour,
       closingHour: row.closing_hour,
       lockedToCompanyId: row.locked_to_company_id,
+      quickBookDurations: quickBookDurations,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

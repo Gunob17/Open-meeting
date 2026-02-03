@@ -127,6 +127,10 @@ export function initializeDatabase(): void {
   try {
     db.exec(`ALTER TABLE meeting_rooms ADD COLUMN locked_to_company_id TEXT DEFAULT NULL REFERENCES companies(id)`);
   } catch (e) { /* Column may already exist */ }
+
+  try {
+    db.exec(`ALTER TABLE meeting_rooms ADD COLUMN quick_book_durations TEXT DEFAULT '[30, 60, 90, 120]'`);
+  } catch (e) { /* Column may already exist */ }
 }
 
 export default db;

@@ -34,6 +34,7 @@ export interface MeetingRoom {
   closingHour?: number | null;
   lockedToCompanyId?: string | null;
   lockedToCompany?: Company;
+  quickBookDurations?: number[]; // Available quick booking durations in minutes for device
   createdAt?: string;
   updatedAt?: string;
 }

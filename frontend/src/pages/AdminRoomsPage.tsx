@@ -27,7 +27,8 @@ export function AdminRoomsPage() {
     amenities: [] as string[],
     floor: '',
     address: '',
-    description: ''
+    description: '',
+    quickBookDurations: [30, 60, 90, 120] as number[]
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -68,7 +69,8 @@ export function AdminRoomsPage() {
         amenities: room.amenities,
         floor: room.floor,
         address: room.address,
-        description: room.description
+        description: room.description,
+        quickBookDurations: room.quickBookDurations || [30, 60, 90, 120]
       });
     } else {
       setEditingRoom(null);
@@ -78,7 +80,8 @@ export function AdminRoomsPage() {
         amenities: [],
         floor: '',
         address: '',
-        description: ''
+        description: '',
+        quickBookDurations: [30, 60, 90, 120]
       });
     }
     setError('');
@@ -390,6 +393,32 @@ export function AdminRoomsPage() {
                     placeholder="Describe the room"
                     rows={2}
                   />
+                </div>
+
+                <div className="form-group">
+                  <label>Quick Book Durations (for device screen)</label>
+                  <div className="quick-book-durations">
+                    {[15, 30, 45, 60, 90, 120, 180, 240].map(duration => (
+                      <label key={duration} className="duration-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={formData.quickBookDurations.includes(duration)}
+                          onChange={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              quickBookDurations: prev.quickBookDurations.includes(duration)
+                                ? prev.quickBookDurations.filter(d => d !== duration)
+                                : [...prev.quickBookDurations, duration].sort((a, b) => a - b)
+                            }));
+                          }}
+                        />
+                        <span>{duration < 60 ? `${duration} min` : `${duration / 60} ${duration === 60 ? 'hour' : 'hours'}`}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <small style={{ color: '#6b7280', marginTop: '0.25rem', display: 'block' }}>
+                    Select the booking durations available on the room's display device (max 4 will be shown)
+                  </small>
                 </div>
 
                 <div className="form-group">

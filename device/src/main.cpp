@@ -450,22 +450,20 @@ void handleTouch() {
             break;
 
         case UI_QUICK_BOOK:
-            switch (buttonIndex) {
-                case 0: selectedDuration = 15; break;
-                case 1: selectedDuration = 30; break;
-                case 2: selectedDuration = 45; break;
-                case 3: selectedDuration = 60; break;
-                case 4:  // Cancel
-                    ui.showRoomStatus(currentStatus);
-                    return;
+            // Button indices 0-3 are duration buttons, 4 is cancel
+            if (buttonIndex >= 0 && buttonIndex < ui.getQuickBookDurationCount()) {
+                selectedDuration = ui.getQuickBookDuration(buttonIndex);
+                ui.showBookingConfirm(selectedDuration);
+            } else if (buttonIndex == ui.getQuickBookDurationCount()) {
+                // Cancel button (after duration buttons)
+                ui.showRoomStatus(currentStatus);
             }
-            ui.showBookingConfirm(selectedDuration);
             break;
 
         case UI_BOOKING_CONFIRM:
             if (buttonIndex == 0) {
-                // Cancel
-                ui.showQuickBookMenu();
+                // Cancel - go back to quick book menu
+                ui.showQuickBookMenu(currentStatus);
             } else if (buttonIndex == 1) {
                 // Confirm
                 performQuickBook(selectedDuration);
@@ -511,34 +509,42 @@ void performQuickBook(int duration) {
 }
 
 // RGB LED functions (active LOW on CYD boards)
+// RGB LED functions using PWM for brightness control (active LOW on CYD boards)
 void setupRgbLed() {
-    pinMode(LED_RED_PIN, OUTPUT);
-    pinMode(LED_GREEN_PIN, OUTPUT);
-    pinMode(LED_BLUE_PIN, OUTPUT);
-    // Turn all off (HIGH = off for active LOW)
-    digitalWrite(LED_RED_PIN, HIGH);
-    digitalWrite(LED_GREEN_PIN, HIGH);
-    digitalWrite(LED_BLUE_PIN, HIGH);
+    // Set up PWM channels for each LED color
+    ledcSetup(LED_RED_CHANNEL, LED_PWM_FREQ, LED_PWM_RESOLUTION);
+    ledcSetup(LED_GREEN_CHANNEL, LED_PWM_FREQ, LED_PWM_RESOLUTION);
+    ledcSetup(LED_BLUE_CHANNEL, LED_PWM_FREQ, LED_PWM_RESOLUTION);
+
+    // Attach pins to PWM channels
+    ledcAttachPin(LED_RED_PIN, LED_RED_CHANNEL);
+    ledcAttachPin(LED_GREEN_PIN, LED_GREEN_CHANNEL);
+    ledcAttachPin(LED_BLUE_PIN, LED_BLUE_CHANNEL);
+
+    // Turn all off (255 = off for active LOW)
+    ledcWrite(LED_RED_CHANNEL, 255);
+    ledcWrite(LED_GREEN_CHANNEL, 255);
+    ledcWrite(LED_BLUE_CHANNEL, 255);
 }
 
 void setLedColor(bool available) {
     if (available) {
-        // Green for available
-        digitalWrite(LED_RED_PIN, HIGH);    // Off
-        digitalWrite(LED_GREEN_PIN, LOW);   // On
-        digitalWrite(LED_BLUE_PIN, HIGH);   // Off
+        // Green for available (at reduced 75% brightness)
+        ledcWrite(LED_RED_CHANNEL, 255);              // Off
+        ledcWrite(LED_GREEN_CHANNEL, LED_BRIGHTNESS); // On at 75% brightness
+        ledcWrite(LED_BLUE_CHANNEL, 255);             // Off
     } else {
-        // Red for occupied
-        digitalWrite(LED_RED_PIN, LOW);     // On
-        digitalWrite(LED_GREEN_PIN, HIGH);  // Off
-        digitalWrite(LED_BLUE_PIN, HIGH);   // Off
+        // Red for occupied (at reduced 75% brightness)
+        ledcWrite(LED_RED_CHANNEL, LED_BRIGHTNESS);   // On at 75% brightness
+        ledcWrite(LED_GREEN_CHANNEL, 255);            // Off
+        ledcWrite(LED_BLUE_CHANNEL, 255);             // Off
     }
 }
 
 void setLedOff() {
-    digitalWrite(LED_RED_PIN, HIGH);
-    digitalWrite(LED_GREEN_PIN, HIGH);
-    digitalWrite(LED_BLUE_PIN, HIGH);
+    ledcWrite(LED_RED_CHANNEL, 255);
+    ledcWrite(LED_GREEN_CHANNEL, 255);
+    ledcWrite(LED_BLUE_CHANNEL, 255);
 }
 
 // Screen timeout functions

@@ -20,6 +20,8 @@ struct Room {
     String name;
     int capacity;
     String floor;
+    int quickBookDurations[4];  // Up to 4 quick booking durations
+    int quickBookDurationCount;
     bool isValid;
 };
 

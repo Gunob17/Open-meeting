@@ -35,6 +35,7 @@ export interface MeetingRoom {
   openingHour: number | null;  // Room-specific opening hour (null = use global)
   closingHour: number | null;  // Room-specific closing hour (null = use global)
   lockedToCompanyId: string | null; // If set, only this company can book
+  quickBookDurations: number[]; // Available quick booking durations in minutes (e.g., [30, 60, 90, 120])
   createdAt: string;
   updatedAt: string;
 }
@@ -104,6 +105,7 @@ export interface CreateRoomRequest {
   openingHour?: number | null;
   closingHour?: number | null;
   lockedToCompanyId?: string | null;
+  quickBookDurations?: number[]; // Quick booking durations in minutes
 }
 
 export interface CreateCompanyRequest {

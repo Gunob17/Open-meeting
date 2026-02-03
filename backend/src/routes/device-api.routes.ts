@@ -150,11 +150,11 @@ router.post('/quick-book', authenticateDevice, (req: DeviceRequest, res: Respons
       return;
     }
 
-    // Validate duration (15, 30, 45, or 60 minutes)
-    const validDurations = [15, 30, 45, 60];
-    const duration = parseInt(durationMinutes) || 30;
+    // Validate duration against room's configured durations
+    const validDurations = room.quickBookDurations || [30, 60, 90, 120];
+    const duration = parseInt(durationMinutes) || validDurations[0];
     if (!validDurations.includes(duration)) {
-      res.status(400).json({ error: 'Duration must be 15, 30, 45, or 60 minutes' });
+      res.status(400).json({ error: `Duration must be one of: ${validDurations.map(d => d < 60 ? `${d} min` : `${d / 60} hour${d > 60 ? 's' : ''}`).join(', ')}` });
       return;
     }
 
