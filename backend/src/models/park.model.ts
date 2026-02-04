@@ -78,12 +78,24 @@ export class ParkModel {
     return result.changes > 0;
   }
 
+  static updateLogo(id: string, logoUrl: string | null): Park | null {
+    const existing = this.findById(id);
+    if (!existing) return null;
+
+    const now = new Date().toISOString();
+    const stmt = db.prepare('UPDATE parks SET logo_url = ?, updated_at = ? WHERE id = ?');
+    stmt.run(logoUrl, now, id);
+
+    return this.findById(id);
+  }
+
   private static mapRowToPark(row: any): Park {
     return {
       id: row.id,
       name: row.name,
       address: row.address,
       description: row.description || '',
+      logoUrl: row.logo_url || null,
       isActive: row.is_active === 1,
       createdAt: row.created_at,
       updatedAt: row.updated_at

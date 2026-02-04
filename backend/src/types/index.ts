@@ -10,6 +10,7 @@ export interface Park {
   name: string;
   address: string;
   description: string;
+  logoUrl: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

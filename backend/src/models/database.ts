@@ -219,6 +219,11 @@ export function initializeDatabase(): void {
   try {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_firmware_version ON firmware(version)`);
   } catch (e) { /* Index may already exist */ }
+
+  // Add logo_url column to parks table
+  if (!columnExists('parks', 'logo_url')) {
+    db.exec(`ALTER TABLE parks ADD COLUMN logo_url TEXT DEFAULT NULL`);
+  }
 }
 
 export default db;

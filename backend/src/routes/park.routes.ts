@@ -1,9 +1,55 @@
-import { Router, Response } from 'express';
+import { Router, Response, Request, NextFunction } from 'express';
 import { ParkModel } from '../models/park.model';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
 import { UserRole } from '../types';
+import multer, { FileFilterCallback, MulterError } from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
+
+// Logo storage directory
+const logosDir = path.join(__dirname, '../../data/logos');
+if (!fs.existsSync(logosDir)) {
+  fs.mkdirSync(logosDir, { recursive: true });
+}
+
+// Extend AuthRequest to include file from multer
+interface MulterAuthRequest extends AuthRequest {
+  file?: Express.Multer.File;
+}
+
+// Configure multer for logo uploads
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 2 * 1024 * 1024 // 2MB limit for logos
+  },
+  fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PNG, JPG, GIF, SVG, and WebP images are allowed'));
+    }
+  }
+});
+
+// Logo upload middleware with error handling
+const logoUploadMiddleware = (req: MulterAuthRequest, res: Response, next: NextFunction) => {
+  logoUpload.single('logo')(req, res, (err: any) => {
+    if (err instanceof MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Logo too large. Maximum size is 2MB' });
+      }
+      return res.status(400).json({ error: `Upload error: ${err.message}` });
+    } else if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+};
 
 // Middleware to require super admin
 function requireSuperAdmin(req: AuthRequest, res: Response, next: Function): void {
@@ -125,6 +171,131 @@ router.delete('/:id', authenticate, requireSuperAdmin, (req: AuthRequest, res: R
   } catch (error) {
     console.error('Delete park error:', error);
     res.status(500).json({ error: 'Failed to delete park' });
+  }
+});
+
+// Upload park logo (super admin or park admin of that park)
+router.post('/:id/logo', authenticate, logoUploadMiddleware, (req: MulterAuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const file = req.file;
+
+    // Check access - super admin or park admin of this park
+    if (req.user?.role !== UserRole.SUPER_ADMIN &&
+        req.user?.role !== UserRole.PARK_ADMIN) {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    if (req.user?.role === UserRole.PARK_ADMIN && req.user?.parkId !== id) {
+      res.status(403).json({ error: 'Access denied to this park' });
+      return;
+    }
+
+    const park = ParkModel.findById(id);
+    if (!park) {
+      res.status(404).json({ error: 'Park not found' });
+      return;
+    }
+
+    if (!file) {
+      res.status(400).json({ error: 'Logo file is required' });
+      return;
+    }
+
+    // Delete old logo if exists
+    if (park.logoUrl) {
+      const oldLogoPath = path.join(logosDir, path.basename(park.logoUrl));
+      if (fs.existsSync(oldLogoPath)) {
+        fs.unlinkSync(oldLogoPath);
+      }
+    }
+
+    // Save new logo
+    const ext = path.extname(file.originalname) || '.png';
+    const filename = `${id}_${uuidv4()}${ext}`;
+    const filePath = path.join(logosDir, filename);
+    fs.writeFileSync(filePath, file.buffer);
+
+    // Update park with new logo URL
+    const logoUrl = `/api/parks/${id}/logo/${filename}`;
+    const updatedPark = ParkModel.updateLogo(id, logoUrl);
+
+    res.json(updatedPark);
+  } catch (error) {
+    console.error('Upload logo error:', error);
+    res.status(500).json({ error: 'Failed to upload logo' });
+  }
+});
+
+// Serve park logo (public)
+router.get('/:id/logo/:filename', (req: Request, res: Response) => {
+  try {
+    const { filename } = req.params;
+    const filePath = path.join(logosDir, filename);
+
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: 'Logo not found' });
+      return;
+    }
+
+    // Determine content type
+    const ext = path.extname(filename).toLowerCase();
+    const contentTypes: Record<string, string> = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+      '.webp': 'image/webp'
+    };
+
+    res.setHeader('Content-Type', contentTypes[ext] || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 1 day
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error) {
+    console.error('Serve logo error:', error);
+    res.status(500).json({ error: 'Failed to serve logo' });
+  }
+});
+
+// Delete park logo (super admin or park admin of that park)
+router.delete('/:id/logo', authenticate, (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Check access
+    if (req.user?.role !== UserRole.SUPER_ADMIN &&
+        req.user?.role !== UserRole.PARK_ADMIN) {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+
+    if (req.user?.role === UserRole.PARK_ADMIN && req.user?.parkId !== id) {
+      res.status(403).json({ error: 'Access denied to this park' });
+      return;
+    }
+
+    const park = ParkModel.findById(id);
+    if (!park) {
+      res.status(404).json({ error: 'Park not found' });
+      return;
+    }
+
+    // Delete logo file if exists
+    if (park.logoUrl) {
+      const logoPath = path.join(logosDir, path.basename(park.logoUrl));
+      if (fs.existsSync(logoPath)) {
+        fs.unlinkSync(logoPath);
+      }
+    }
+
+    // Update park to remove logo URL
+    const updatedPark = ParkModel.updateLogo(id, null);
+    res.json(updatedPark);
+  } catch (error) {
+    console.error('Delete logo error:', error);
+    res.status(500).json({ error: 'Failed to delete logo' });
   }
 });
 

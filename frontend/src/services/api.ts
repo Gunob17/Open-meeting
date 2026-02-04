@@ -370,6 +370,36 @@ class ApiService {
     await this.request(`/parks/${id}${query}`, { method: 'DELETE' });
   }
 
+  async uploadParkLogo(parkId: string, file: File): Promise<Park> {
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    const response = await fetch(`${API_BASE}/parks/${parkId}/logo`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      let error;
+      try {
+        error = JSON.parse(text);
+      } catch {
+        error = { error: text || 'Upload failed' };
+      }
+      throw new Error(error.error || 'Upload failed');
+    }
+
+    return response.json();
+  }
+
+  async deleteParkLogo(parkId: string): Promise<Park> {
+    return this.request<Park>(`/parks/${parkId}/logo`, { method: 'DELETE' });
+  }
+
   // Firmware
   async getFirmwareList(): Promise<Firmware[]> {
     return this.request<Firmware[]>('/firmware');

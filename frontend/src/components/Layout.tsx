@@ -14,6 +14,7 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [parks, setParks] = useState<Park[]>([]);
   const [selectedParkId, setSelectedParkId] = useState<string>('');
+  const [currentPark, setCurrentPark] = useState<Park | null>(null);
 
   // Sidebar state - open by default on desktop
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -24,10 +25,8 @@ export function Layout({ children }: LayoutProps) {
   });
 
   useEffect(() => {
-    if (isSuperAdmin) {
-      loadParks();
-    }
-  }, [isSuperAdmin]);
+    loadParks();
+  }, []);
 
   useEffect(() => {
     // Load selected park from localStorage or use user's park
@@ -40,6 +39,14 @@ export function Layout({ children }: LayoutProps) {
       setSelectedParkId(parks[0].id);
     }
   }, [user, parks, isSuperAdmin]);
+
+  // Load current park details when selectedParkId changes
+  useEffect(() => {
+    if (selectedParkId && parks.length > 0) {
+      const park = parks.find(p => p.id === selectedParkId);
+      setCurrentPark(park || null);
+    }
+  }, [selectedParkId, parks]);
 
   // Handle window resize
   useEffect(() => {
@@ -98,8 +105,12 @@ export function Layout({ children }: LayoutProps) {
       <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
           <Link to="/" className="sidebar-logo">
-            <span className="logo-icon">OM</span>
-            <span className="logo-text">Open Meeting</span>
+            {currentPark?.logoUrl ? (
+              <img src={currentPark.logoUrl} alt={currentPark.name} className="logo-image" />
+            ) : (
+              <span className="logo-icon">OM</span>
+            )}
+            <span className="logo-text">{currentPark?.name || 'Open Meeting'}</span>
           </Link>
           <button className="sidebar-toggle" onClick={toggleSidebar} aria-label="Toggle sidebar">
             <span className="toggle-icon">{sidebarOpen ? '\u2039' : '\u203A'}</span>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { Park } from '../types';
 
@@ -14,6 +14,8 @@ export function ParksPage() {
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploadingLogoFor, setUploadingLogoFor] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadParks();
@@ -92,6 +94,41 @@ export function ParksPage() {
     }
   };
 
+  const handleLogoClick = (parkId: string) => {
+    setUploadingLogoFor(parkId);
+    logoInputRef.current?.click();
+  };
+
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadingLogoFor) return;
+
+    try {
+      await api.uploadParkLogo(uploadingLogoFor, file);
+      loadParks();
+    } catch (error) {
+      console.error('Failed to upload logo:', error);
+      alert(error instanceof Error ? error.message : 'Failed to upload logo');
+    } finally {
+      setUploadingLogoFor(null);
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeleteLogo = async (parkId: string) => {
+    if (!window.confirm('Are you sure you want to remove this logo?')) return;
+
+    try {
+      await api.deleteParkLogo(parkId);
+      loadParks();
+    } catch (error) {
+      console.error('Failed to delete logo:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete logo');
+    }
+  };
+
   if (loading) {
     return <div className="loading">Loading parks...</div>;
   }
@@ -105,10 +142,20 @@ export function ParksPage() {
         </button>
       </div>
 
+      {/* Hidden file input for logo upload */}
+      <input
+        ref={logoInputRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp"
+        style={{ display: 'none' }}
+        onChange={handleLogoChange}
+      />
+
       <div className="table-container">
         <table className="data-table">
           <thead>
             <tr>
+              <th style={{ width: '80px' }}>Logo</th>
               <th>Name</th>
               <th>Address</th>
               <th>Description</th>
@@ -119,6 +166,42 @@ export function ParksPage() {
           <tbody>
             {parks.map(park => (
               <tr key={park.id} className={!park.isActive ? 'inactive-row' : ''}>
+                <td>
+                  <div className="park-logo-cell">
+                    {park.logoUrl ? (
+                      <div className="park-logo-wrapper">
+                        <img
+                          src={park.logoUrl}
+                          alt={park.name}
+                          className="park-logo-preview"
+                        />
+                        <div className="park-logo-actions">
+                          <button
+                            className="btn btn-tiny"
+                            onClick={() => handleLogoClick(park.id)}
+                            title="Change logo"
+                          >
+                            Change
+                          </button>
+                          <button
+                            className="btn btn-tiny btn-danger"
+                            onClick={() => handleDeleteLogo(park.id)}
+                            title="Remove logo"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        className="btn btn-small btn-secondary park-logo-upload"
+                        onClick={() => handleLogoClick(park.id)}
+                      >
+                        + Logo
+                      </button>
+                    )}
+                  </div>
+                </td>
                 <td>{park.name}</td>
                 <td>{park.address}</td>
                 <td>{park.description || '-'}</td>
