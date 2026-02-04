@@ -28,6 +28,8 @@ body {
   color: white;
   padding: 0 1rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 100;
 }
 
 .nav-content {
@@ -39,6 +41,12 @@ body {
   height: 64px;
 }
 
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
 .nav-logo {
   color: white;
   text-decoration: none;
@@ -46,67 +54,166 @@ body {
   font-weight: 600;
 }
 
-.nav-brand {
+/* Burger button */
+.burger-btn {
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  gap: 1rem;
-}
-
-.park-switcher {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.park-switcher:hover {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.park-switcher option {
-  background: #4f46e5;
-  color: white;
-}
-
-.park-name {
-  font-size: 0.875rem;
-  opacity: 0.8;
-  padding: 0.375rem 0.75rem;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
   background: rgba(255, 255, 255, 0.1);
+  border: none;
   border-radius: 0.375rem;
+  cursor: pointer;
+  padding: 8px;
+  transition: background 0.2s;
+}
+
+.burger-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.burger-line {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: white;
+  border-radius: 2px;
+  transition: all 0.3s ease;
+}
+
+.burger-line.open:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.burger-line.open:nth-child(2) {
+  opacity: 0;
+}
+
+.burger-line.open:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+/* Slide-out menu */
+.nav-menu {
+  position: fixed;
+  top: 64px;
+  right: -320px;
+  width: 300px;
+  max-width: 85vw;
+  height: calc(100vh - 64px);
+  background: white;
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  transition: right 0.3s ease;
+  z-index: 200;
+}
+
+.nav-menu.open {
+  right: 0;
+}
+
+.nav-overlay {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  z-index: 150;
+}
+
+.nav-section {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.nav-section-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
 }
 
 .nav-links {
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .nav-link {
-  color: rgba(255, 255, 255, 0.8);
+  color: #374151;
   text-decoration: none;
-  padding: 0.5rem 1rem;
+  padding: 0.625rem 0.75rem;
   border-radius: 0.375rem;
   transition: all 0.2s;
+  font-size: 0.9375rem;
 }
 
-.nav-link:hover,
+.nav-link:hover {
+  background: #f3f4f6;
+  color: #4f46e5;
+}
+
 .nav-link.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: #eef2ff;
+  color: #4f46e5;
+  font-weight: 500;
 }
 
-.nav-user {
+.park-switcher {
+  width: 100%;
+  background: white;
+  border: 1px solid #d1d5db;
+  color: #374151;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.park-switcher:hover {
+  border-color: #9ca3af;
+}
+
+.park-switcher:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+/* User section at bottom */
+.nav-user-section {
+  margin-top: auto;
+  background: #f9fafb;
+}
+
+.nav-user-info {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-bottom: 0.75rem;
 }
 
-.user-info {
-  font-size: 0.875rem;
-  opacity: 0.9;
+.user-name {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.9375rem;
+}
+
+.user-role {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  text-transform: capitalize;
+}
+
+.btn-logout {
+  width: 100%;
 }
 
 /* Main content */
@@ -1196,6 +1303,101 @@ body {
   font-size: 0.875rem;
 }
 
+/* New setup page styles for multi-park demo */
+.setup-card-wide {
+  max-width: 900px;
+}
+
+.demo-parks {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.demo-parks h3 {
+  margin-bottom: 0.75rem;
+  color: #374151;
+}
+
+.parks-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.park-badge {
+  background: #eef2ff;
+  color: #4f46e5;
+  padding: 0.375rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.credentials-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.credential-card {
+  text-align: left;
+}
+
+.credential-role {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  margin-bottom: 0.375rem;
+}
+
+.credential-desc {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.credential-details {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.credential-details div {
+  word-break: break-all;
+}
+
+.credential-super {
+  border-left: 3px solid #dc2626;
+}
+
+.credential-super .credential-role {
+  color: #dc2626;
+}
+
+.credential-park {
+  border-left: 3px solid #7c3aed;
+}
+
+.credential-park .credential-role {
+  color: #7c3aed;
+}
+
+.credential-company {
+  border-left: 3px solid #2563eb;
+}
+
+.credential-company .credential-role {
+  color: #2563eb;
+}
+
+.credential-user {
+  border-left: 3px solid #059669;
+}
+
+.credential-user .credential-role {
+  color: #059669;
+}
+
 @media (max-width: 768px) {
   .setup-options {
     grid-template-columns: 1fr;
@@ -1212,6 +1414,10 @@ body {
 
   .setup-actions button {
     width: 100%;
+  }
+
+  .credentials-grid {
+    grid-template-columns: 1fr;
   }
 }
 

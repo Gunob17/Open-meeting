@@ -101,16 +101,33 @@ The backend will run on `http://localhost:3001` and frontend on `http://localhos
 
 ## Demo Accounts
 
-After seeding, you can log in with these accounts:
+After running demo setup, you can log in with these accounts:
 
-| Role | Email | Password |
-|------|-------|----------|
-| Super Admin | admin@sharedoffice.com | admin123 |
-| Company Admin | admin@techcorp.com | techcorp123 |
-| Company Admin | admin@startuphub.com | startup123 |
-| User | john@techcorp.com | john123 |
-| User | jane@techcorp.com | jane123 |
-| User | bob@startuphub.com | bob123 |
+### Primary Demo Accounts
+
+| Role | Email | Password | Description |
+|------|-------|----------|-------------|
+| Super Admin | admin@openmeeting.com | admin123 | Can manage all parks |
+| Park Admin | parkadmin@downtown.com | parkadmin123 | Downtown Business Park admin |
+| Company Admin | admin@techcorp.com | techcorp123 | TechCorp company admin |
+| User | john@techcorp.com | john123 | Regular user |
+
+### Additional Demo Accounts by Park
+
+**Downtown Business Park:**
+- Park Admin: parkadmin@downtown.com / parkadmin123
+- Company Admin: admin@techcorp.com / techcorp123
+- Users: john@techcorp.com, jane@techcorp.com, bob@startuphub.com
+
+**Tech Innovation Hub:**
+- Park Admin: parkadmin@techhub.com / techhub123
+- Company Admin: sarah@innovatetech.com / sarah123
+- User: mike@aidynamics.com / mike123
+
+**Creative Arts Center:**
+- Park Admin: parkadmin@creative.com / creative123
+- Company Admin: alex@pixelperfect.com / alex123
+- User: emma@brightmedia.com / emma123
 
 ## API Endpoints
 
