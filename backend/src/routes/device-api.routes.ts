@@ -62,6 +62,8 @@ router.get('/status', authenticateDevice, (req: DeviceRequest, res: Response) =>
     const device = req.device!;
     const room = device.room;
 
+    console.log('Status check from device:', device.name, '| Pending firmware:', device.pendingFirmwareVersion || 'none');
+
     if (!room) {
       res.status(404).json({ error: 'Room not found' });
       return;
@@ -291,8 +293,13 @@ router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Resp
     const currentVersion = device.firmwareVersion;
     const pendingVersion = device.pendingFirmwareVersion;
 
+    console.log('Firmware check for device:', device.name, '| ID:', device.id);
+    console.log('  Current version:', currentVersion);
+    console.log('  Pending version:', pendingVersion);
+
     // Only offer update if there's a pending firmware version scheduled by admin
     if (!pendingVersion) {
+      console.log('  No pending update, returning updateAvailable: false');
       res.json({
         updateAvailable: false,
         currentVersion: currentVersion,
@@ -304,6 +311,7 @@ router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Resp
 
     // Check if pending version is different from current
     if (pendingVersion === currentVersion) {
+      console.log('  Pending version matches current, clearing pending flag');
       // Already at this version, clear the pending flag
       DeviceModel.clearPendingFirmware(device.id);
       res.json({
@@ -317,7 +325,10 @@ router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Resp
 
     // Get the pending firmware details
     const firmware = FirmwareModel.findByVersion(pendingVersion);
+    console.log('  Found firmware:', firmware ? `v${firmware.version} (active: ${firmware.isActive})` : 'NOT FOUND');
+
     if (!firmware || !firmware.isActive) {
+      console.log('  Firmware not found or inactive, clearing pending flag');
       // Pending firmware not found or inactive, clear the pending flag
       DeviceModel.clearPendingFirmware(device.id);
       res.json({
@@ -329,6 +340,7 @@ router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Resp
       return;
     }
 
+    console.log('  Returning updateAvailable: true for version', firmware.version);
     res.json({
       updateAvailable: true,
       currentVersion: currentVersion,
@@ -350,10 +362,14 @@ router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Resp
 // Download firmware update
 router.get('/firmware/download/:version', authenticateDevice, (req: DeviceRequest, res: Response) => {
   try {
+    const device = req.device!;
     const { version } = req.params;
+
+    console.log('Firmware download request from device:', device.name, '| Requesting version:', version);
 
     const firmware = FirmwareModel.findByVersion(version);
     if (!firmware) {
+      console.log('  Firmware version not found:', version);
       res.status(404).json({ error: 'Firmware version not found' });
       return;
     }
