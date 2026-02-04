@@ -83,4 +83,8 @@
 // Connection retry interval when server is unreachable
 #define CONNECTION_RETRY_INTERVAL 30000  // 30 seconds
 
+// Firmware/OTA update settings
+#define FIRMWARE_CHECK_INTERVAL 300000   // 5 minutes - how often to check for updates
+#define FIRMWARE_VERSION "1.0.0"         // Current firmware version - update this with each release
+
 #endif // CONFIG_H

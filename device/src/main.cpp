@@ -4,6 +4,8 @@
 #include <WebServer.h>
 #include <Preferences.h>
 #include <TFT_eSPI.h>
+#include <HTTPClient.h>
+#include <HTTPUpdate.h>
 #include "config.h"
 #include "api_client.h"
 #include "ui_manager.h"
@@ -30,6 +32,7 @@ unsigned long lastPing = 0;
 unsigned long lastTouchTime = 0;
 unsigned long lastActivityTime = 0;  // For screen timeout
 unsigned long lastConnectionRetry = 0;  // For connection retry
+unsigned long lastFirmwareCheck = 0;  // For firmware update checks
 int selectedDuration = 0;
 RoomStatus currentStatus;
 RoomStatus lastStatus;
@@ -51,6 +54,8 @@ void setLedOff();
 void checkScreenTimeout();
 void wakeScreen();
 bool roomStatusesAreEqual(RoomStatus first, RoomStatus secound);
+void checkForFirmwareUpdate();
+void performFirmwareUpdate(const String& version);
 
 void setup() {
     Serial.begin(115200);
@@ -116,6 +121,15 @@ void setup() {
     if (apiClient.isConfigured()) {
         deviceConfigured = true;
         ui.showLoading("Loading room status...");
+
+        // Report firmware version on startup
+        Serial.println("Reporting firmware version: " + String(FIRMWARE_VERSION));
+        apiClient.reportFirmwareVersion(FIRMWARE_VERSION);
+
+        // Initial firmware check on startup
+        lastFirmwareCheck = millis();
+        checkForFirmwareUpdate();
+
         updateRoomStatus();
     } else {
         // Show setup instructions with IP address
@@ -188,6 +202,12 @@ void loop() {
             Serial.println("Ping failed");
         }
         lastPing = millis();
+    }
+
+    // Periodic firmware update check
+    if (millis() - lastFirmwareCheck > FIRMWARE_CHECK_INTERVAL) {
+        checkForFirmwareUpdate();
+        lastFirmwareCheck = millis();
     }
 
     delay(50);
@@ -585,11 +605,112 @@ bool roomStatusesAreEqual(RoomStatus first, RoomStatus secound){
     else if(first.room.name != secound.room.name){
         return false;
     }
-    else if(first.upcomingBookings[0].id != secound.upcomingBookings[0].id 
-        || first.upcomingBookings[1].id != secound.upcomingBookings[1].id 
+    else if(first.upcomingBookings[0].id != secound.upcomingBookings[0].id
+        || first.upcomingBookings[1].id != secound.upcomingBookings[1].id
         || first.upcomingBookings[2].id != secound.upcomingBookings[2].id ){
             return false;
         }
     return true;
-    
+
+}
+
+// Firmware OTA update functions
+void checkForFirmwareUpdate() {
+    Serial.println("Checking for firmware updates...");
+    Serial.println("Current version: " + String(FIRMWARE_VERSION));
+
+    // Report current version to server
+    apiClient.reportFirmwareVersion(FIRMWARE_VERSION);
+
+    // Check if update is available
+    FirmwareUpdateResult result = apiClient.checkForFirmwareUpdate();
+
+    if (result.updateAvailable && result.firmware.isValid) {
+        Serial.println("Firmware update available!");
+        Serial.println("  Current: " + String(FIRMWARE_VERSION));
+        Serial.println("  New: " + result.firmware.version);
+        Serial.println("  Size: " + String(result.firmware.size) + " bytes");
+
+        // Perform the update
+        performFirmwareUpdate(result.firmware.version);
+    } else {
+        Serial.println("No firmware update available");
+    }
+}
+
+void performFirmwareUpdate(const String& version) {
+    Serial.println("Starting firmware update to version " + version);
+
+    // Show update screen
+    ui.showLoading("Updating firmware...\nv" + String(FIRMWARE_VERSION) + " -> v" + version + "\n\nDo not power off!");
+
+    // Turn LED blue during update
+    ledcWrite(LED_RED_CHANNEL, 255);
+    ledcWrite(LED_GREEN_CHANNEL, 255);
+    ledcWrite(LED_BLUE_CHANNEL, LED_BRIGHTNESS);
+
+    // Get the download URL
+    String updateUrl = apiClient.getFirmwareDownloadUrl(version);
+    Serial.println("Download URL: " + updateUrl);
+
+    // Configure HTTP client for update with authentication header
+    WiFiClient client;
+    HTTPClient http;
+    http.begin(client, updateUrl);
+    http.addHeader("X-Device-Token", apiClient.getDeviceToken());
+
+    // Set up HTTPUpdate callbacks
+    httpUpdate.onStart([]() {
+        Serial.println("OTA Update Started");
+    });
+
+    httpUpdate.onEnd([]() {
+        Serial.println("OTA Update Complete");
+    });
+
+    httpUpdate.onProgress([](int cur, int total) {
+        Serial.printf("OTA Progress: %d%%\n", (cur * 100) / total);
+    });
+
+    httpUpdate.onError([](int error) {
+        Serial.printf("OTA Error[%d]: %s\n", error, httpUpdate.getLastErrorString().c_str());
+    });
+
+    // Perform the update with the authenticated HTTP client
+    httpUpdate.rebootOnUpdate(false);  // We'll handle reboot ourselves
+
+    t_httpUpdate_return ret = httpUpdate.update(http);
+
+    switch (ret) {
+        case HTTP_UPDATE_FAILED:
+            Serial.printf("HTTP_UPDATE_FAILED Error (%d): %s\n",
+                         httpUpdate.getLastError(),
+                         httpUpdate.getLastErrorString().c_str());
+            ui.showError("Update failed!\n\n" + httpUpdate.getLastErrorString());
+            setLedOff();
+            delay(5000);
+            // Return to normal operation
+            if (currentStatus.isValid) {
+                ui.showRoomStatus(currentStatus);
+                setLedColor(currentStatus.isAvailable);
+            }
+            break;
+
+        case HTTP_UPDATE_NO_UPDATES:
+            Serial.println("HTTP_UPDATE_NO_UPDATES");
+            ui.showError("No update available");
+            delay(3000);
+            if (currentStatus.isValid) {
+                ui.showRoomStatus(currentStatus);
+                setLedColor(currentStatus.isAvailable);
+            }
+            break;
+
+        case HTTP_UPDATE_OK:
+            Serial.println("HTTP_UPDATE_OK - Rebooting...");
+            ui.showLoading("Update complete!\n\nRebooting...");
+            delay(2000);
+            ESP.restart();
+            break;
+    }
 }

@@ -219,3 +219,69 @@ bool ApiClient::ping() {
 
     return doc["status"] == "ok";
 }
+
+FirmwareUpdateResult ApiClient::checkForFirmwareUpdate() {
+    FirmwareUpdateResult result;
+    result.updateAvailable = false;
+    result.firmware.isValid = false;
+
+    String response = makeRequest("/firmware/check", "GET");
+    if (response.length() == 0) {
+        Serial.println("Firmware check: No response from server");
+        return result;
+    }
+
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, response);
+
+    if (error) {
+        Serial.println("Firmware check: JSON parse error");
+        return result;
+    }
+
+    result.updateAvailable = doc["updateAvailable"] | false;
+    result.currentVersion = doc["currentVersion"].as<String>();
+    result.latestVersion = doc["latestVersion"].as<String>();
+
+    if (result.updateAvailable && !doc["latestFirmware"].isNull()) {
+        JsonObject fw = doc["latestFirmware"];
+        result.firmware.id = fw["id"].as<String>();
+        result.firmware.version = fw["version"].as<String>();
+        result.firmware.size = fw["size"] | 0;
+        result.firmware.checksum = fw["checksum"].as<String>();
+        result.firmware.releaseNotes = fw["releaseNotes"].as<String>();
+        result.firmware.isValid = true;
+
+        Serial.println("Firmware update available: v" + result.firmware.version);
+        Serial.println("  Size: " + String(result.firmware.size) + " bytes");
+    } else {
+        Serial.println("No firmware update available");
+    }
+
+    return result;
+}
+
+bool ApiClient::reportFirmwareVersion(const String& version) {
+    JsonDocument doc;
+    doc["version"] = version;
+
+    String body;
+    serializeJson(doc, body);
+
+    String response = makeRequest("/firmware/report", "POST", body);
+    if (response.length() == 0) {
+        return false;
+    }
+
+    JsonDocument responseDoc;
+    DeserializationError error = deserializeJson(responseDoc, response);
+    if (error) {
+        return false;
+    }
+
+    return responseDoc["success"] | false;
+}
+
+String ApiClient::getFirmwareDownloadUrl(const String& version) {
+    return _apiUrl + "/api/device/firmware/download/" + version;
+}

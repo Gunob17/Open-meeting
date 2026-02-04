@@ -43,6 +43,24 @@ struct QuickBookResult {
     Booking booking;
 };
 
+// Firmware update info
+struct FirmwareInfo {
+    String id;
+    String version;
+    int size;
+    String checksum;
+    String releaseNotes;
+    bool isValid;
+};
+
+// Firmware update check result
+struct FirmwareUpdateResult {
+    bool updateAvailable;
+    String currentVersion;
+    String latestVersion;
+    FirmwareInfo firmware;
+};
+
 class ApiClient {
 public:
     ApiClient();
@@ -60,6 +78,11 @@ public:
     RoomStatus getRoomStatus();
     QuickBookResult quickBook(const String& title, int durationMinutes);
     bool ping();
+
+    // Firmware update methods
+    FirmwareUpdateResult checkForFirmwareUpdate();
+    bool reportFirmwareVersion(const String& version);
+    String getFirmwareDownloadUrl(const String& version);
 
 private:
     String _apiUrl;
