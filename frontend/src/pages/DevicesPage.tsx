@@ -10,10 +10,14 @@ export function DevicesPage() {
   const [error, setError] = useState('');
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [uploadVersion, setUploadVersion] = useState('');
   const [uploadNotes, setUploadNotes] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedDevices, setSelectedDevices] = useState<Set<string>>(new Set());
+  const [selectedFirmwareVersion, setSelectedFirmwareVersion] = useState('');
+  const [scheduling, setScheduling] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -77,6 +81,55 @@ export function DevicesPage() {
     }
   };
 
+  const handleScheduleUpdate = async () => {
+    if (selectedDevices.size === 0 || !selectedFirmwareVersion) return;
+
+    try {
+      setScheduling(true);
+      const result = await api.scheduleFirmwareUpdate(
+        Array.from(selectedDevices),
+        selectedFirmwareVersion
+      );
+      setShowUpgradeModal(false);
+      setSelectedDevices(new Set());
+      setSelectedFirmwareVersion('');
+      setError('');
+      alert(result.message);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to schedule update');
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const handleCancelUpdate = async (deviceId: string) => {
+    try {
+      await api.cancelFirmwareUpdate(deviceId);
+      loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel update');
+    }
+  };
+
+  const toggleDeviceSelection = (deviceId: string) => {
+    const newSelection = new Set(selectedDevices);
+    if (newSelection.has(deviceId)) {
+      newSelection.delete(deviceId);
+    } else {
+      newSelection.add(deviceId);
+    }
+    setSelectedDevices(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedDevices.size === devices.length) {
+      setSelectedDevices(new Set());
+    } else {
+      setSelectedDevices(new Set(devices.map(d => d.id)));
+    }
+  };
+
   const formatLastSeen = (lastSeenAt: string | null) => {
     if (!lastSeenAt) return 'Never';
     try {
@@ -93,6 +146,7 @@ export function DevicesPage() {
   };
 
   const latestFirmware = firmware.find(f => f.isActive) || firmware[0];
+  const activeFirmware = firmware.filter(f => f.isActive);
 
   if (loading) {
     return <div className="loading">Loading devices...</div>;
@@ -108,6 +162,29 @@ export function DevicesPage() {
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
+
+      {/* Selection Bar */}
+      {selectedDevices.size > 0 && (
+        <div className="selection-bar">
+          <span>{selectedDevices.size} device(s) selected</span>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setSelectedFirmwareVersion(latestFirmware?.version || '');
+              setShowUpgradeModal(true);
+            }}
+            disabled={activeFirmware.length === 0}
+          >
+            Schedule Update
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={() => setSelectedDevices(new Set())}
+          >
+            Clear Selection
+          </button>
+        </div>
+      )}
 
       {/* Firmware Section */}
       <div className="section">
@@ -160,45 +237,74 @@ export function DevicesPage() {
         {devices.length === 0 ? (
           <p className="empty-state">No devices registered in this park.</p>
         ) : (
-          <div className="devices-grid">
-            {devices.map(device => (
-              <div
-                key={device.id}
-                className={`device-card ${!device.isActive ? 'inactive' : ''} ${device.hasUpdate ? 'has-update' : ''}`}
-                onClick={() => setSelectedDevice(device)}
-              >
-                <div className="device-header">
-                  <span className="device-name">{device.name}</span>
-                  {device.hasUpdate && (
-                    <span className="update-indicator" title="Update available">
-                      ↑
-                    </span>
-                  )}
-                </div>
-                <div className="device-room">
-                  {device.room?.name || 'No room assigned'}
-                </div>
-                <div className="device-info">
-                  <div className="device-version">
-                    <strong>Version:</strong>{' '}
-                    {device.firmwareVersion || 'Unknown'}
-                    {device.hasUpdate && latestFirmware && (
-                      <span className="version-update"> → v{latestFirmware.version}</span>
-                    )}
+          <>
+            <div className="devices-toolbar">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={selectedDevices.size === devices.length && devices.length > 0}
+                  onChange={toggleSelectAll}
+                />
+                Select All
+              </label>
+            </div>
+            <div className="devices-grid">
+              {devices.map(device => (
+                <div
+                  key={device.id}
+                  className={`device-card ${!device.isActive ? 'inactive' : ''} ${device.hasUpdate ? 'has-update' : ''} ${selectedDevices.has(device.id) ? 'selected' : ''} ${device.pendingFirmwareVersion ? 'pending-update' : ''}`}
+                >
+                  <div className="device-select">
+                    <input
+                      type="checkbox"
+                      checked={selectedDevices.has(device.id)}
+                      onChange={() => toggleDeviceSelection(device.id)}
+                      onClick={e => e.stopPropagation()}
+                    />
                   </div>
-                  <div className="device-status">
-                    <strong>Status:</strong>{' '}
-                    <span className={device.isActive ? 'status-active' : 'status-inactive'}>
-                      {device.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </div>
-                  <div className="device-last-seen">
-                    <strong>Last Seen:</strong> {formatLastSeen(device.lastSeenAt)}
+                  <div className="device-content" onClick={() => setSelectedDevice(device)}>
+                    <div className="device-header">
+                      <span className="device-name">{device.name}</span>
+                      {device.pendingFirmwareVersion && (
+                        <span className="pending-indicator" title={`Update to v${device.pendingFirmwareVersion} scheduled`}>
+                          ⏳
+                        </span>
+                      )}
+                      {device.hasUpdate && !device.pendingFirmwareVersion && (
+                        <span className="update-indicator" title="Update available">
+                          ↑
+                        </span>
+                      )}
+                    </div>
+                    <div className="device-room">
+                      {device.room?.name || 'No room assigned'}
+                    </div>
+                    <div className="device-info">
+                      <div className="device-version">
+                        <strong>Version:</strong>{' '}
+                        {device.firmwareVersion || 'Unknown'}
+                        {device.pendingFirmwareVersion && (
+                          <span className="version-pending"> → v{device.pendingFirmwareVersion}</span>
+                        )}
+                        {device.hasUpdate && !device.pendingFirmwareVersion && latestFirmware && (
+                          <span className="version-update"> (v{latestFirmware.version} available)</span>
+                        )}
+                      </div>
+                      <div className="device-status">
+                        <strong>Status:</strong>{' '}
+                        <span className={device.isActive ? 'status-active' : 'status-inactive'}>
+                          {device.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                      <div className="device-last-seen">
+                        <strong>Last Seen:</strong> {formatLastSeen(device.lastSeenAt)}
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -237,8 +343,12 @@ export function DevicesPage() {
                 <div className="detail-item">
                   <label>Update Status</label>
                   <span>
-                    {selectedDevice.hasUpdate ? (
-                      <span className="update-available">Update available ↑</span>
+                    {selectedDevice.pendingFirmwareVersion ? (
+                      <span className="update-pending">
+                        Update to v{selectedDevice.pendingFirmwareVersion} scheduled
+                      </span>
+                    ) : selectedDevice.hasUpdate ? (
+                      <span className="update-available">Update available</span>
                     ) : (
                       <span className="up-to-date">Up to date</span>
                     )}
@@ -246,7 +356,25 @@ export function DevicesPage() {
                 </div>
               </div>
 
-              {selectedDevice.hasUpdate && latestFirmware && (
+              {selectedDevice.pendingFirmwareVersion && (
+                <div className="update-info pending">
+                  <h3>Pending Update: v{selectedDevice.pendingFirmwareVersion}</h3>
+                  <p className="update-note">
+                    This device will download and install this update on its next check-in.
+                  </p>
+                  <button
+                    className="btn btn-danger"
+                    onClick={() => {
+                      handleCancelUpdate(selectedDevice.id);
+                      setSelectedDevice(null);
+                    }}
+                  >
+                    Cancel Update
+                  </button>
+                </div>
+              )}
+
+              {!selectedDevice.pendingFirmwareVersion && selectedDevice.hasUpdate && latestFirmware && (
                 <div className="update-info">
                   <h3>Available Update: v{latestFirmware.version}</h3>
                   {latestFirmware.releaseNotes && (
@@ -255,11 +383,99 @@ export function DevicesPage() {
                       <p>{latestFirmware.releaseNotes}</p>
                     </div>
                   )}
-                  <p className="update-note">
-                    The device will automatically download and install this update on its next check-in.
-                  </p>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setSelectedDevices(new Set([selectedDevice.id]));
+                      setSelectedFirmwareVersion(latestFirmware.version);
+                      setShowUpgradeModal(true);
+                      setSelectedDevice(null);
+                    }}
+                  >
+                    Schedule Update
+                  </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Update Modal */}
+      {showUpgradeModal && (
+        <div className="modal-overlay" onClick={() => setShowUpgradeModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Schedule Firmware Update</h2>
+              <button className="modal-close" onClick={() => setShowUpgradeModal(false)}>&times;</button>
+            </div>
+            <div className="modal-body">
+              <p className="upgrade-info">
+                Schedule a firmware update for <strong>{selectedDevices.size} device(s)</strong>.
+                The devices will download and install the update on their next check-in.
+              </p>
+
+              <div className="form-group">
+                <label htmlFor="firmware-version">Select Firmware Version</label>
+                <select
+                  id="firmware-version"
+                  value={selectedFirmwareVersion}
+                  onChange={e => setSelectedFirmwareVersion(e.target.value)}
+                  className="form-control"
+                >
+                  <option value="">-- Select Version --</option>
+                  {activeFirmware.map(fw => (
+                    <option key={fw.id} value={fw.version}>
+                      v{fw.version} ({formatFileSize(fw.size)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedFirmwareVersion && (
+                <div className="selected-firmware-info">
+                  {(() => {
+                    const fw = firmware.find(f => f.version === selectedFirmwareVersion);
+                    return fw ? (
+                      <>
+                        <h4>v{fw.version}</h4>
+                        {fw.releaseNotes && <p>{fw.releaseNotes}</p>}
+                      </>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+
+              <div className="selected-devices-list">
+                <h4>Devices to Update:</h4>
+                <ul>
+                  {Array.from(selectedDevices).map(id => {
+                    const device = devices.find(d => d.id === id);
+                    return device ? (
+                      <li key={id}>
+                        {device.name} (current: {device.firmwareVersion || 'unknown'})
+                      </li>
+                    ) : null;
+                  })}
+                </ul>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowUpgradeModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={scheduling || !selectedFirmwareVersion}
+                onClick={handleScheduleUpdate}
+              >
+                {scheduling ? 'Scheduling...' : 'Schedule Update'}
+              </button>
             </div>
           </div>
         </div>

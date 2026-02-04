@@ -452,6 +452,25 @@ class ApiService {
       body: JSON.stringify({ isActive })
     });
   }
+
+  // Schedule firmware update for devices
+  async scheduleFirmwareUpdate(deviceIds: string[], firmwareVersion: string): Promise<{
+    success: boolean;
+    message: string;
+    updatedCount: number;
+    firmwareVersion: string;
+  }> {
+    return this.request('/devices/firmware/schedule-update', {
+      method: 'POST',
+      body: JSON.stringify({ deviceIds, firmwareVersion })
+    });
+  }
+
+  async cancelFirmwareUpdate(deviceId: string): Promise<Device> {
+    return this.request<Device>(`/devices/${deviceId}/firmware/cancel-update`, {
+      method: 'POST'
+    });
+  }
 }
 
 export const api = new ApiService();

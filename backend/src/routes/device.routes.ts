@@ -198,6 +198,75 @@ router.post('/:id/regenerate-token', authenticate, requireAdmin, (req: AuthReque
   }
 });
 
+// Schedule firmware update for multiple devices (admin only)
+router.post('/firmware/schedule-update', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+  try {
+    const { deviceIds, firmwareVersion } = req.body;
+
+    if (!deviceIds || !Array.isArray(deviceIds) || deviceIds.length === 0) {
+      res.status(400).json({ error: 'Device IDs array is required' });
+      return;
+    }
+
+    if (!firmwareVersion) {
+      res.status(400).json({ error: 'Firmware version is required' });
+      return;
+    }
+
+    // Verify firmware version exists and is active
+    const firmware = FirmwareModel.findByVersion(firmwareVersion);
+    if (!firmware) {
+      res.status(404).json({ error: 'Firmware version not found' });
+      return;
+    }
+
+    if (!firmware.isActive) {
+      res.status(400).json({ error: 'Firmware version is not active' });
+      return;
+    }
+
+    // Schedule update for all devices
+    const updatedCount = DeviceModel.setPendingFirmwareBatch(deviceIds, firmwareVersion);
+
+    res.json({
+      success: true,
+      message: `Firmware update scheduled for ${updatedCount} device(s)`,
+      updatedCount,
+      firmwareVersion
+    });
+  } catch (error) {
+    console.error('Schedule firmware update error:', error);
+    res.status(500).json({ error: 'Failed to schedule firmware update' });
+  }
+});
+
+// Cancel pending firmware update for a device (admin only)
+router.post('/:id/firmware/cancel-update', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existing = DeviceModel.findById(id);
+    if (!existing) {
+      res.status(404).json({ error: 'Device not found' });
+      return;
+    }
+
+    DeviceModel.clearPendingFirmware(id);
+    const device = DeviceModel.findByIdWithRoom(id);
+
+    res.json({
+      ...device,
+      room: device?.room ? {
+        ...device.room,
+        amenities: JSON.parse(device.room.amenities)
+      } : undefined
+    });
+  } catch (error) {
+    console.error('Cancel firmware update error:', error);
+    res.status(500).json({ error: 'Failed to cancel firmware update' });
+  }
+});
+
 // Delete device (admin only)
 router.delete('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {

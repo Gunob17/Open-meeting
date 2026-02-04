@@ -214,6 +214,31 @@ export class DeviceModel {
     return rows.map(row => this.mapRowToDeviceWithRoom(row));
   }
 
+  static setPendingFirmware(id: string, version: string): boolean {
+    const now = new Date().toISOString();
+    const stmt = db.prepare('UPDATE devices SET pending_firmware_version = ?, updated_at = ? WHERE id = ?');
+    const result = stmt.run(version, now, id);
+    return result.changes > 0;
+  }
+
+  static setPendingFirmwareBatch(deviceIds: string[], version: string): number {
+    const now = new Date().toISOString();
+    let updatedCount = 0;
+    for (const id of deviceIds) {
+      const stmt = db.prepare('UPDATE devices SET pending_firmware_version = ?, updated_at = ? WHERE id = ?');
+      const result = stmt.run(version, now, id);
+      updatedCount += result.changes;
+    }
+    return updatedCount;
+  }
+
+  static clearPendingFirmware(id: string): boolean {
+    const now = new Date().toISOString();
+    const stmt = db.prepare('UPDATE devices SET pending_firmware_version = NULL, updated_at = ? WHERE id = ?');
+    const result = stmt.run(now, id);
+    return result.changes > 0;
+  }
+
   private static mapRowToDevice(row: any): Device {
     return {
       id: row.id,
@@ -223,6 +248,7 @@ export class DeviceModel {
       isActive: row.is_active === 1,
       lastSeenAt: row.last_seen_at,
       firmwareVersion: row.firmware_version,
+      pendingFirmwareVersion: row.pending_firmware_version,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

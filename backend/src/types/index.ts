@@ -147,6 +147,7 @@ export interface Device {
   isActive: boolean;
   lastSeenAt: string | null;
   firmwareVersion: string | null;
+  pendingFirmwareVersion: string | null;  // Version to be installed on next check-in
   createdAt: string;
   updatedAt: string;
 }

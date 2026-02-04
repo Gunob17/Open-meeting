@@ -224,6 +224,11 @@ export function initializeDatabase(): void {
   if (!columnExists('parks', 'logo_url')) {
     db.exec(`ALTER TABLE parks ADD COLUMN logo_url TEXT DEFAULT NULL`);
   }
+
+  // Add pending_firmware_version column to devices table for manual OTA updates
+  if (!columnExists('devices', 'pending_firmware_version')) {
+    db.exec(`ALTER TABLE devices ADD COLUMN pending_firmware_version TEXT DEFAULT NULL`);
+  }
 }
 
 export default db;

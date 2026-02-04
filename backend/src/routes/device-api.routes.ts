@@ -272,6 +272,11 @@ router.post('/firmware/report', authenticateDevice, (req: DeviceRequest, res: Re
 
     DeviceModel.updateFirmwareVersion(device.id, version);
 
+    // Clear pending firmware if the reported version matches the pending version
+    if (device.pendingFirmwareVersion && device.pendingFirmwareVersion === version) {
+      DeviceModel.clearPendingFirmware(device.id);
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error('Report firmware version error:', error);
@@ -279,25 +284,62 @@ router.post('/firmware/report', authenticateDevice, (req: DeviceRequest, res: Re
   }
 });
 
-// Check for firmware updates
+// Check for firmware updates (only returns pending firmware, not automatic latest)
 router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Response) => {
   try {
     const device = req.device!;
     const currentVersion = device.firmwareVersion;
+    const pendingVersion = device.pendingFirmwareVersion;
 
-    const { available, firmware } = FirmwareModel.isUpdateAvailable(currentVersion);
+    // Only offer update if there's a pending firmware version scheduled by admin
+    if (!pendingVersion) {
+      res.json({
+        updateAvailable: false,
+        currentVersion: currentVersion,
+        latestVersion: null,
+        latestFirmware: null
+      });
+      return;
+    }
+
+    // Check if pending version is different from current
+    if (pendingVersion === currentVersion) {
+      // Already at this version, clear the pending flag
+      DeviceModel.clearPendingFirmware(device.id);
+      res.json({
+        updateAvailable: false,
+        currentVersion: currentVersion,
+        latestVersion: null,
+        latestFirmware: null
+      });
+      return;
+    }
+
+    // Get the pending firmware details
+    const firmware = FirmwareModel.findByVersion(pendingVersion);
+    if (!firmware || !firmware.isActive) {
+      // Pending firmware not found or inactive, clear the pending flag
+      DeviceModel.clearPendingFirmware(device.id);
+      res.json({
+        updateAvailable: false,
+        currentVersion: currentVersion,
+        latestVersion: null,
+        latestFirmware: null
+      });
+      return;
+    }
 
     res.json({
-      updateAvailable: available,
+      updateAvailable: true,
       currentVersion: currentVersion,
-      latestVersion: firmware?.version || null,
-      latestFirmware: firmware ? {
+      latestVersion: firmware.version,
+      latestFirmware: {
         id: firmware.id,
         version: firmware.version,
         size: firmware.size,
         checksum: firmware.checksum,
         releaseNotes: firmware.releaseNotes
-      } : null
+      }
     });
   } catch (error) {
     console.error('Check firmware update error:', error);

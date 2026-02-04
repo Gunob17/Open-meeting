@@ -95,6 +95,7 @@ export interface Device {
   isActive: boolean;
   lastSeenAt: string | null;
   firmwareVersion: string | null;
+  pendingFirmwareVersion: string | null;  // Version scheduled for next update
   hasUpdate?: boolean;
   latestVersion?: string | null;
   room?: MeetingRoom;
