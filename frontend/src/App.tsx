@@ -12,6 +12,7 @@ import { CompaniesPage } from './pages/CompaniesPage';
 import { SetupPage } from './pages/SetupPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ParksPage } from './pages/ParksPage';
+import { DevicesPage } from './pages/DevicesPage';
 import { api } from './services/api';
 import './styles.css';
 
@@ -120,6 +121,14 @@ function AppRoutes() {
         element={
           <PrivateRoute superAdminOnly>
             <ParksPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/devices"
+        element={
+          <PrivateRoute adminOnly>
+            <DevicesPage />
           </PrivateRoute>
         }
       />

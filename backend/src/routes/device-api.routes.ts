@@ -3,8 +3,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { DeviceModel } from '../models/device.model';
 import { BookingModel } from '../models/booking.model';
 import { RoomModel } from '../models/room.model';
+import { FirmwareModel } from '../models/firmware.model';
 import { DeviceWithRoom, DeviceRoomStatus, BookingWithDetails, BookingStatus } from '../types';
 import db from '../models/database';
+import fs from 'fs';
 
 const router = Router();
 
@@ -255,6 +257,89 @@ router.get('/info', authenticateDevice, (req: DeviceRequest, res: Response) => {
 // Health check endpoint (for device connectivity monitoring)
 router.get('/ping', authenticateDevice, (req: DeviceRequest, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Report current firmware version
+router.post('/firmware/report', authenticateDevice, (req: DeviceRequest, res: Response) => {
+  try {
+    const device = req.device!;
+    const { version } = req.body;
+
+    if (!version) {
+      res.status(400).json({ error: 'Version is required' });
+      return;
+    }
+
+    DeviceModel.updateFirmwareVersion(device.id, version);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Report firmware version error:', error);
+    res.status(500).json({ error: 'Failed to report firmware version' });
+  }
+});
+
+// Check for firmware updates
+router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Response) => {
+  try {
+    const device = req.device!;
+    const currentVersion = device.firmwareVersion;
+
+    const { available, firmware } = FirmwareModel.isUpdateAvailable(currentVersion);
+
+    res.json({
+      updateAvailable: available,
+      currentVersion: currentVersion,
+      latestVersion: firmware?.version || null,
+      latestFirmware: firmware ? {
+        id: firmware.id,
+        version: firmware.version,
+        size: firmware.size,
+        checksum: firmware.checksum,
+        releaseNotes: firmware.releaseNotes
+      } : null
+    });
+  } catch (error) {
+    console.error('Check firmware update error:', error);
+    res.status(500).json({ error: 'Failed to check for updates' });
+  }
+});
+
+// Download firmware update
+router.get('/firmware/download/:version', authenticateDevice, (req: DeviceRequest, res: Response) => {
+  try {
+    const { version } = req.params;
+
+    const firmware = FirmwareModel.findByVersion(version);
+    if (!firmware) {
+      res.status(404).json({ error: 'Firmware version not found' });
+      return;
+    }
+
+    if (!firmware.isActive) {
+      res.status(400).json({ error: 'Firmware version is not active' });
+      return;
+    }
+
+    const filePath = FirmwareModel.getFilePath(firmware);
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ error: 'Firmware file not found' });
+      return;
+    }
+
+    // Set headers for binary download
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Length', firmware.size);
+    res.setHeader('X-Firmware-Version', firmware.version);
+    res.setHeader('X-Firmware-Checksum', firmware.checksum);
+
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Download firmware error:', error);
+    res.status(500).json({ error: 'Failed to download firmware' });
+  }
 });
 
 export default router;

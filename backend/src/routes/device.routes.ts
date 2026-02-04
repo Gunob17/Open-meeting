@@ -1,7 +1,9 @@
 import { Router, Response } from 'express';
 import { DeviceModel } from '../models/device.model';
 import { RoomModel } from '../models/room.model';
+import { FirmwareModel } from '../models/firmware.model';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
+import { UserRole } from '../types';
 
 const router = Router();
 
@@ -9,16 +11,37 @@ const router = Router();
 router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
-    const devices = DeviceModel.findAll(includeInactive);
+    const parkId = req.query.parkId as string | undefined;
 
-    // Map devices with parsed room amenities
-    const devicesWithParsedData = devices.map(d => ({
-      ...d,
-      room: d.room ? {
-        ...d.room,
-        amenities: JSON.parse(d.room.amenities)
-      } : undefined
-    }));
+    let devices;
+    if (parkId) {
+      devices = DeviceModel.findByPark(parkId, includeInactive);
+    } else if (req.user?.role !== UserRole.SUPER_ADMIN && req.user?.parkId) {
+      // Park admins can only see devices in their park
+      devices = DeviceModel.findByPark(req.user.parkId, includeInactive);
+    } else {
+      devices = DeviceModel.findAll(includeInactive);
+    }
+
+    // Get latest firmware for update indication
+    const latestFirmware = FirmwareModel.findLatest();
+
+    // Map devices with parsed room amenities and update status
+    const devicesWithParsedData = devices.map(d => {
+      const hasUpdate = latestFirmware && d.firmwareVersion
+        ? FirmwareModel.compareVersions(latestFirmware.version, d.firmwareVersion) > 0
+        : latestFirmware && !d.firmwareVersion;
+
+      return {
+        ...d,
+        hasUpdate,
+        latestVersion: latestFirmware?.version || null,
+        room: d.room ? {
+          ...d.room,
+          amenities: JSON.parse(d.room.amenities)
+        } : undefined
+      };
+    });
 
     res.json(devicesWithParsedData);
   } catch (error) {

@@ -1624,3 +1624,283 @@ body {
     justify-content: flex-start;
   }
 }
+
+/* Devices & Firmware Page */
+.section {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.section h2 {
+  margin-bottom: 1rem;
+  color: #1f2937;
+  font-size: 1.25rem;
+}
+
+/* Firmware list */
+.firmware-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.firmware-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  background: #fff;
+}
+
+.firmware-card.active {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.firmware-card.inactive {
+  opacity: 0.7;
+}
+
+.firmware-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.firmware-version {
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: #1f2937;
+}
+
+.firmware-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+}
+
+.firmware-notes {
+  font-size: 0.875rem;
+  color: #374151;
+  background: #f9fafb;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.firmware-notes strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #1f2937;
+}
+
+.firmware-notes p {
+  margin: 0;
+}
+
+.firmware-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Devices grid */
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.devices-grid .device-card {
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.devices-grid .device-card:hover {
+  border-color: #4f46e5;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.15);
+}
+
+.devices-grid .device-card.has-update {
+  border-left: 3px solid #f59e0b;
+}
+
+.device-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.device-header .device-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #1f2937;
+}
+
+.update-indicator {
+  background: #fef3c7;
+  color: #d97706;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.device-room {
+  color: #4f46e5;
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+
+.devices-grid .device-info {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.devices-grid .device-info > div {
+  margin-bottom: 0.25rem;
+}
+
+.device-version .version-update {
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.status-active {
+  color: #10b981;
+}
+
+.status-inactive {
+  color: #ef4444;
+}
+
+.device-last-seen {
+  color: #9ca3af;
+}
+
+/* Device detail modal */
+.device-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-item label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.detail-item span {
+  font-size: 0.9375rem;
+  color: #1f2937;
+}
+
+.update-info {
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.update-info h3 {
+  color: #d97706;
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+}
+
+.update-info .release-notes {
+  background: white;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.update-info .release-notes strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: #92400e;
+}
+
+.update-info .release-notes p {
+  margin: 0;
+  color: #78350f;
+}
+
+.update-note {
+  font-size: 0.875rem;
+  color: #92400e;
+  margin: 0;
+  font-style: italic;
+}
+
+.update-available {
+  color: #f59e0b;
+  font-weight: 500;
+}
+
+.up-to-date {
+  color: #10b981;
+  font-weight: 500;
+}
+
+/* Badge styles */
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.badge-success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-secondary {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+/* Modal footer */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  margin: 0 -1.5rem -1.5rem;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .device-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .devices-grid {
+    grid-template-columns: 1fr;
+  }
+}

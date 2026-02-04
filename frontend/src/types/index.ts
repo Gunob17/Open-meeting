@@ -93,7 +93,22 @@ export interface Device {
   roomId: string;
   isActive: boolean;
   lastSeenAt: string | null;
+  firmwareVersion: string | null;
+  hasUpdate?: boolean;
+  latestVersion?: string | null;
   room?: MeetingRoom;
   createdAt?: string;
   updatedAt?: string;
+}
+
+// Firmware types for OTA updates
+export interface Firmware {
+  id: string;
+  version: string;
+  filename: string;
+  size: number;
+  checksum: string;
+  releaseNotes: string;
+  isActive: boolean;
+  createdAt: string;
 }

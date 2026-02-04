@@ -182,6 +182,38 @@ export class DeviceModel {
     return result.changes > 0;
   }
 
+  static updateFirmwareVersion(id: string, version: string): void {
+    const now = new Date().toISOString();
+    const stmt = db.prepare('UPDATE devices SET firmware_version = ?, last_seen_at = ?, updated_at = ? WHERE id = ?');
+    stmt.run(version, now, now, id);
+  }
+
+  static findByPark(parkId: string, includeInactive = false): DeviceWithRoom[] {
+    let query = `
+      SELECT d.*,
+             r.id as room_id, r.name as room_name, r.capacity as room_capacity,
+             r.amenities as room_amenities, r.floor as room_floor, r.address as room_address,
+             r.description as room_description, r.is_active as room_is_active,
+             r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
+             r.locked_to_company_id as room_locked_to_company_id,
+             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
+             r.created_at as room_created_at, r.updated_at as room_updated_at
+      FROM devices d
+      LEFT JOIN meeting_rooms r ON d.room_id = r.id
+      WHERE r.park_id = ?
+    `;
+
+    if (!includeInactive) {
+      query += ' AND d.is_active = 1';
+    }
+    query += ' ORDER BY d.name';
+
+    const stmt = db.prepare(query);
+    const rows = stmt.all(parkId) as any[];
+
+    return rows.map(row => this.mapRowToDeviceWithRoom(row));
+  }
+
   private static mapRowToDevice(row: any): Device {
     return {
       id: row.id,
@@ -190,6 +222,7 @@ export class DeviceModel {
       roomId: row.room_id,
       isActive: row.is_active === 1,
       lastSeenAt: row.last_seen_at,
+      firmwareVersion: row.firmware_version,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };

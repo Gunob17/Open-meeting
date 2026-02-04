@@ -145,6 +145,7 @@ export interface Device {
   roomId: string;
   isActive: boolean;
   lastSeenAt: string | null;
+  firmwareVersion: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -168,4 +169,28 @@ export interface DeviceRoomStatus {
 export interface DeviceQuickBookingRequest {
   title: string;
   durationMinutes: number; // Quick booking duration (e.g., 15, 30, 60 minutes)
+}
+
+// Firmware types for OTA updates
+export interface Firmware {
+  id: string;
+  version: string;
+  filename: string;
+  size: number;
+  checksum: string;
+  releaseNotes: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CreateFirmwareRequest {
+  version: string;
+  releaseNotes?: string;
+}
+
+export interface OtaUpdateCheck {
+  updateAvailable: boolean;
+  currentVersion: string | null;
+  latestVersion: string | null;
+  latestFirmware?: Firmware;
 }

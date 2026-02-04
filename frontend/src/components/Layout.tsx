@@ -148,6 +148,12 @@ export function Layout({ children }: LayoutProps) {
                     Manage Rooms
                   </Link>
                   <Link
+                    to="/admin/devices"
+                    className={`nav-link ${isActive('/admin/devices') ? 'active' : ''}`}
+                  >
+                    Devices
+                  </Link>
+                  <Link
                     to="/admin/companies"
                     className={`nav-link ${isActive('/admin/companies') ? 'active' : ''}`}
                   >

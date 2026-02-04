@@ -98,9 +98,22 @@ export function initializeDatabase(): void {
       room_id TEXT NOT NULL,
       is_active INTEGER DEFAULT 1,
       last_seen_at TEXT DEFAULT NULL,
+      firmware_version TEXT DEFAULT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (room_id) REFERENCES meeting_rooms(id) ON DELETE CASCADE
+    );
+
+    -- Firmware table for OTA updates
+    CREATE TABLE IF NOT EXISTS firmware (
+      id TEXT PRIMARY KEY,
+      version TEXT NOT NULL UNIQUE,
+      filename TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      checksum TEXT NOT NULL,
+      release_notes TEXT DEFAULT '',
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
     -- Insert default settings if not exists
@@ -182,6 +195,30 @@ export function initializeDatabase(): void {
     db.exec(`CREATE INDEX IF NOT EXISTS idx_users_park_id ON users(park_id)`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_meeting_rooms_park_id ON meeting_rooms(park_id)`);
   } catch (e) { /* Indexes may already exist */ }
+
+  // Device firmware version migration
+  if (!columnExists('devices', 'firmware_version')) {
+    db.exec(`ALTER TABLE devices ADD COLUMN firmware_version TEXT DEFAULT NULL`);
+  }
+
+  // Create firmware table if it doesn't exist (for existing databases)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS firmware (
+      id TEXT PRIMARY KEY,
+      version TEXT NOT NULL UNIQUE,
+      filename TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      checksum TEXT NOT NULL,
+      release_notes TEXT DEFAULT '',
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create index for firmware version lookup
+  try {
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_firmware_version ON firmware(version)`);
+  } catch (e) { /* Index may already exist */ }
 }
 
 export default db;

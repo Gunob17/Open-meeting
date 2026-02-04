@@ -1,4 +1,4 @@
-import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park } from '../types';
+import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park, Firmware } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -296,8 +296,12 @@ class ApiService {
   }
 
   // Devices
-  async getDevices(includeInactive = false): Promise<Device[]> {
-    const query = includeInactive ? '?includeInactive=true' : '';
+  async getDevices(includeInactive = false, parkId?: string): Promise<Device[]> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const params = new URLSearchParams();
+    if (includeInactive) params.append('includeInactive', 'true');
+    if (selectedPark) params.append('parkId', selectedPark);
+    const query = params.toString() ? `?${params.toString()}` : '';
     return this.request<Device[]>(`/devices${query}`);
   }
 
@@ -364,6 +368,48 @@ class ApiService {
   async deletePark(id: string, soft = true): Promise<void> {
     const query = soft ? '?soft=true' : '';
     await this.request(`/parks/${id}${query}`, { method: 'DELETE' });
+  }
+
+  // Firmware
+  async getFirmwareList(): Promise<Firmware[]> {
+    return this.request<Firmware[]>('/firmware');
+  }
+
+  async getLatestFirmware(): Promise<Firmware> {
+    return this.request<Firmware>('/firmware/latest');
+  }
+
+  async uploadFirmware(file: File, version: string, releaseNotes?: string): Promise<Firmware> {
+    const formData = new FormData();
+    formData.append('firmware', file);
+    formData.append('version', version);
+    if (releaseNotes) formData.append('releaseNotes', releaseNotes);
+
+    const response = await fetch(`${API_BASE}/firmware`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+      throw new Error(error.error || 'Upload failed');
+    }
+
+    return response.json();
+  }
+
+  async deleteFirmware(id: string): Promise<void> {
+    await this.request(`/firmware/${id}`, { method: 'DELETE' });
+  }
+
+  async toggleFirmwareActive(id: string, isActive: boolean): Promise<Firmware> {
+    return this.request<Firmware>(`/firmware/${id}/active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive })
+    });
   }
 }
 
