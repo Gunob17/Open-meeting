@@ -1,4 +1,4 @@
-import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device } from '../types';
+import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -20,6 +20,10 @@ class ApiService {
 
   getToken(): string | null {
     return this.token;
+  }
+
+  getSelectedParkId(): string | null {
+    return localStorage.getItem('selectedParkId');
   }
 
   private async request<T>(
@@ -95,8 +99,10 @@ class ApiService {
   }
 
   // Companies
-  async getCompanies(): Promise<Company[]> {
-    return this.request<Company[]>('/companies');
+  async getCompanies(parkId?: string): Promise<Company[]> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const query = selectedPark ? `?parkId=${selectedPark}` : '';
+    return this.request<Company[]>(`/companies${query}`);
   }
 
   async getCompany(id: string): Promise<Company> {
@@ -122,8 +128,10 @@ class ApiService {
   }
 
   // Users
-  async getUsers(): Promise<User[]> {
-    return this.request<User[]>('/users');
+  async getUsers(parkId?: string): Promise<User[]> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const query = selectedPark ? `?parkId=${selectedPark}` : '';
+    return this.request<User[]>(`/users${query}`);
   }
 
   async getUsersByCompany(companyId: string): Promise<User[]> {
@@ -165,8 +173,12 @@ class ApiService {
   }
 
   // Rooms
-  async getRooms(includeInactive = false): Promise<MeetingRoom[]> {
-    const query = includeInactive ? '?includeInactive=true' : '';
+  async getRooms(includeInactive = false, parkId?: string): Promise<MeetingRoom[]> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const params = new URLSearchParams();
+    if (includeInactive) params.append('includeInactive', 'true');
+    if (selectedPark) params.append('parkId', selectedPark);
+    const query = params.toString() ? `?${params.toString()}` : '';
     return this.request<MeetingRoom[]>(`/rooms${query}`);
   }
 
@@ -323,6 +335,35 @@ class ApiService {
 
   async deleteDevice(id: string): Promise<void> {
     await this.request(`/devices/${id}`, { method: 'DELETE' });
+  }
+
+  // Parks
+  async getParks(includeInactive = false): Promise<Park[]> {
+    const query = includeInactive ? '?includeInactive=true' : '';
+    return this.request<Park[]>(`/parks${query}`);
+  }
+
+  async getPark(id: string): Promise<Park> {
+    return this.request<Park>(`/parks/${id}`);
+  }
+
+  async createPark(data: { name: string; address: string; description?: string }): Promise<Park> {
+    return this.request<Park>('/parks', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updatePark(id: string, data: { name?: string; address?: string; description?: string; isActive?: boolean }): Promise<Park> {
+    return this.request<Park>(`/parks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async deletePark(id: string, soft = true): Promise<void> {
+    const query = soft ? '?soft=true' : '';
+    await this.request(`/parks/${id}${query}`, { method: 'DELETE' });
   }
 }
 

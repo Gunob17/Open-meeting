@@ -8,13 +8,24 @@ const router = Router();
 // Get all users (admin only)
 router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
-    const users = UserModel.findAll();
+    const queryParkId = req.query.parkId as string | undefined;
+
+    // Super admins can optionally filter by park, park admins see only their park's users
+    let parkId: string | undefined | null;
+    if (req.user?.role === UserRole.SUPER_ADMIN) {
+      parkId = queryParkId || undefined;
+    } else {
+      parkId = req.user?.parkId;
+    }
+
+    const users = UserModel.findAll(parkId);
     res.json(users.map(u => ({
       id: u.id,
       email: u.email,
       name: u.name,
       role: u.role,
       companyId: u.companyId,
+      parkId: u.parkId,
       createdAt: u.createdAt
     })));
   } catch (error) {

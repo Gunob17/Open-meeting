@@ -10,9 +10,17 @@ const router = Router();
 router.get('/', authenticate, (req: AuthRequest, res: Response) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
+    const queryParkId = req.query.parkId as string | undefined;
 
-    // Super admins see all rooms, others see only their park's rooms
-    const parkId = req.user?.role === UserRole.SUPER_ADMIN ? undefined : req.user?.parkId;
+    // Super admins can optionally filter by park, others see only their park's rooms
+    let parkId: string | undefined | null;
+    if (req.user?.role === UserRole.SUPER_ADMIN) {
+      // Super admin can filter by park via query param, or see all if not specified
+      parkId = queryParkId || undefined;
+    } else {
+      // Non-super admins always see their own park's rooms
+      parkId = req.user?.parkId;
+    }
     const rooms = RoomModel.findAll(includeInactive, parkId);
 
     // Parse amenities JSON for response

@@ -8,8 +8,15 @@ const router = Router();
 // Get all companies (filtered by park for non-super admins)
 router.get('/', authenticate, (req: AuthRequest, res: Response) => {
   try {
-    // Super admins see all companies, others see only their park's companies
-    const parkId = req.user?.role === UserRole.SUPER_ADMIN ? undefined : req.user?.parkId;
+    const queryParkId = req.query.parkId as string | undefined;
+
+    // Super admins can optionally filter by park, others see only their park's companies
+    let parkId: string | undefined | null;
+    if (req.user?.role === UserRole.SUPER_ADMIN) {
+      parkId = queryParkId || undefined;
+    } else {
+      parkId = req.user?.parkId;
+    }
     const companies = CompanyModel.findAll(parkId);
     res.json(companies);
   } catch (error) {

@@ -11,15 +11,17 @@ import { AdminRoomsPage } from './pages/AdminRoomsPage';
 import { CompaniesPage } from './pages/CompaniesPage';
 import { SetupPage } from './pages/SetupPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { ParksPage } from './pages/ParksPage';
 import { api } from './services/api';
 import './styles.css';
 
-function PrivateRoute({ children, adminOnly = false, companyAdminOnly = false }: {
+function PrivateRoute({ children, adminOnly = false, companyAdminOnly = false, superAdminOnly = false }: {
   children: React.ReactNode;
   adminOnly?: boolean;
   companyAdminOnly?: boolean;
+  superAdminOnly?: boolean;
 }) {
-  const { user, loading, isAdmin, isCompanyAdmin } = useAuth();
+  const { user, loading, isAdmin, isCompanyAdmin, isSuperAdmin } = useAuth();
 
   if (loading) {
     return <div className="loading">Loading...</div>;
@@ -34,6 +36,10 @@ function PrivateRoute({ children, adminOnly = false, companyAdminOnly = false }:
   }
 
   if (companyAdminOnly && !isCompanyAdmin) {
+    return <Navigate to="/" />;
+  }
+
+  if (superAdminOnly && !isSuperAdmin) {
     return <Navigate to="/" />;
   }
 
@@ -106,6 +112,14 @@ function AppRoutes() {
         element={
           <PrivateRoute adminOnly>
             <SettingsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/parks"
+        element={
+          <PrivateRoute superAdminOnly>
+            <ParksPage />
           </PrivateRoute>
         }
       />
