@@ -1,7 +1,7 @@
-import { Router, Response, Request } from 'express';
+import { Router, Response, Request, NextFunction } from 'express';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
 import { FirmwareModel } from '../models/firmware.model';
-import multer, { FileFilterCallback } from 'multer';
+import multer, { FileFilterCallback, MulterError } from 'multer';
 
 const router = Router();
 
@@ -25,6 +25,23 @@ const upload = multer({
     }
   }
 });
+
+// Multer error handling wrapper
+const uploadMiddleware = (req: MulterAuthRequest, res: Response, next: NextFunction) => {
+  upload.single('firmware')(req, res, (err: any) => {
+    if (err instanceof MulterError) {
+      console.error('Multer error:', err.code, err.message);
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'File too large. Maximum size is 10MB' });
+      }
+      return res.status(400).json({ error: `Upload error: ${err.message}` });
+    } else if (err) {
+      console.error('Upload error:', err.message);
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+};
 
 // Get all firmware versions (admin only)
 router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
@@ -53,17 +70,23 @@ router.get('/latest', authenticate, requireAdmin, (req: AuthRequest, res: Respon
 });
 
 // Upload new firmware (admin only)
-router.post('/', authenticate, requireAdmin, upload.single('firmware'), (req: MulterAuthRequest, res: Response) => {
+router.post('/', authenticate, requireAdmin, uploadMiddleware, (req: MulterAuthRequest, res: Response) => {
   try {
+    console.log('Firmware upload request received');
+    console.log('Body:', req.body);
+    console.log('File:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
+
     const { version, releaseNotes } = req.body;
     const file = req.file;
 
     if (!version) {
+      console.log('Upload rejected: No version provided');
       res.status(400).json({ error: 'Version is required' });
       return;
     }
 
     if (!file) {
+      console.log('Upload rejected: No file provided');
       res.status(400).json({ error: 'Firmware file is required' });
       return;
     }
@@ -71,19 +94,22 @@ router.post('/', authenticate, requireAdmin, upload.single('firmware'), (req: Mu
     // Check if version already exists
     const existing = FirmwareModel.findByVersion(version);
     if (existing) {
+      console.log('Upload rejected: Version already exists');
       res.status(400).json({ error: 'Firmware version already exists' });
       return;
     }
 
+    console.log('Creating firmware entry...');
     const firmware = FirmwareModel.create(
       { version, releaseNotes },
       file.buffer
     );
 
+    console.log('Firmware uploaded successfully:', firmware.id);
     res.status(201).json(firmware);
   } catch (error) {
     console.error('Upload firmware error:', error);
-    res.status(500).json({ error: 'Failed to upload firmware' });
+    res.status(500).json({ error: 'Failed to upload firmware: ' + (error instanceof Error ? error.message : 'Unknown error') });
   }
 });
 

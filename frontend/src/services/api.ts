@@ -385,6 +385,8 @@ class ApiService {
     formData.append('version', version);
     if (releaseNotes) formData.append('releaseNotes', releaseNotes);
 
+    console.log('Uploading firmware:', { filename: file.name, size: file.size, version });
+
     const response = await fetch(`${API_BASE}/firmware`, {
       method: 'POST',
       headers: {
@@ -393,8 +395,17 @@ class ApiService {
       body: formData
     });
 
+    console.log('Upload response status:', response.status);
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Upload failed' }));
+      const text = await response.text();
+      console.error('Upload error response:', text);
+      let error;
+      try {
+        error = JSON.parse(text);
+      } catch {
+        error = { error: text || 'Upload failed' };
+      }
       throw new Error(error.error || 'Upload failed');
     }
 

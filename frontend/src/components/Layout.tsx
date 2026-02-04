@@ -14,7 +14,14 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const [parks, setParks] = useState<Park[]>([]);
   const [selectedParkId, setSelectedParkId] = useState<string>('');
-  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Sidebar state - open by default on desktop
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const stored = localStorage.getItem('sidebarOpen');
+    if (stored !== null) return stored === 'true';
+    // Default: open on desktop (width > 768px), closed on mobile
+    return window.innerWidth > 768;
+  });
 
   useEffect(() => {
     if (isSuperAdmin) {
@@ -34,9 +41,26 @@ export function Layout({ children }: LayoutProps) {
     }
   }, [user, parks, isSuperAdmin]);
 
-  // Close menu when route changes
+  // Handle window resize
   useEffect(() => {
-    setMenuOpen(false);
+    const handleResize = () => {
+      // Auto-close sidebar on mobile if it was open
+      if (window.innerWidth <= 768 && sidebarOpen) {
+        const stored = localStorage.getItem('sidebarOpen');
+        if (stored === null) {
+          setSidebarOpen(false);
+        }
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [sidebarOpen]);
+
+  // Close sidebar on mobile when route changes
+  useEffect(() => {
+    if (window.innerWidth <= 768) {
+      setSidebarOpen(false);
+    }
   }, [location.pathname]);
 
   const loadParks = async () => {
@@ -51,7 +75,6 @@ export function Layout({ children }: LayoutProps) {
   const handleParkChange = (parkId: string) => {
     setSelectedParkId(parkId);
     localStorage.setItem('selectedParkId', parkId);
-    // Reload the page to refresh data with new park context
     window.location.reload();
   };
 
@@ -61,141 +84,162 @@ export function Layout({ children }: LayoutProps) {
     navigate('/login');
   };
 
+  const toggleSidebar = () => {
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    localStorage.setItem('sidebarOpen', String(newState));
+  };
+
   const isActive = (path: string) => location.pathname === path;
 
-  const toggleMenu = () => setMenuOpen(!menuOpen);
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="nav-container">
-        <div className="nav-content">
-          <div className="nav-brand">
-            <Link to="/" className="nav-logo">
-              Open Meeting
-            </Link>
-          </div>
-
-          <button className="burger-btn" onClick={toggleMenu} aria-label="Toggle menu">
-            <span className={`burger-line ${menuOpen ? 'open' : ''}`}></span>
-            <span className={`burger-line ${menuOpen ? 'open' : ''}`}></span>
-            <span className={`burger-line ${menuOpen ? 'open' : ''}`}></span>
+    <div className="app-layout">
+      {/* Sidebar */}
+      <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-header">
+          <Link to="/" className="sidebar-logo">
+            <span className="logo-icon">OM</span>
+            <span className="logo-text">Open Meeting</span>
+          </Link>
+          <button className="sidebar-toggle" onClick={toggleSidebar} aria-label="Toggle sidebar">
+            <span className="toggle-icon">{sidebarOpen ? '\u2039' : '\u203A'}</span>
           </button>
+        </div>
 
-          <div className={`nav-menu ${menuOpen ? 'open' : ''}`}>
-            {isSuperAdmin && parks.length > 0 && (
-              <div className="nav-section">
-                <span className="nav-section-label">Current Park</span>
-                <select
-                  className="park-switcher"
-                  value={selectedParkId}
-                  onChange={(e) => handleParkChange(e.target.value)}
-                >
-                  {parks.map(park => (
-                    <option key={park.id} value={park.id}>
-                      {park.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="nav-section">
-              <span className="nav-section-label">Navigation</span>
-              <div className="nav-links">
-                <Link
-                  to="/"
-                  className={`nav-link ${isActive('/') ? 'active' : ''}`}
-                >
-                  Calendar
-                </Link>
-                <Link
-                  to="/rooms"
-                  className={`nav-link ${isActive('/rooms') ? 'active' : ''}`}
-                >
-                  Rooms
-                </Link>
-                <Link
-                  to="/my-bookings"
-                  className={`nav-link ${isActive('/my-bookings') ? 'active' : ''}`}
-                >
-                  My Bookings
-                </Link>
-              </div>
+        <nav className="sidebar-nav">
+          {isSuperAdmin && parks.length > 0 && (
+            <div className="sidebar-section">
+              <span className="sidebar-section-label">Park</span>
+              <select
+                className="park-select"
+                value={selectedParkId}
+                onChange={(e) => handleParkChange(e.target.value)}
+                title="Select Park"
+              >
+                {parks.map(park => (
+                  <option key={park.id} value={park.id}>
+                    {park.name}
+                  </option>
+                ))}
+              </select>
             </div>
+          )}
 
-            {isCompanyAdmin && (
-              <div className="nav-section">
-                <span className="nav-section-label">Management</span>
-                <div className="nav-links">
-                  <Link
-                    to="/users"
-                    className={`nav-link ${isActive('/users') ? 'active' : ''}`}
-                  >
-                    Users
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            {isAdmin && (
-              <div className="nav-section">
-                <span className="nav-section-label">Administration</span>
-                <div className="nav-links">
-                  <Link
-                    to="/admin/rooms"
-                    className={`nav-link ${isActive('/admin/rooms') ? 'active' : ''}`}
-                  >
-                    Manage Rooms
-                  </Link>
-                  <Link
-                    to="/admin/devices"
-                    className={`nav-link ${isActive('/admin/devices') ? 'active' : ''}`}
-                  >
-                    Devices
-                  </Link>
-                  <Link
-                    to="/admin/companies"
-                    className={`nav-link ${isActive('/admin/companies') ? 'active' : ''}`}
-                  >
-                    Companies
-                  </Link>
-                  <Link
-                    to="/admin/settings"
-                    className={`nav-link ${isActive('/admin/settings') ? 'active' : ''}`}
-                  >
-                    Settings
-                  </Link>
-                  {isSuperAdmin && (
-                    <Link
-                      to="/admin/parks"
-                      className={`nav-link ${isActive('/admin/parks') ? 'active' : ''}`}
-                    >
-                      Parks
-                    </Link>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <div className="nav-section nav-user-section">
-              <div className="nav-user-info">
-                <span className="user-name">{user?.name}</span>
-                <span className="user-role">{user?.role.replace(/_/g, ' ')}</span>
-              </div>
-              <button onClick={handleLogout} className="btn btn-secondary btn-logout">
-                Logout
-              </button>
-            </div>
+          <div className="sidebar-section">
+            <span className="sidebar-section-label">Navigation</span>
+            <ul className="sidebar-menu">
+              <li>
+                <Link to="/" className={`sidebar-link ${isActive('/') ? 'active' : ''}`}>
+                  <span className="link-icon">&#128197;</span>
+                  <span className="link-text">Calendar</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/rooms" className={`sidebar-link ${isActive('/rooms') ? 'active' : ''}`}>
+                  <span className="link-icon">&#127970;</span>
+                  <span className="link-text">Rooms</span>
+                </Link>
+              </li>
+              <li>
+                <Link to="/my-bookings" className={`sidebar-link ${isActive('/my-bookings') ? 'active' : ''}`}>
+                  <span className="link-icon">&#128203;</span>
+                  <span className="link-text">My Bookings</span>
+                </Link>
+              </li>
+            </ul>
           </div>
 
-          {/* Overlay for mobile */}
-          {menuOpen && <div className="nav-overlay" onClick={() => setMenuOpen(false)}></div>}
-        </div>
-      </nav>
+          {isCompanyAdmin && (
+            <div className="sidebar-section">
+              <span className="sidebar-section-label">Management</span>
+              <ul className="sidebar-menu">
+                <li>
+                  <Link to="/users" className={`sidebar-link ${isActive('/users') ? 'active' : ''}`}>
+                    <span className="link-icon">&#128101;</span>
+                    <span className="link-text">Users</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
 
-      <main className="main-content">
-        {children}
-      </main>
+          {isAdmin && (
+            <div className="sidebar-section">
+              <span className="sidebar-section-label">Administration</span>
+              <ul className="sidebar-menu">
+                <li>
+                  <Link to="/admin/rooms" className={`sidebar-link ${isActive('/admin/rooms') ? 'active' : ''}`}>
+                    <span className="link-icon">&#128736;</span>
+                    <span className="link-text">Manage Rooms</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/devices" className={`sidebar-link ${isActive('/admin/devices') ? 'active' : ''}`}>
+                    <span className="link-icon">&#128187;</span>
+                    <span className="link-text">Devices</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/companies" className={`sidebar-link ${isActive('/admin/companies') ? 'active' : ''}`}>
+                    <span className="link-icon">&#127970;</span>
+                    <span className="link-text">Companies</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/admin/settings" className={`sidebar-link ${isActive('/admin/settings') ? 'active' : ''}`}>
+                    <span className="link-icon">&#9881;</span>
+                    <span className="link-text">Settings</span>
+                  </Link>
+                </li>
+                {isSuperAdmin && (
+                  <li>
+                    <Link to="/admin/parks" className={`sidebar-link ${isActive('/admin/parks') ? 'active' : ''}`}>
+                      <span className="link-icon">&#127795;</span>
+                      <span className="link-text">Parks</span>
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <div className="user-avatar">
+              {user?.name?.charAt(0).toUpperCase()}
+            </div>
+            <div className="user-details">
+              <span className="user-name">{user?.name}</span>
+              <span className="user-role">{user?.role.replace(/_/g, ' ')}</span>
+            </div>
+          </div>
+          <button onClick={handleLogout} className="logout-btn" title="Logout">
+            <span className="link-icon">&#10145;</span>
+            <span className="link-text">Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && <div className="sidebar-overlay" onClick={toggleSidebar}></div>}
+
+      {/* Main content */}
+      <div className={`main-wrapper ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+        {/* Top bar for mobile */}
+        <header className="top-bar">
+          <button className="mobile-menu-btn" onClick={toggleSidebar} aria-label="Open menu">
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+          </button>
+          <span className="top-bar-title">Open Meeting</span>
+        </header>
+
+        <main className="main-content">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
