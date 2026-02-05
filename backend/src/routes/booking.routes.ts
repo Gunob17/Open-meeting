@@ -186,10 +186,12 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Check if room is locked to a specific company
-    if (room.lockedToCompanyId && room.lockedToCompanyId !== req.user!.companyId) {
-      res.status(403).json({ error: 'This room is reserved for exclusive use by another company' });
-      return;
+    // Check if room is locked to specific companies
+    if (room.lockedToCompanyIds && room.lockedToCompanyIds.length > 0) {
+      if (!room.lockedToCompanyIds.includes(req.user!.companyId)) {
+        res.status(403).json({ error: 'This room is reserved for exclusive use by other companies' });
+        return;
+      }
     }
 
     // Validate booking hours against room/global settings

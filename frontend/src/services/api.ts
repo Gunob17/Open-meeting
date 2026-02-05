@@ -202,7 +202,7 @@ class ApiService {
     description?: string;
     openingHour?: number | null;
     closingHour?: number | null;
-    lockedToCompanyId?: string | null;
+    lockedToCompanyIds?: string[];
   }): Promise<MeetingRoom> {
     return this.request<MeetingRoom>('/rooms', {
       method: 'POST',
@@ -220,7 +220,7 @@ class ApiService {
     isActive?: boolean;
     openingHour?: number | null;
     closingHour?: number | null;
-    lockedToCompanyId?: string | null;
+    lockedToCompanyIds?: string[];
   }): Promise<MeetingRoom> {
     return this.request<MeetingRoom>(`/rooms/${id}`, {
       method: 'PUT',

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { MeetingRoom, Device } from '../types';
+import { MeetingRoom, Device, Company } from '../types';
 
 const COMMON_AMENITIES = [
   'Projector',
@@ -18,6 +18,7 @@ const COMMON_AMENITIES = [
 
 export function AdminRoomsPage() {
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<MeetingRoom | null>(null);
@@ -28,7 +29,8 @@ export function AdminRoomsPage() {
     floor: '',
     address: '',
     description: '',
-    quickBookDurations: [30, 60, 90, 120] as number[]
+    quickBookDurations: [30, 60, 90, 120] as number[],
+    lockedToCompanyIds: [] as string[]
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -45,18 +47,31 @@ export function AdminRoomsPage() {
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadRooms();
+    loadData();
   }, []);
 
-  const loadRooms = async () => {
+  const loadData = async () => {
     setLoading(true);
+    try {
+      const [roomsData, companiesData] = await Promise.all([
+        api.getRooms(true),
+        api.getCompanies()
+      ]);
+      setRooms(roomsData);
+      setCompanies(companiesData);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRooms = async () => {
     try {
       const data = await api.getRooms(true);
       setRooms(data);
     } catch (error) {
       console.error('Failed to load rooms:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -70,7 +85,8 @@ export function AdminRoomsPage() {
         floor: room.floor,
         address: room.address,
         description: room.description,
-        quickBookDurations: room.quickBookDurations || [30, 60, 90, 120]
+        quickBookDurations: room.quickBookDurations || [30, 60, 90, 120],
+        lockedToCompanyIds: room.lockedToCompanyIds || []
       });
     } else {
       setEditingRoom(null);
@@ -81,7 +97,8 @@ export function AdminRoomsPage() {
         floor: '',
         address: '',
         description: '',
-        quickBookDurations: [30, 60, 90, 120]
+        quickBookDurations: [30, 60, 90, 120],
+        lockedToCompanyIds: []
       });
     }
     setError('');
@@ -97,16 +114,29 @@ export function AdminRoomsPage() {
     }));
   };
 
+  const handleCompanyToggle = (companyId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      lockedToCompanyIds: prev.lockedToCompanyIds.includes(companyId)
+        ? prev.lockedToCompanyIds.filter(id => id !== companyId)
+        : [...prev.lockedToCompanyIds, companyId]
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSaving(true);
 
     try {
+      const roomData = {
+        ...formData,
+        lockedToCompanyIds: formData.lockedToCompanyIds.length > 0 ? formData.lockedToCompanyIds : []
+      };
       if (editingRoom) {
-        await api.updateRoom(editingRoom.id, formData);
+        await api.updateRoom(editingRoom.id, roomData);
       } else {
-        await api.createRoom(formData);
+        await api.createRoom(roomData);
       }
       setShowModal(false);
       loadRooms();
@@ -262,6 +292,7 @@ export function AdminRoomsPage() {
               <th>Capacity</th>
               <th>Floor</th>
               <th>Amenities</th>
+              <th>Access</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -281,6 +312,27 @@ export function AdminRoomsPage() {
                       <span className="amenity-tag small">+{room.amenities.length - 3} more</span>
                     )}
                   </div>
+                </td>
+                <td>
+                  {(!room.lockedToCompanyIds || room.lockedToCompanyIds.length === 0) ? (
+                    <span className="access-badge open">Open to All</span>
+                  ) : (
+                    <div className="access-companies">
+                      {room.lockedToCompanyIds.slice(0, 2).map(id => {
+                        const company = companies.find(c => c.id === id);
+                        return (
+                          <span key={id} className="access-badge restricted">
+                            {company?.name || 'Unknown'}
+                          </span>
+                        );
+                      })}
+                      {room.lockedToCompanyIds.length > 2 && (
+                        <span className="access-badge restricted">
+                          +{room.lockedToCompanyIds.length - 2} more
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td>
                   <span className={`status-badge ${room.isActive ? 'active' : 'inactive'}`}>
@@ -435,6 +487,29 @@ export function AdminRoomsPage() {
                       </label>
                     ))}
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label>Restrict Access to Companies</label>
+                  <small style={{ color: '#6b7280', marginBottom: '0.5rem', display: 'block' }}>
+                    Select companies that can book this room. Leave empty to allow all companies.
+                  </small>
+                  {companies.length === 0 ? (
+                    <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No companies available</p>
+                  ) : (
+                    <div className="companies-grid">
+                      {companies.map(company => (
+                        <label key={company.id} className="company-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={formData.lockedToCompanyIds.includes(company.id)}
+                            onChange={() => handleCompanyToggle(company.id)}
+                          />
+                          <span>{company.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

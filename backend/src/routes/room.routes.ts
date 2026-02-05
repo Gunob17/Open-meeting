@@ -6,7 +6,7 @@ import { UserRole } from '../types';
 
 const router = Router();
 
-// Get all rooms (filtered by park for non-super admins)
+// Get all rooms (filtered by park for non-super admins, and by company lock)
 router.get('/', authenticate, (req: AuthRequest, res: Response) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
@@ -14,6 +14,8 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
 
     // Super admins can optionally filter by park, others see only their park's rooms
     let parkId: string | undefined | null;
+    const isAdmin = req.user?.role === UserRole.SUPER_ADMIN || req.user?.role === UserRole.PARK_ADMIN;
+
     if (req.user?.role === UserRole.SUPER_ADMIN) {
       // Super admin can filter by park via query param, or see all if not specified
       parkId = queryParkId || undefined;
@@ -21,7 +23,19 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
       // Non-super admins always see their own park's rooms
       parkId = req.user?.parkId;
     }
-    const rooms = RoomModel.findAll(includeInactive, parkId);
+    let rooms = RoomModel.findAll(includeInactive, parkId);
+
+    // Filter out rooms locked to other companies (unless user is admin)
+    if (!isAdmin && req.user?.companyId) {
+      rooms = rooms.filter(room => {
+        // If room has no company lock, it's visible to everyone
+        if (!room.lockedToCompanyIds || room.lockedToCompanyIds.length === 0) {
+          return true;
+        }
+        // If room is locked, only show if user's company is in the list
+        return room.lockedToCompanyIds.includes(req.user!.companyId);
+      });
+    }
 
     // Parse amenities JSON for response
     const roomsWithParsedAmenities = rooms.map(room => ({
@@ -97,7 +111,7 @@ router.get('/:id/availability', authenticate, (req: AuthRequest, res: Response) 
 // Create room (park admin or above)
 router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
-    const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyId, quickBookDurations, parkId } = req.body;
+    const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyIds, quickBookDurations, parkId } = req.body;
 
     if (!name || !capacity || !floor || !address) {
       res.status(400).json({ error: 'Name, capacity, floor, and address are required' });
@@ -151,7 +165,7 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
       parkId: targetParkId,
       openingHour: openingHour ?? null,
       closingHour: closingHour ?? null,
-      lockedToCompanyId: lockedToCompanyId ?? null,
+      lockedToCompanyIds: lockedToCompanyIds ?? [],
       quickBookDurations: quickBookDurations ?? [30, 60, 90, 120]
     });
 
@@ -169,7 +183,7 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
 router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyId, quickBookDurations } = req.body;
+    const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyIds, quickBookDurations } = req.body;
 
     // Validate room-specific hours if provided
     if (openingHour !== undefined && openingHour !== null) {
@@ -199,7 +213,7 @@ router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
       isActive,
       openingHour,
       closingHour,
-      lockedToCompanyId,
+      lockedToCompanyIds,
       quickBookDurations
     });
 

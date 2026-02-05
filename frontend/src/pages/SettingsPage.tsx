@@ -19,7 +19,7 @@ export function SettingsPage() {
   const [editingRoom, setEditingRoom] = useState<MeetingRoom | null>(null);
   const [roomOpeningHour, setRoomOpeningHour] = useState<number | ''>('');
   const [roomClosingHour, setRoomClosingHour] = useState<number | ''>('');
-  const [roomLockedCompany, setRoomLockedCompany] = useState<string>('');
+  const [roomLockedCompanies, setRoomLockedCompanies] = useState<string[]>([]);
 
   useEffect(() => {
     loadData();
@@ -73,7 +73,7 @@ export function SettingsPage() {
     setEditingRoom(room);
     setRoomOpeningHour(room.openingHour ?? '');
     setRoomClosingHour(room.closingHour ?? '');
-    setRoomLockedCompany(room.lockedToCompanyId ?? '');
+    setRoomLockedCompanies(room.lockedToCompanyIds ?? []);
     setError('');
   };
 
@@ -97,7 +97,7 @@ export function SettingsPage() {
       await api.updateRoom(editingRoom.id, {
         openingHour: openHour,
         closingHour: closeHour,
-        lockedToCompanyId: roomLockedCompany || null
+        lockedToCompanyIds: roomLockedCompanies
       });
 
       setEditingRoom(null);
@@ -215,8 +215,15 @@ export function SettingsPage() {
                     }
                   </td>
                   <td>
-                    {room.lockedToCompanyId
-                      ? <span className="company-badge">{getCompanyName(room.lockedToCompanyId)}</span>
+                    {room.lockedToCompanyIds && room.lockedToCompanyIds.length > 0
+                      ? <div className="access-companies">
+                          {room.lockedToCompanyIds.slice(0, 2).map(id => (
+                            <span key={id} className="company-badge">{getCompanyName(id)}</span>
+                          ))}
+                          {room.lockedToCompanyIds.length > 2 && (
+                            <span className="company-badge">+{room.lockedToCompanyIds.length - 2}</span>
+                          )}
+                        </div>
                       : <span className="text-muted">All companies</span>
                     }
                   </td>
@@ -279,18 +286,32 @@ export function SettingsPage() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="roomLockedCompany">Lock to Company (Exclusive Access)</label>
-                  <select
-                    id="roomLockedCompany"
-                    value={roomLockedCompany}
-                    onChange={e => setRoomLockedCompany(e.target.value)}
-                  >
-                    <option value="">All companies can book</option>
-                    {companies.map(company => (
-                      <option key={company.id} value={company.id}>{company.name}</option>
-                    ))}
-                  </select>
-                  <small>If set, only users from this company can book this room</small>
+                  <label>Restrict Access to Companies</label>
+                  <small style={{ color: '#6b7280', marginBottom: '0.5rem', display: 'block' }}>
+                    Select companies that can book this room. Leave all unchecked to allow all companies.
+                  </small>
+                  {companies.length === 0 ? (
+                    <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No companies available</p>
+                  ) : (
+                    <div className="companies-grid">
+                      {companies.map(company => (
+                        <label key={company.id} className="company-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={roomLockedCompanies.includes(company.id)}
+                            onChange={() => {
+                              setRoomLockedCompanies(prev =>
+                                prev.includes(company.id)
+                                  ? prev.filter(id => id !== company.id)
+                                  : [...prev, company.id]
+                              );
+                            }}
+                          />
+                          <span>{company.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 

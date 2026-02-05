@@ -267,6 +267,22 @@ export class DeviceModel {
       // Keep default durations
     }
 
+    // Parse locked company IDs - handle both JSON array and legacy single ID
+    let lockedToCompanyIds: string[] = [];
+    if (row.room_locked_to_company_id) {
+      try {
+        const parsed = JSON.parse(row.room_locked_to_company_id);
+        if (Array.isArray(parsed)) {
+          lockedToCompanyIds = parsed;
+        } else {
+          lockedToCompanyIds = [row.room_locked_to_company_id];
+        }
+      } catch (e) {
+        // Not JSON, treat as legacy single company ID
+        lockedToCompanyIds = [row.room_locked_to_company_id];
+      }
+    }
+
     const room: MeetingRoom | undefined = row.room_name ? {
       id: row.room_id,
       name: row.room_name,
@@ -279,7 +295,7 @@ export class DeviceModel {
       parkId: row.room_park_id,
       openingHour: row.room_opening_hour,
       closingHour: row.room_closing_hour,
-      lockedToCompanyId: row.room_locked_to_company_id,
+      lockedToCompanyIds: lockedToCompanyIds,
       quickBookDurations: quickBookDurations,
       createdAt: row.room_created_at,
       updatedAt: row.room_updated_at

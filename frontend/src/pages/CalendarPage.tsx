@@ -61,8 +61,8 @@ export function CalendarPage() {
 
   // Check if user can book this room (company lock check)
   const canUserBookRoom = useCallback((room: MeetingRoom): boolean => {
-    if (!room.lockedToCompanyId) return true;
-    return room.lockedToCompanyId === user?.companyId;
+    if (!room.lockedToCompanyIds || room.lockedToCompanyIds.length === 0) return true;
+    return room.lockedToCompanyIds.includes(user?.companyId || '');
   }, [user]);
 
   useEffect(() => {

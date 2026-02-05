@@ -47,8 +47,8 @@ export interface MeetingRoom {
   parkId: string;
   openingHour?: number | null;
   closingHour?: number | null;
-  lockedToCompanyId?: string | null;
-  lockedToCompany?: Company;
+  lockedToCompanyIds?: string[]; // Companies that can book this room (empty = open to all)
+  lockedToCompanies?: Company[];
   quickBookDurations?: number[]; // Available quick booking durations in minutes for device
   createdAt?: string;
   updatedAt?: string;

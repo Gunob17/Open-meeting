@@ -49,7 +49,7 @@ export interface MeetingRoom {
   parkId: string;
   openingHour: number | null;  // Room-specific opening hour (null = use global)
   closingHour: number | null;  // Room-specific closing hour (null = use global)
-  lockedToCompanyId: string | null; // If set, only this company can book
+  lockedToCompanyIds: string[]; // If set, only these companies can book (empty array = open to all)
   quickBookDurations: number[]; // Available quick booking durations in minutes (e.g., [30, 60, 90, 120])
   createdAt: string;
   updatedAt: string;
@@ -122,7 +122,7 @@ export interface CreateRoomRequest {
   parkId: string;
   openingHour?: number | null;
   closingHour?: number | null;
-  lockedToCompanyId?: string | null;
+  lockedToCompanyIds?: string[]; // Companies that can access this room (empty = open to all)
   quickBookDurations?: number[]; // Quick booking durations in minutes
 }
 

@@ -8,6 +8,11 @@ export class RoomModel {
     const now = new Date().toISOString();
     const defaultDurations = [30, 60, 90, 120];
 
+    // Store locked company IDs as JSON array
+    const lockedCompanyIds = data.lockedToCompanyIds && data.lockedToCompanyIds.length > 0
+      ? JSON.stringify(data.lockedToCompanyIds)
+      : null;
+
     const stmt = db.prepare(`
       INSERT INTO meeting_rooms (id, name, capacity, amenities, floor, address, description, is_active, park_id, opening_hour, closing_hour, locked_to_company_id, quick_book_durations, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -25,7 +30,7 @@ export class RoomModel {
       data.parkId,
       data.openingHour ?? null,
       data.closingHour ?? null,
-      data.lockedToCompanyId ?? null,
+      lockedCompanyIds,
       JSON.stringify(data.quickBookDurations ?? defaultDurations),
       now,
       now
@@ -94,7 +99,19 @@ export class RoomModel {
     // Handle undefined vs null for optional fields
     const openingHour = data.openingHour !== undefined ? data.openingHour : existing.openingHour;
     const closingHour = data.closingHour !== undefined ? data.closingHour : existing.closingHour;
-    const lockedToCompanyId = data.lockedToCompanyId !== undefined ? data.lockedToCompanyId : existing.lockedToCompanyId;
+
+    // Handle locked company IDs - store as JSON array or null if empty
+    let lockedCompanyIds: string | null;
+    if (data.lockedToCompanyIds !== undefined) {
+      lockedCompanyIds = data.lockedToCompanyIds && data.lockedToCompanyIds.length > 0
+        ? JSON.stringify(data.lockedToCompanyIds)
+        : null;
+    } else {
+      lockedCompanyIds = existing.lockedToCompanyIds.length > 0
+        ? JSON.stringify(existing.lockedToCompanyIds)
+        : null;
+    }
+
     const quickBookDurations = data.quickBookDurations !== undefined ? JSON.stringify(data.quickBookDurations) : JSON.stringify(existing.quickBookDurations);
 
     stmt.run(
@@ -107,7 +124,7 @@ export class RoomModel {
       data.isActive !== undefined ? (data.isActive ? 1 : 0) : (existing.isActive ? 1 : 0),
       openingHour,
       closingHour,
-      lockedToCompanyId,
+      lockedCompanyIds,
       quickBookDurations,
       now,
       id
@@ -137,6 +154,24 @@ export class RoomModel {
       quickBookDurations = defaultDurations;
     }
 
+    // Parse locked company IDs - handle both JSON array and legacy single ID
+    let lockedToCompanyIds: string[] = [];
+    if (row.locked_to_company_id) {
+      try {
+        // Try to parse as JSON array first
+        const parsed = JSON.parse(row.locked_to_company_id);
+        if (Array.isArray(parsed)) {
+          lockedToCompanyIds = parsed;
+        } else {
+          // If parsed but not array, treat as single ID
+          lockedToCompanyIds = [row.locked_to_company_id];
+        }
+      } catch (e) {
+        // Not JSON, treat as legacy single company ID
+        lockedToCompanyIds = [row.locked_to_company_id];
+      }
+    }
+
     return {
       id: row.id,
       name: row.name,
@@ -149,7 +184,7 @@ export class RoomModel {
       parkId: row.park_id,
       openingHour: row.opening_hour,
       closingHour: row.closing_hour,
-      lockedToCompanyId: row.locked_to_company_id,
+      lockedToCompanyIds: lockedToCompanyIds,
       quickBookDurations: quickBookDurations,
       createdAt: row.created_at,
       updatedAt: row.updated_at
