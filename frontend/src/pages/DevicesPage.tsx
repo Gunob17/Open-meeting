@@ -156,9 +156,6 @@ export function DevicesPage() {
     <div className="page-container">
       <div className="page-header">
         <h1>Devices & Firmware</h1>
-        <button className="btn btn-primary" onClick={() => setShowUploadModal(true)}>
-          Upload Firmware
-        </button>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -186,59 +183,58 @@ export function DevicesPage() {
         </div>
       )}
 
-      {/* Firmware Section */}
-      <div className="section">
-        <h2>Firmware Versions</h2>
-        {firmware.length === 0 ? (
-          <p className="empty-state">No firmware uploaded yet. Upload a firmware file to enable OTA updates.</p>
-        ) : (
-          <div className="firmware-list">
-            {firmware.map(fw => (
-              <div key={fw.id} className={`firmware-card ${fw.isActive ? 'active' : 'inactive'}`}>
-                <div className="firmware-header">
-                  <span className="firmware-version">v{fw.version}</span>
-                  {fw.isActive && <span className="badge badge-success">Active</span>}
-                  {!fw.isActive && <span className="badge badge-secondary">Inactive</span>}
-                </div>
-                <div className="firmware-details">
-                  <div><strong>Size:</strong> {formatFileSize(fw.size)}</div>
-                  <div><strong>Checksum:</strong> {fw.checksum.substring(0, 12)}...</div>
-                  <div><strong>Uploaded:</strong> {new Date(fw.createdAt).toLocaleDateString()}</div>
-                </div>
-                {fw.releaseNotes && (
-                  <div className="firmware-notes">
-                    <strong>Release Notes:</strong>
-                    <p>{fw.releaseNotes}</p>
-                  </div>
-                )}
-                <div className="firmware-actions">
-                  <button
-                    className="btn btn-sm btn-secondary"
-                    onClick={() => handleToggleFirmwareActive(fw)}
-                  >
-                    {fw.isActive ? 'Deactivate' : 'Activate'}
-                  </button>
-                  <button
-                    className="btn btn-sm btn-danger"
-                    onClick={() => handleDeleteFirmware(fw.id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
+      {/* Side-by-side layout: Firmware (30%) | Devices (70%) */}
+      <div className="devices-page-layout">
+        {/* Firmware Section - Left Side */}
+        <div className="firmware-panel">
+          <div className="panel-header">
+            <h2>Firmware</h2>
+            <button className="btn btn-sm btn-primary" onClick={() => setShowUploadModal(true)}>
+              + Upload
+            </button>
           </div>
-        )}
-      </div>
+          {firmware.length === 0 ? (
+            <p className="empty-state">No firmware uploaded yet.</p>
+          ) : (
+            <div className="firmware-compact-list">
+              {firmware.map(fw => (
+                <div key={fw.id} className={`firmware-compact-card ${fw.isActive ? 'active' : 'inactive'}`}>
+                  <div className="firmware-compact-header">
+                    <span className="firmware-version">v{fw.version}</span>
+                    {fw.isActive && <span className="badge badge-success">Active</span>}
+                  </div>
+                  <div className="firmware-compact-details">
+                    <span>{formatFileSize(fw.size)}</span>
+                    <span>{new Date(fw.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  {fw.releaseNotes && (
+                    <div className="firmware-compact-notes">{fw.releaseNotes}</div>
+                  )}
+                  <div className="firmware-compact-actions">
+                    <button
+                      className="btn btn-xs btn-secondary"
+                      onClick={() => handleToggleFirmwareActive(fw)}
+                    >
+                      {fw.isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button
+                      className="btn btn-xs btn-danger"
+                      onClick={() => handleDeleteFirmware(fw.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-      {/* Devices Section */}
-      <div className="section">
-        <h2>Devices</h2>
-        {devices.length === 0 ? (
-          <p className="empty-state">No devices registered in this park.</p>
-        ) : (
-          <>
-            <div className="devices-toolbar">
+        {/* Devices Section - Right Side */}
+        <div className="devices-panel">
+          <div className="panel-header">
+            <h2>Devices</h2>
+            {devices.length > 0 && (
               <label className="checkbox-label">
                 <input
                   type="checkbox"
@@ -247,7 +243,11 @@ export function DevicesPage() {
                 />
                 Select All
               </label>
-            </div>
+            )}
+          </div>
+          {devices.length === 0 ? (
+            <p className="empty-state">No devices registered in this park.</p>
+          ) : (
             <div className="devices-grid">
               {devices.map(device => (
                 <div
@@ -304,8 +304,8 @@ export function DevicesPage() {
                 </div>
               ))}
             </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Device Detail Modal */}

@@ -27,6 +27,7 @@ bool webServerRunning = false;
 bool setupMode = false;  // True when showing setup screen after connection failure
 bool screenOn = true;    // Track screen backlight state
 bool connectionLost = false;  // Track if we lost connection to server
+bool forceRedraw = true;  // Force redraw on next status update (e.g., after loading)
 unsigned long lastStatusUpdate = 0;
 unsigned long lastPing = 0;
 unsigned long lastTouchTime = 0;
@@ -53,7 +54,7 @@ void setLedColor(bool available);
 void setLedOff();
 void checkScreenTimeout();
 void wakeScreen();
-bool roomStatusesAreEqual(RoomStatus first, RoomStatus secound);
+bool roomStatusesAreEqual(const RoomStatus& first, const RoomStatus& second);
 void checkForFirmwareUpdate();
 void performFirmwareUpdate(const String& version);
 
@@ -184,6 +185,7 @@ void loop() {
     if (connectionLost) {
         if (millis() - lastConnectionRetry > CONNECTION_RETRY_INTERVAL) {
             Serial.println("Retrying server connection...");
+            forceRedraw = true;  // Force redraw after connection retry
             updateRoomStatus();
             lastConnectionRetry = millis();
         }
@@ -380,6 +382,7 @@ void handleSaveConfig() {
         deviceConfigured = true;
         delay(1000);
         ui.showLoading("Connecting to server...");
+        forceRedraw = true;  // Force redraw after loading screen
         updateRoomStatus();
     } else {
         server.send(400, "text/plain", "API URL and Token are required");
@@ -393,9 +396,16 @@ void updateRoomStatus() {
     if (currentStatus.isValid) {
         setupMode = false;  // Connection successful, exit setup mode
         connectionLost = false;  // Connection restored
-        // Always show room status to ensure we exit loading screens
-        // The UI will handle avoiding unnecessary redraws internally
-        ui.showRoomStatus(currentStatus);
+
+        // Only redraw if status changed or forced (e.g., coming from loading screen)
+        if (forceRedraw || !roomStatusesAreEqual(currentStatus, lastStatus)) {
+            Serial.println("Status changed or forced redraw - updating display");
+            ui.showRoomStatus(currentStatus);
+            forceRedraw = false;
+        } else {
+            Serial.println("Status unchanged - skipping redraw");
+        }
+
         lastStatus = currentStatus;
         // Update LED based on room availability
         setLedColor(currentStatus.isAvailable);
@@ -465,6 +475,7 @@ void handleTouch() {
             } else if (buttonIndex == 1 || (buttonIndex == 0 && !currentStatus.isAvailable)) {
                 // Refresh button
                 ui.showLoading("Refreshing...");
+                forceRedraw = true;  // Force redraw after manual refresh
                 updateRoomStatus();
             }
             break;
@@ -494,6 +505,7 @@ void handleTouch() {
             // Retry button - immediately try to reconnect
             connectionLost = false;  // Reset connection lost flag
             ui.showLoading("Retrying...");
+            forceRedraw = true;  // Force redraw after retry
             updateRoomStatus();
             break;
 
@@ -510,6 +522,7 @@ void handleTouch() {
         default:
             // For booking result, any button returns to status
             ui.showLoading("Loading...");
+            forceRedraw = true;  // Force redraw after loading screen
             updateRoomStatus();
             break;
     }
@@ -525,6 +538,7 @@ void performQuickBook(int duration) {
 
     // Auto-return to status after 3 seconds
     delay(3000);
+    forceRedraw = true;  // Force redraw after booking result
     updateRoomStatus();
 }
 
@@ -594,24 +608,43 @@ void wakeScreen() {
     lastActivityTime = millis();
 }
 
-bool roomStatusesAreEqual(RoomStatus first, RoomStatus secound){
+bool roomStatusesAreEqual(const RoomStatus& first, const RoomStatus& second) {
+    // Both must be valid to compare
+    if (!first.isValid || !second.isValid) {
+        return false;
+    }
 
-    if (first.isAvailable != secound.isValid){
+    // Compare availability
+    if (first.isAvailable != second.isAvailable) {
         return false;
     }
-    else if(first.upcomingCount != secound.upcomingCount){
+
+    // Compare room name
+    if (first.room.name != second.room.name) {
         return false;
     }
-    else if(first.room.name != secound.room.name){
+
+    // Compare current booking
+    if (first.hasCurrentBooking != second.hasCurrentBooking) {
         return false;
     }
-    else if(first.upcomingBookings[0].id != secound.upcomingBookings[0].id
-        || first.upcomingBookings[1].id != secound.upcomingBookings[1].id
-        || first.upcomingBookings[2].id != secound.upcomingBookings[2].id ){
+    if (first.hasCurrentBooking && first.currentBooking.id != second.currentBooking.id) {
+        return false;
+    }
+
+    // Compare upcoming bookings count
+    if (first.upcomingCount != second.upcomingCount) {
+        return false;
+    }
+
+    // Compare upcoming booking IDs
+    for (int i = 0; i < first.upcomingCount && i < 3; i++) {
+        if (first.upcomingBookings[i].id != second.upcomingBookings[i].id) {
             return false;
         }
-    return true;
+    }
 
+    return true;
 }
 
 // Firmware OTA update functions
