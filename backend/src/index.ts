@@ -14,6 +14,7 @@ import deviceRoutes from './routes/device.routes';
 import deviceApiRoutes from './routes/device-api.routes';
 import parkRoutes from './routes/park.routes';
 import firmwareRoutes from './routes/firmware.routes';
+import statisticsRoutes from './routes/statistics.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -37,6 +38,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/device', deviceApiRoutes);
 app.use('/api/firmware', firmwareRoutes);
+app.use('/api/statistics', statisticsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

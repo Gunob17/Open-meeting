@@ -197,6 +197,12 @@ export function Layout({ children }: LayoutProps) {
                   </Link>
                 </li>
                 <li>
+                  <Link to="/admin/statistics" className={`sidebar-link ${isActive('/admin/statistics') ? 'active' : ''}`}>
+                    <span className="link-icon">&#128202;</span>
+                    <span className="link-text">Statistics</span>
+                  </Link>
+                </li>
+                <li>
                   <Link to="/admin/settings" className={`sidebar-link ${isActive('/admin/settings') ? 'active' : ''}`}>
                     <span className="link-icon">&#9881;</span>
                     <span className="link-text">Settings</span>

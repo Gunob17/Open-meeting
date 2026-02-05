@@ -471,6 +471,116 @@ class ApiService {
       method: 'POST'
     });
   }
+
+  // Statistics
+  async getStatisticsSummary(parkId?: string): Promise<{
+    today: { bookings: number };
+    thisWeek: { bookings: number };
+    thisMonth: { bookings: number };
+    totals: { activeRooms: number; activeUsers: number };
+  }> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const query = selectedPark ? `?parkId=${selectedPark}` : '';
+    return this.request(`/statistics/summary${query}`);
+  }
+
+  async getRoomStatistics(startDate?: string, endDate?: string, parkId?: string): Promise<{
+    dateRange: { start: string; end: string };
+    rooms: Array<{
+      roomId: string;
+      roomName: string;
+      floor: string;
+      capacity: number;
+      amenities: string[];
+      totalBookings: number;
+      totalHoursBooked: number;
+      utilizationRate: number;
+      averageBookingDuration: number;
+      uniqueBookers: number;
+      cancellationCount: number;
+    }>;
+    summary: {
+      totalRooms: number;
+      totalBookings: number;
+      averageUtilization: number;
+    };
+  }> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (selectedPark) params.append('parkId', selectedPark);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/statistics/rooms${query}`);
+  }
+
+  async getHourlyStatistics(startDate?: string, endDate?: string, parkId?: string): Promise<{
+    dateRange: { start: string; end: string };
+    hourlyStats: Array<{ hour: number; bookingCount: number }>;
+    peakHour: number;
+    peakHourBookings: number;
+  }> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (selectedPark) params.append('parkId', selectedPark);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/statistics/hourly${query}`);
+  }
+
+  async getDailyStatistics(startDate?: string, endDate?: string, parkId?: string): Promise<{
+    dateRange: { start: string; end: string };
+    dailyStats: Array<{ date: string; bookingCount: number; totalHours: number }>;
+    averageBookingsPerDay: number;
+  }> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (selectedPark) params.append('parkId', selectedPark);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/statistics/daily${query}`);
+  }
+
+  async getAmenityStatistics(startDate?: string, endDate?: string, parkId?: string): Promise<{
+    dateRange: { start: string; end: string };
+    amenityStats: Array<{
+      amenity: string;
+      roomCount: number;
+      totalBookings: number;
+      averageUtilization: number;
+    }>;
+  }> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (selectedPark) params.append('parkId', selectedPark);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/statistics/amenities${query}`);
+  }
+
+  async getTopBookers(startDate?: string, endDate?: string, parkId?: string, limit?: number): Promise<{
+    dateRange: { start: string; end: string };
+    topBookers: Array<{
+      userId: string;
+      userName: string;
+      userEmail: string;
+      companyName: string;
+      bookingCount: number;
+      totalHoursBooked: number;
+    }>;
+  }> {
+    const selectedPark = parkId || this.getSelectedParkId();
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (selectedPark) params.append('parkId', selectedPark);
+    if (limit) params.append('limit', limit.toString());
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/statistics/top-bookers${query}`);
+  }
 }
 
 export const api = new ApiService();
