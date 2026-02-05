@@ -68,7 +68,7 @@
 
 // LED brightness (0-255, but inverted for active LOW)
 // 75% brightness = 25% duty cycle for active LOW = 64
-#define LED_BRIGHTNESS 64
+#define LED_BRIGHTNESS 200
 
 // PWM settings for LED brightness control
 #define LED_PWM_FREQ 5000
@@ -85,6 +85,6 @@
 
 // Firmware/OTA update settings
 #define FIRMWARE_CHECK_INTERVAL 300000   // 5 minutes - how often to check for updates
-#define FIRMWARE_VERSION "1.0.0"         // Current firmware version - update this with each release
+#define FIRMWARE_VERSION "1.0.3"         // Current firmware version - update this with each release
 
 #endif // CONFIG_H
