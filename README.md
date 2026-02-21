@@ -1,248 +1,170 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="open-meeting-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="open-meeting.svg">
+    <img src="open-meeting.svg" alt="Open Meeting" width="400">
+  </picture>
+</p>
+
 # Open Meeting
 
-A comprehensive meeting room booking service for shared offices and parks with multi-tenant support and hierarchical user structure.
+**The open-source meeting room booking platform built for shared offices, co-working spaces, and multi-site organizations.**
+
+Open Meeting gives your organization a complete room booking system — from a visual calendar and smart conflict prevention, to IoT room displays, enterprise identity integration, and visitor management. Deploy with a single Docker command and start booking in minutes.
+
+---
+
+## Why Open Meeting?
+
+- **Ready for your organization** — Manage multiple sites, companies, and user roles from a single platform. Scale from one office to dozens.
+- **Enterprise-grade security** — Two-factor authentication, LDAP directory sync, and Single Sign-On (OIDC & SAML) out of the box.
+- **Walk-up room displays** — Mount affordable ESP32 touchscreen devices outside meeting rooms for live status and one-tap booking.
+- **Professional visitor experience** — Track external guests with check-in/check-out, automated reception notifications, and configurable visitor fields.
+- **Data-driven space decisions** — Built-in analytics show room utilization, peak hours, and underused spaces so you can optimize your real estate.
+- **Deploy in minutes** — One Docker container, one command. Works with SQLite out of the box or connect to PostgreSQL, MySQL, or MSSQL.
+
+---
 
 ## Features
 
-### Multi-Park Architecture
-- **Super Admin**: Manages multiple parks, creates park admins
-- **Park Admin**: Manages rooms, companies, and users within their park
-- **Company Admin**: Can create/delete users for their company within their park
-- **User**: Can book meeting rooms within their park
+### Smart Room Booking
 
-### Core Features
-- **Calendar View**: Weekly view showing all meeting rooms and their booking status
-- **List View**: Shows rooms with capacity, amenities, and availability status
-- **Booking System**: Book rooms with conflict detection
-- **Email Notifications**: Meeting invites with ICS attachments sent to organizer and attendees
-- **Park Isolation**: Users can only see and book rooms within their assigned park
+No more double-bookings or scheduling chaos. The visual weekly calendar shows every room's availability at a glance with color-coded time slots — green for available, red for booked, orange for partially available. Users click any open slot to book, and the system automatically prevents conflicts. Bookings can include internal attendees (who receive calendar invites) and external guests.
 
-### Room Information
-- Capacity (number of occupants)
-- Amenities (projector, whiteboard, video conferencing, etc.)
-- Floor and address information
-- Availability status
-- Configurable quick booking durations per room
+- Visual 7-day calendar with all rooms side-by-side
+- Automatic conflict detection — overlapping bookings are impossible
+- Book partial time slots when rooms have gaps between meetings
+- Add attendees by email with automatic ICS calendar invitations
+- Browse rooms by capacity, amenities, and real-time availability
+- Mobile-responsive design works on any device
 
-### Device Support
-- ESP32-based room display devices
-- Real-time room status with LED indicators
-- Quick booking from the device
+### Multi-Site Management
 
-## Tech Stack
+Built for organizations with multiple locations. Each site ("park") operates independently with its own rooms, companies, and users — while super admins maintain oversight across everything. Perfect for co-working spaces, business parks, and enterprises with regional offices.
 
-### Backend
-- Node.js with Express
-- TypeScript
-- SQLite (better-sqlite3)
-- JWT authentication
-- Nodemailer for emails
-- ICS library for calendar invites
+- **Super Admins** oversee all sites, create park administrators, and set system-wide policies
+- **Park Admins** manage rooms, companies, devices, and settings within their site
+- **Company Admins** manage their own team's users, LDAP, and SSO configuration
+- **Users** book rooms and manage their own meetings
+- Park-level branding with custom logos
 
-### Frontend
-- React 18
-- TypeScript
-- React Router
-- date-fns for date handling
+### Room Access Control
 
-## Getting Started
+Not every room should be available to everyone. Lock specific rooms to certain companies so that premium or specialized spaces are only visible and bookable by authorized teams. Set per-room booking hours or use global defaults — giving you fine-grained control over who can book what, and when.
 
-### Option 1: Docker (Recommended)
+- Restrict rooms to specific companies — unauthorized users won't even see them
+- Per-room opening and closing hours (or inherit from global settings)
+- Configurable quick-booking durations per room (15 min, 30 min, 1 hour, etc.)
+- Admins can move bookings between rooms or remove bookings with reason notifications
 
-The easiest way to run the application is with Docker. Download the latest release from [GitHub Releases](../../releases):
+### Enterprise Security
+
+Meet your organization's security and compliance requirements with built-in two-factor authentication. Enforcement is hierarchical — set it system-wide, per site, or per company. Users can set up 2FA with any TOTP authenticator app, save backup codes for recovery, and trust their devices to skip verification on recognized browsers.
+
+- TOTP-based 2FA with QR code setup (Google Authenticator, Authy, etc.)
+- Backup codes for account recovery
+- Trusted device management — skip 2FA on recognized browsers
+- Hierarchical enforcement: system-wide, per site, or per company (disabled / optional / required)
+- Two modes: require on every login, or trust verified devices for a configurable period
+
+### Identity Provider Integration
+
+Your users are already in your directory — Open Meeting connects to it. Sync users automatically from LDAP directories with scheduled imports and group-based role mapping. Or enable Single Sign-On so users log in with their existing corporate credentials through OIDC or SAML, with automatic account creation on first login.
+
+- **LDAP**: Automatic user sync, group-to-role mapping, configurable sync intervals, connection testing
+- **OIDC**: Works with Keycloak, Azure AD, Okta, Google Workspace, and any OpenID Connect provider
+- **SAML 2.0**: Works with ADFS, Shibboleth, OneLogin, and any SAML identity provider
+- Just-in-time user provisioning — accounts created automatically on first SSO login
+- Email domain-based auto-discovery at the login screen
+- Per-company configuration — each tenant connects their own identity provider
+- All credentials encrypted at rest (AES-256-GCM)
+
+### Visitor & Guest Management
+
+Create a professional visitor experience. When users add external guests to their bookings, the reception desk is automatically notified. Receptionists use a dedicated dashboard to check guests in and out throughout the day, with real-time status tracking and overstay alerts.
+
+- Add external guests to any booking with name, email, and company fields
+- Automatic email notifications to the reception desk with guest details
+- Dedicated receptionist dashboard with daily guest overview
+- One-click check-in and check-out with timestamps
+- Guest status tracking: pending, checked in, checked out
+- Overstay detection — highlights guests still on-site past their meeting end time
+- Configurable guest information fields per site
+
+### IoT Room Displays
+
+Mount affordable ESP32 touchscreen devices outside each meeting room for instant, at-a-glance room status. The 2.8" color display shows whether a room is available or occupied, the current meeting details, and upcoming bookings. An RGB LED provides a visible status indicator from down the hallway. Anyone can walk up and book the room with a single tap.
+
+- 2.8" color touchscreen with live room status (available / occupied)
+- RGB LED indicator visible from a distance (green = free, red = busy)
+- One-tap quick booking with configurable durations
+- Shows current meeting and next 3 upcoming bookings
+- WiFi setup via captive portal — no programming required after initial flash
+- Automatic screen timeout for power savings
+- 25+ timezone support for global deployments
+- Auto-reconnection with boot loop protection
+
+### Remote Device Management
+
+Manage your fleet of room displays from the admin panel — no physical access needed. Upload firmware updates and push them to all devices at once, or target specific devices. Monitor device health with last-seen timestamps and firmware version tracking.
+
+- Upload firmware versions with release notes
+- Schedule updates for individual devices or batch deploy to all devices at once
+- Devices automatically check for and apply updates over-the-air (OTA)
+- Monitor device status: online/offline, last seen, current firmware version
+- Regenerate device security tokens from the admin panel
+
+### Analytics & Insights
+
+Make informed decisions about your workspace. Built-in analytics track how your rooms are actually being used — which rooms are in high demand, which are sitting empty, what times are busiest, and which amenities matter most to your teams.
+
+- Room utilization percentages with visual indicators
+- Hourly and daily booking distribution charts
+- Peak hour identification
+- Amenity popularity ranking
+- Top bookers by user and company
+- Underutilized room detection (highlights rooms below 30% utilization)
+- Filterable by date range and site
+
+### Automated Notifications
+
+Everyone stays in the loop without lifting a finger. Booking confirmations, cancellations, and schedule changes are sent automatically as emails with standard ICS calendar attachments that work with Outlook, Google Calendar, and Apple Calendar.
+
+- Meeting invitations with ICS calendar attachments
+- Cancellation notices to all attendees
+- Admin action notifications (when a booking is moved or deleted, the organizer is informed with the reason)
+- Reception alerts when external guests are expected
+- Works with any SMTP email provider
+
+---
+
+## Get Running in Minutes
 
 ```bash
-# Download the image tar file from releases, then load it
+# Pull and run with Docker
+docker run -d -p 80:80 --name open-meeting -v open-meeting-data:/app/backend/data open-meeting:latest
+```
+
+Open `http://localhost` and follow the setup wizard to create your admin account — or load demo data to explore all features immediately.
+
+For releases, download the image from [GitHub Releases](../../releases):
+
+```bash
 gunzip -c open-meeting-v1.0.0.tar.gz | docker load
-
-# Run the container
-docker run -d -p 80:80 --name open-meeting open-meeting:v1.0.0
-
-# Or use Docker Compose (after building locally)
-docker-compose up -d
+docker run -d -p 80:80 --name open-meeting -v open-meeting-data:/app/backend/data open-meeting:v1.0.0
 ```
 
-The application will be available at `http://localhost`.
+---
 
-### Option 2: Local Development
-
-#### Prerequisites
-- Node.js 18+
-- npm or yarn
-
-#### Installation
-
-1. Install dependencies:
-```bash
-# Install all dependencies
-npm run install:all
-
-# Or install separately
-npm run install:backend
-npm run install:frontend
-```
-
-2. Seed the database with sample data:
-```bash
-npm run seed
-```
-
-3. Start the backend server:
-```bash
-npm run start:backend
-```
-
-4. In a new terminal, start the frontend:
-```bash
-npm run start:frontend
-```
-
-The backend will run on `http://localhost:3001` and frontend on `http://localhost:3000`.
-
-## Demo Accounts
-
-After running demo setup, you can log in with these accounts:
-
-### Primary Demo Accounts
-
-| Role | Email | Password | Description |
-|------|-------|----------|-------------|
-| Super Admin | admin@openmeeting.com | admin123 | Can manage all parks |
-| Park Admin | parkadmin@downtown.com | parkadmin123 | Downtown Business Park admin |
-| Company Admin | admin@techcorp.com | techcorp123 | TechCorp company admin |
-| User | john@techcorp.com | john123 | Regular user |
-
-### Additional Demo Accounts by Park
-
-**Downtown Business Park:**
-- Park Admin: parkadmin@downtown.com / parkadmin123
-- Company Admin: admin@techcorp.com / techcorp123
-- Users: john@techcorp.com, jane@techcorp.com, bob@startuphub.com
-
-**Tech Innovation Hub:**
-- Park Admin: parkadmin@techhub.com / techhub123
-- Company Admin: sarah@innovatetech.com / sarah123
-- User: mike@aidynamics.com / mike123
-
-**Creative Arts Center:**
-- Park Admin: parkadmin@creative.com / creative123
-- Company Admin: alex@pixelperfect.com / alex123
-- User: emma@brightmedia.com / emma123
-
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Get current user
-- `POST /api/auth/change-password` - Change password
-
-### Parks (Super Admin only)
-- `GET /api/parks` - List all parks
-- `POST /api/parks` - Create park
-- `PUT /api/parks/:id` - Update park
-- `DELETE /api/parks/:id` - Delete park
-
-### Companies (Park Admin+)
-- `GET /api/companies` - List companies in park
-- `POST /api/companies` - Create company
-- `PUT /api/companies/:id` - Update company
-- `DELETE /api/companies/:id` - Delete company
-
-### Users
-- `GET /api/users` - List users (filtered by park)
-- `GET /api/users/company/:companyId` - List company users
-- `POST /api/users` - Create user
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
-
-### Meeting Rooms
-- `GET /api/rooms` - List rooms (filtered by park)
-- `GET /api/rooms/:id` - Get room details
-- `GET /api/rooms/:id/availability` - Get room availability
-- `POST /api/rooms` - Create room (Park Admin+)
-- `PUT /api/rooms/:id` - Update room (Park Admin+)
-- `DELETE /api/rooms/:id` - Delete room (Park Admin+)
-
-### Bookings
-- `GET /api/bookings` - List all bookings (with optional date range)
-- `GET /api/bookings/my` - List current user's bookings
-- `GET /api/bookings/:id` - Get booking details
-- `POST /api/bookings` - Create booking
-- `PUT /api/bookings/:id` - Update booking
-- `POST /api/bookings/:id/cancel` - Cancel booking
-- `DELETE /api/bookings/:id` - Delete booking
-
-## Email Configuration
-
-For production, configure these environment variables:
-
-```bash
-SMTP_HOST=your-smtp-host
-SMTP_PORT=587
-SMTP_USER=your-email
-SMTP_PASS=your-password
-SMTP_FROM="Open Meeting <noreply@yourcompany.com>"
-```
-
-## Project Structure
-
-```
-Open-meeting/
-├── backend/
-│   ├── src/
-│   │   ├── models/       # Database models
-│   │   ├── routes/       # API routes
-│   │   ├── middleware/   # Authentication middleware
-│   │   ├── services/     # Email service
-│   │   ├── types/        # TypeScript types
-│   │   ├── index.ts      # Entry point
-│   │   └── seed.ts       # Database seeding
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/   # Reusable components
-│   │   ├── context/      # React context (Auth)
-│   │   ├── pages/        # Page components
-│   │   ├── services/     # API service
-│   │   ├── types/        # TypeScript types
-│   │   ├── App.tsx       # Main app component
-│   │   └── styles.css    # Global styles
-│   └── package.json
-├── device/               # ESP32 device firmware
-│   ├── src/              # Source files
-│   ├── include/          # Header files
-│   └── platformio.ini    # PlatformIO config
-├── docker/               # Docker configuration
-│   ├── nginx.conf        # Nginx config for combined container
-│   └── supervisord.conf  # Process manager config
-├── .github/
-│   └── workflows/
-│       └── ci-cd.yml     # GitHub Actions CI/CD pipeline
-├── Dockerfile            # Combined container (frontend + backend)
-├── docker-compose.yml    # Production Docker Compose
-├── docker-compose.dev.yml # Development with separate services
-└── package.json          # Root package.json
-```
-
-## Docker
-
-### Build Locally
-
-```bash
-# Build the combined image
-docker build -t open-meeting .
-
-# Run the container
-docker run -d -p 80:80 --name open-meeting open-meeting
-```
+## Deployment & Configuration
 
 ### Docker Compose
 
 ```bash
-# Production (combined container)
+# Production
 docker-compose up -d
 
-# Development (separate backend and frontend)
+# Development (separate backend and frontend services)
 docker-compose -f docker-compose.dev.yml up -d
 ```
 
@@ -250,62 +172,58 @@ docker-compose -f docker-compose.dev.yml up -d
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `JWT_SECRET` | Secret key for JWT tokens | (change in production!) |
-| `SMTP_HOST` | SMTP server hostname | - |
-| `SMTP_PORT` | SMTP server port | 587 |
-| `SMTP_USER` | SMTP username | - |
-| `SMTP_PASS` | SMTP password | - |
-| `SMTP_FROM` | Email from address | Open Meeting <noreply@openmeeting.com> |
+| `JWT_SECRET` | Secret key for JWT tokens | **(change in production!)** |
+| `LDAP_ENCRYPTION_KEY` | Encryption key for stored LDAP/SSO secrets | Falls back to `JWT_SECRET` |
+| `DB_TYPE` | Database engine (`sqlite`, `pg`, `mysql`, `mssql`) | `sqlite` |
+| `DB_HOST` | Database host | `localhost` |
+| `DB_PORT` | Database port | — |
+| `DB_NAME` | Database name | `meeting_booking` |
+| `DB_USER` | Database username | — |
+| `DB_PASSWORD` | Database password | — |
+| `SMTP_HOST` | SMTP server hostname | — |
+| `SMTP_PORT` | SMTP server port | `587` |
+| `SMTP_USER` | SMTP username | — |
+| `SMTP_PASS` | SMTP password | — |
+| `SMTP_SECURE` | Use TLS for SMTP | `false` |
+| `SMTP_FROM` | Sender address for emails | `Open Meeting <noreply@openmeeting.com>` |
+| `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | `http://localhost` |
+| `APP_URL` | Public URL of the application | `http://localhost` |
 
 ### Persistent Data
 
-The SQLite database is stored in `/app/backend/data`. Mount a volume to persist data:
+The database is stored in `/app/backend/data` inside the container. Mount a Docker volume to persist data across container restarts:
 
 ```bash
 docker run -d -p 80:80 -v open-meeting-data:/app/backend/data open-meeting
 ```
 
-## CI/CD Pipeline
+### Database Options
 
-The project includes a GitHub Actions workflow that:
+Open Meeting uses SQLite by default — no external database setup required. For larger deployments, connect to PostgreSQL, MySQL, MariaDB, or MSSQL by setting the `DB_*` environment variables.
 
-1. **Build & Test**: Compiles TypeScript for both backend and frontend
-2. **Docker Build**: Creates Docker image and exports as tar archive
-3. **Release**: Creates GitHub releases with the Docker image attached
+---
 
-### Creating a Release
+## Try It Out
 
-#### Option 1: From GitHub UI (Recommended)
+After choosing "Demo Mode" during setup, you can explore the full system with these accounts:
 
-1. Go to the **Actions** tab in GitHub
-2. Select **CI/CD Pipeline** from the workflows list
-3. Click **Run workflow**
-4. Enter the version (e.g., `v1.0.0`)
-5. Optionally check "Mark as pre-release"
-6. Click **Run workflow**
+| Role | Email | Password | What you can do |
+|------|-------|----------|-----------------|
+| Super Admin | admin@openmeeting.com | admin123 | Manage all sites, companies, and system settings |
+| Park Admin | parkadmin@downtown.com | parkadmin123 | Manage rooms, devices, and users for Downtown Business Park |
+| Company Admin | admin@techcorp.com | techcorp123 | Manage TechCorp users, LDAP, and SSO |
+| User | john@techcorp.com | john123 | Book rooms and manage personal meetings |
 
-#### Option 2: From Terminal
+Demo data includes 3 sites, 7 companies, 12 users, and 10 meeting rooms with various configurations.
 
-```bash
-# Tag a new version
-git tag v1.0.0
-git push origin v1.0.0
-```
+---
 
-The CI/CD pipeline will automatically:
-- Build the Docker image
-- Export it as a compressed tar file (`open-meeting-v1.0.0.tar.gz`)
-- Create a GitHub release with changelog
-- Attach the Docker image tar file to the release
+## For Developers
 
-### Using a Release
+Open Meeting is built with Node.js/Express (backend), React 18 (frontend), and PlatformIO/Arduino (ESP32 firmware), all in TypeScript.
 
-Download the `open-meeting-vX.X.X.tar.gz` file from the release assets, then:
-
-```bash
-# Load the image into Docker
-gunzip -c open-meeting-v1.0.0.tar.gz | docker load
-
-# Run the container
-docker run -d -p 80:80 --name open-meeting open-meeting:v1.0.0
-```
+- [API Reference](docs/API.md) — Complete REST API documentation with all 87+ endpoints
+- [Development Guide](docs/DEVELOPMENT.md) — Local setup, project structure, tech stack, and email configuration
+- [Backend Guide](backend/README.md) — Models, routes, services, migrations, and middleware
+- [Frontend Guide](frontend/README.md) — Pages, components, routing, and state management
+- [Device Firmware](device/README.md) — ESP32 hardware setup, build instructions, and configuration

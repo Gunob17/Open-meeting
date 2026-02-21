@@ -1,9 +1,22 @@
 import { Router, Response } from 'express';
 import { authenticate, AuthRequest, requireAdmin } from '../middleware/auth.middleware';
 import { UserRole } from '../types';
-import db from '../models/database';
+import { getDb } from '../models/database';
 
 const router = Router();
+
+// Parse date range from query params, making end date inclusive of the full day
+function parseDateRange(startDate: string | undefined, endDate: string | undefined): { start: Date; end: Date } {
+  const end = endDate ? new Date(endDate as string) : new Date();
+  const start = startDate ? new Date(startDate as string) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  // If endDate is a date-only string (yyyy-MM-dd), add one day to include the full end date
+  if (endDate && (endDate as string).length === 10) {
+    end.setDate(end.getDate() + 1);
+  }
+
+  return { start, end };
+}
 
 interface RoomStats {
   roomId: string;
@@ -47,13 +60,11 @@ interface TopBooker {
 }
 
 // Get comprehensive room statistics
-router.get('/rooms', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/rooms', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { startDate, endDate, parkId } = req.query;
 
-    // Default to last 30 days if no date range specified
-    const end = endDate ? new Date(endDate as string) : new Date();
-    const start = startDate ? new Date(startDate as string) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const { start, end } = parseDateRange(startDate as string | undefined, endDate as string | undefined);
 
     // Determine park filter
     let targetParkId: string | null = null;
@@ -64,28 +75,23 @@ router.get('/rooms', authenticate, requireAdmin, (req: AuthRequest, res: Respons
     }
 
     // Get all rooms for the park
-    let roomsQuery = 'SELECT * FROM rooms WHERE is_active = 1';
-    const roomParams: any[] = [];
+    const db = getDb();
+    let roomsQuery = db('meeting_rooms').where('is_active', true);
     if (targetParkId) {
-      roomsQuery += ' AND park_id = ?';
-      roomParams.push(targetParkId);
+      roomsQuery = roomsQuery.andWhere('park_id', targetParkId);
     }
-
-    const rooms = db.prepare(roomsQuery).all(...roomParams) as any[];
+    const rooms = await roomsQuery;
 
     // Get bookings in date range
-    let bookingsQuery = `
-      SELECT b.*, r.park_id FROM bookings b
-      JOIN rooms r ON b.room_id = r.id
-      WHERE b.start_time >= ? AND b.end_time <= ?
-    `;
-    const bookingParams: any[] = [start.toISOString(), end.toISOString()];
+    let bookingsQuery = db('bookings as b')
+      .join('meeting_rooms as r', 'b.room_id', 'r.id')
+      .select('b.*', 'r.park_id')
+      .where('b.start_time', '>=', start.toISOString())
+      .andWhere('b.start_time', '<', end.toISOString());
     if (targetParkId) {
-      bookingsQuery += ' AND r.park_id = ?';
-      bookingParams.push(targetParkId);
+      bookingsQuery = bookingsQuery.andWhere('r.park_id', targetParkId);
     }
-
-    const bookings = db.prepare(bookingsQuery).all(...bookingParams) as any[];
+    const bookings = await bookingsQuery;
 
     // Calculate stats for each room
     const roomStats: RoomStats[] = rooms.map(room => {
@@ -154,12 +160,11 @@ router.get('/rooms', authenticate, requireAdmin, (req: AuthRequest, res: Respons
 });
 
 // Get hourly booking patterns
-router.get('/hourly', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/hourly', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { startDate, endDate, parkId } = req.query;
 
-    const end = endDate ? new Date(endDate as string) : new Date();
-    const start = startDate ? new Date(startDate as string) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const { start, end } = parseDateRange(startDate as string | undefined, endDate as string | undefined);
 
     let targetParkId: string | null = null;
     if (req.user?.role === UserRole.SUPER_ADMIN) {
@@ -168,18 +173,18 @@ router.get('/hourly', authenticate, requireAdmin, (req: AuthRequest, res: Respon
       targetParkId = req.user?.parkId || null;
     }
 
-    let query = `
-      SELECT b.start_time FROM bookings b
-      JOIN rooms r ON b.room_id = r.id
-      WHERE b.status = 'confirmed' AND b.start_time >= ? AND b.end_time <= ?
-    `;
-    const params: any[] = [start.toISOString(), end.toISOString()];
+    const db = getDb();
+    let query = db('bookings as b')
+      .join('meeting_rooms as r', 'b.room_id', 'r.id')
+      .select('b.start_time')
+      .where('b.status', 'confirmed')
+      .andWhere('b.start_time', '>=', start.toISOString())
+      .andWhere('b.start_time', '<', end.toISOString());
     if (targetParkId) {
-      query += ' AND r.park_id = ?';
-      params.push(targetParkId);
+      query = query.andWhere('r.park_id', targetParkId);
     }
 
-    const bookings = db.prepare(query).all(...params) as any[];
+    const bookings = await query;
 
     // Count bookings by hour
     const hourlyCount: { [hour: number]: number } = {};
@@ -214,12 +219,11 @@ router.get('/hourly', authenticate, requireAdmin, (req: AuthRequest, res: Respon
 });
 
 // Get daily booking trends
-router.get('/daily', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/daily', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { startDate, endDate, parkId } = req.query;
 
-    const end = endDate ? new Date(endDate as string) : new Date();
-    const start = startDate ? new Date(startDate as string) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const { start, end } = parseDateRange(startDate as string | undefined, endDate as string | undefined);
 
     let targetParkId: string | null = null;
     if (req.user?.role === UserRole.SUPER_ADMIN) {
@@ -228,25 +232,25 @@ router.get('/daily', authenticate, requireAdmin, (req: AuthRequest, res: Respons
       targetParkId = req.user?.parkId || null;
     }
 
-    let query = `
-      SELECT b.* FROM bookings b
-      JOIN rooms r ON b.room_id = r.id
-      WHERE b.status = 'confirmed' AND b.start_time >= ? AND b.end_time <= ?
-    `;
-    const params: any[] = [start.toISOString(), end.toISOString()];
+    const db = getDb();
+    let query = db('bookings as b')
+      .join('meeting_rooms as r', 'b.room_id', 'r.id')
+      .select('b.*')
+      .where('b.status', 'confirmed')
+      .andWhere('b.start_time', '>=', start.toISOString())
+      .andWhere('b.start_time', '<', end.toISOString());
     if (targetParkId) {
-      query += ' AND r.park_id = ?';
-      params.push(targetParkId);
+      query = query.andWhere('r.park_id', targetParkId);
     }
 
-    const bookings = db.prepare(query).all(...params) as any[];
+    const bookings = await query;
 
     // Group bookings by date
     const dailyData: { [date: string]: { count: number; hours: number } } = {};
 
-    // Initialize all dates in range
+    // Initialize all dates in range (end is exclusive, already +1 day from parseDateRange)
     const currentDate = new Date(start);
-    while (currentDate <= end) {
+    while (currentDate < end) {
       const dateStr = currentDate.toISOString().split('T')[0];
       dailyData[dateStr] = { count: 0, hours: 0 };
       currentDate.setDate(currentDate.getDate() + 1);
@@ -283,12 +287,11 @@ router.get('/daily', authenticate, requireAdmin, (req: AuthRequest, res: Respons
 });
 
 // Get amenity popularity statistics
-router.get('/amenities', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/amenities', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { startDate, endDate, parkId } = req.query;
 
-    const end = endDate ? new Date(endDate as string) : new Date();
-    const start = startDate ? new Date(startDate as string) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const { start, end } = parseDateRange(startDate as string | undefined, endDate as string | undefined);
 
     let targetParkId: string | null = null;
     if (req.user?.role === UserRole.SUPER_ADMIN) {
@@ -297,30 +300,28 @@ router.get('/amenities', authenticate, requireAdmin, (req: AuthRequest, res: Res
       targetParkId = req.user?.parkId || null;
     }
 
+    const db = getDb();
+
     // Get rooms with their amenities
-    let roomsQuery = 'SELECT * FROM rooms WHERE is_active = 1';
-    const roomParams: any[] = [];
+    let roomsQuery = db('meeting_rooms').where('is_active', true);
     if (targetParkId) {
-      roomsQuery += ' AND park_id = ?';
-      roomParams.push(targetParkId);
+      roomsQuery = roomsQuery.andWhere('park_id', targetParkId);
     }
-    const rooms = db.prepare(roomsQuery).all(...roomParams) as any[];
+    const rooms = await roomsQuery;
 
-    // Get bookings
-    let bookingsQuery = `
-      SELECT b.room_id, COUNT(*) as booking_count FROM bookings b
-      JOIN rooms r ON b.room_id = r.id
-      WHERE b.status = 'confirmed' AND b.start_time >= ? AND b.end_time <= ?
-    `;
-    const bookingParams: any[] = [start.toISOString(), end.toISOString()];
+    // Get bookings grouped by room
+    let bookingsQuery = db('bookings as b')
+      .join('meeting_rooms as r', 'b.room_id', 'r.id')
+      .select('b.room_id')
+      .count('* as booking_count')
+      .where('b.status', 'confirmed')
+      .andWhere('b.start_time', '>=', start.toISOString())
+      .andWhere('b.start_time', '<', end.toISOString());
     if (targetParkId) {
-      bookingsQuery += ' AND r.park_id = ?';
-      bookingParams.push(targetParkId);
+      bookingsQuery = bookingsQuery.andWhere('r.park_id', targetParkId);
     }
-    bookingsQuery += ' GROUP BY b.room_id';
-
-    const bookingCounts = db.prepare(bookingsQuery).all(...bookingParams) as any[];
-    const bookingCountMap = new Map(bookingCounts.map(b => [b.room_id, b.booking_count]));
+    const bookingCounts = await bookingsQuery.groupBy('b.room_id');
+    const bookingCountMap = new Map(bookingCounts.map(b => [b.room_id, Number(b.booking_count)]));
 
     // Aggregate by amenity
     const amenityData: { [amenity: string]: { roomCount: number; totalBookings: number; rooms: any[] } } = {};
@@ -366,13 +367,12 @@ router.get('/amenities', authenticate, requireAdmin, (req: AuthRequest, res: Res
   }
 });
 
-// Get top bookers
-router.get('/top-bookers', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+// Get top bookers (replaces julianday() with JS duration computation for portability)
+router.get('/top-bookers', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { startDate, endDate, parkId, limit } = req.query;
 
-    const end = endDate ? new Date(endDate as string) : new Date();
-    const start = startDate ? new Date(startDate as string) : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const { start, end } = parseDateRange(startDate as string | undefined, endDate as string | undefined);
     const resultLimit = Math.min(parseInt(limit as string) || 10, 50);
 
     let targetParkId: string | null = null;
@@ -382,42 +382,70 @@ router.get('/top-bookers', authenticate, requireAdmin, (req: AuthRequest, res: R
       targetParkId = req.user?.parkId || null;
     }
 
-    let query = `
-      SELECT
-        u.id as user_id,
-        u.name as user_name,
-        u.email as user_email,
-        c.name as company_name,
-        COUNT(b.id) as booking_count,
-        SUM((julianday(b.end_time) - julianday(b.start_time)) * 24) as total_hours
-      FROM bookings b
-      JOIN users u ON b.user_id = u.id
-      JOIN companies c ON u.company_id = c.id
-      JOIN rooms r ON b.room_id = r.id
-      WHERE b.status = 'confirmed'
-        AND b.start_time >= ?
-        AND b.end_time <= ?
-    `;
-    const params: any[] = [start.toISOString(), end.toISOString()];
+    const db = getDb();
+
+    // Fetch bookings with user and company info
+    let query = db('bookings as b')
+      .join('users as u', 'b.user_id', 'u.id')
+      .join('companies as c', 'u.company_id', 'c.id')
+      .join('meeting_rooms as r', 'b.room_id', 'r.id')
+      .select(
+        'u.id as user_id',
+        'u.name as user_name',
+        'u.email as user_email',
+        'c.name as company_name',
+        'b.start_time',
+        'b.end_time'
+      )
+      .where('b.status', 'confirmed')
+      .andWhere('b.start_time', '>=', start.toISOString())
+      .andWhere('b.start_time', '<', end.toISOString());
 
     if (targetParkId) {
-      query += ' AND r.park_id = ?';
-      params.push(targetParkId);
+      query = query.andWhere('r.park_id', targetParkId);
     }
 
-    query += ` GROUP BY u.id ORDER BY booking_count DESC LIMIT ?`;
-    params.push(resultLimit);
+    const bookings = await query;
 
-    const topBookers = db.prepare(query).all(...params) as any[];
+    // Aggregate in JavaScript (portable replacement for SQL GROUP BY + julianday)
+    const userMap = new Map<string, {
+      userId: string;
+      userName: string;
+      userEmail: string;
+      companyName: string;
+      bookingCount: number;
+      totalHours: number;
+    }>();
 
-    const result: TopBooker[] = topBookers.map(b => ({
-      userId: b.user_id,
-      userName: b.user_name,
-      userEmail: b.user_email,
-      companyName: b.company_name,
-      bookingCount: b.booking_count,
-      totalHoursBooked: Math.round(b.total_hours * 10) / 10
-    }));
+    bookings.forEach(b => {
+      const existing = userMap.get(b.user_id);
+      const hours = (new Date(b.end_time).getTime() - new Date(b.start_time).getTime()) / (1000 * 60 * 60);
+      if (existing) {
+        existing.bookingCount++;
+        existing.totalHours += hours;
+      } else {
+        userMap.set(b.user_id, {
+          userId: b.user_id,
+          userName: b.user_name,
+          userEmail: b.user_email,
+          companyName: b.company_name,
+          bookingCount: 1,
+          totalHours: hours,
+        });
+      }
+    });
+
+    const result: TopBooker[] = Array.from(userMap.values())
+      .sort((a, b) => b.bookingCount - a.bookingCount)
+      .slice(0, resultLimit)
+      .map(b => ({
+        userId: b.userId,
+        userName: b.userName,
+        userEmail: b.userEmail,
+        companyName: b.companyName,
+        bookingCount: b.bookingCount,
+        totalHoursBooked: Math.round(b.totalHours * 10) / 10
+      }));
 
     res.json({
       dateRange: { start: start.toISOString(), end: end.toISOString() },
@@ -430,7 +458,7 @@ router.get('/top-bookers', authenticate, requireAdmin, (req: AuthRequest, res: R
 });
 
 // Get summary dashboard statistics
-router.get('/summary', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/summary', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { parkId } = req.query;
 
@@ -457,53 +485,56 @@ router.get('/summary', authenticate, requireAdmin, (req: AuthRequest, res: Respo
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 1);
 
-    const getBookingCount = (start: Date, end: Date): number => {
-      let query = `
-        SELECT COUNT(*) as count FROM bookings b
-        JOIN rooms r ON b.room_id = r.id
-        WHERE b.status = 'confirmed' AND b.start_time >= ? AND b.start_time < ?
-      `;
-      const params: any[] = [start.toISOString(), end.toISOString()];
+    const db = getDb();
+
+    const getBookingCount = async (start: Date, end: Date): Promise<number> => {
+      let query = db('bookings as b')
+        .join('meeting_rooms as r', 'b.room_id', 'r.id')
+        .count('* as count')
+        .where('b.status', 'confirmed')
+        .andWhere('b.start_time', '>=', start.toISOString())
+        .andWhere('b.start_time', '<', end.toISOString());
       if (targetParkId) {
-        query += ' AND r.park_id = ?';
-        params.push(targetParkId);
+        query = query.andWhere('r.park_id', targetParkId);
       }
-      const result = db.prepare(query).get(...params) as { count: number };
-      return result.count;
+      const result = await query.first();
+      return Number(result?.count || 0);
     };
 
     // Get room and user counts
-    let roomCountQuery = 'SELECT COUNT(*) as count FROM rooms WHERE is_active = 1';
-    let userCountQuery = `
-      SELECT COUNT(DISTINCT u.id) as count FROM users u
-      JOIN companies c ON u.company_id = c.id
-    `;
-    const roomParams: any[] = [];
-    const userParams: any[] = [];
-
+    let roomCountQuery = db('meeting_rooms').where('is_active', true).count('* as count');
     if (targetParkId) {
-      roomCountQuery += ' AND park_id = ?';
-      roomParams.push(targetParkId);
-      userCountQuery += ' WHERE c.park_id = ?';
-      userParams.push(targetParkId);
+      roomCountQuery = roomCountQuery.andWhere('park_id', targetParkId);
     }
 
-    const roomCount = (db.prepare(roomCountQuery).get(...roomParams) as { count: number }).count;
-    const userCount = (db.prepare(userCountQuery).get(...userParams) as { count: number }).count;
+    let userCountQuery = db('users as u')
+      .join('companies as c', 'u.company_id', 'c.id')
+      .countDistinct('u.id as count');
+    if (targetParkId) {
+      userCountQuery = userCountQuery.where('c.park_id', targetParkId);
+    }
+
+    const [todayCount, weekCount, monthCount, roomCountResult, userCountResult] = await Promise.all([
+      getBookingCount(today, tomorrow),
+      getBookingCount(weekStart, weekEnd),
+      getBookingCount(monthStart, monthEnd),
+      roomCountQuery.first(),
+      userCountQuery.first(),
+    ]);
 
     res.json({
       today: {
-        bookings: getBookingCount(today, tomorrow)
+        bookings: todayCount
       },
       thisWeek: {
-        bookings: getBookingCount(weekStart, weekEnd)
+        bookings: weekCount
       },
       thisMonth: {
-        bookings: getBookingCount(monthStart, monthEnd)
+        bookings: monthCount
       },
       totals: {
-        activeRooms: roomCount,
-        activeUsers: userCount
+        activeRooms: Number(roomCountResult?.count || 0),
+        activeUsers: Number(userCountResult?.count || 0)
       }
     });
   } catch (error) {

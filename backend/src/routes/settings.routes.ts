@@ -1,35 +1,14 @@
 import { Router, Response } from 'express';
-import db from '../models/database';
-import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
+import { SettingsModel } from '../models/settings.model';
+import { authenticate, requireAdmin, requireSuperAdmin, AuthRequest } from '../middleware/auth.middleware';
 import { Settings } from '../types';
 
 const router = Router();
 
 // Get global settings
-router.get('/', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const stmt = db.prepare(`
-      SELECT id, opening_hour, closing_hour, updated_at
-      FROM settings WHERE id = 'global'
-    `);
-    const row = stmt.get() as { id: string; opening_hour: number; closing_hour: number; updated_at: string } | undefined;
-
-    if (!row) {
-      return res.json({
-        id: 'global',
-        openingHour: 8,
-        closingHour: 18,
-        updatedAt: new Date().toISOString()
-      });
-    }
-
-    const settings: Settings = {
-      id: row.id,
-      openingHour: row.opening_hour,
-      closingHour: row.closing_hour,
-      updatedAt: row.updated_at
-    };
-
+    const settings = await SettingsModel.getGlobal();
     res.json(settings);
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -38,7 +17,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Update global settings (admin only)
-router.put('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.put('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { openingHour, closingHour } = req.body;
 
@@ -53,31 +32,39 @@ router.put('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =>
       return res.status(400).json({ error: 'Opening hour must be before closing hour' });
     }
 
-    const stmt = db.prepare(`
-      UPDATE settings
-      SET opening_hour = ?, closing_hour = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = 'global'
-    `);
-    stmt.run(openingHour, closingHour);
-
-    // Return updated settings
-    const selectStmt = db.prepare(`
-      SELECT id, opening_hour, closing_hour, updated_at
-      FROM settings WHERE id = 'global'
-    `);
-    const row = selectStmt.get() as { id: string; opening_hour: number; closing_hour: number; updated_at: string };
-
-    const settings: Settings = {
-      id: row.id,
-      openingHour: row.opening_hour,
-      closingHour: row.closing_hour,
-      updatedAt: row.updated_at
-    };
-
+    const settings = await SettingsModel.update(openingHour, closingHour);
     res.json(settings);
   } catch (error) {
     console.error('Error updating settings:', error);
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// Update 2FA settings (super admin only)
+router.put('/2fa', authenticate, requireSuperAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { twofaEnforcement, twofaMode, twofaTrustedDeviceDays } = req.body;
+
+    if (!['disabled', 'optional', 'required'].includes(twofaEnforcement)) {
+      return res.status(400).json({ error: 'Invalid enforcement value. Must be disabled, optional, or required.' });
+    }
+    if (!['every_login', 'trusted_device'].includes(twofaMode)) {
+      return res.status(400).json({ error: 'Invalid mode value. Must be every_login or trusted_device.' });
+    }
+    if (typeof twofaTrustedDeviceDays !== 'number' || twofaTrustedDeviceDays < 1 || twofaTrustedDeviceDays > 365) {
+      return res.status(400).json({ error: 'Trusted device days must be between 1 and 365' });
+    }
+
+    const settings = await SettingsModel.updateTwoFaSettings(
+      twofaEnforcement,
+      twofaMode,
+      twofaTrustedDeviceDays
+    );
+    res.json(settings);
+  } catch (error) {
+    console.error('Error updating 2FA settings:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: `Failed to update 2FA settings: ${message}` });
   }
 });
 

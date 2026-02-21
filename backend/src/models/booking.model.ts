@@ -1,203 +1,198 @@
 import { v4 as uuidv4 } from 'uuid';
-import db from './database';
+import { getDb } from './database';
 import { Booking, BookingStatus, CreateBookingRequest, BookingWithDetails } from '../types';
 import { RoomModel } from './room.model';
 import { UserModel } from './user.model';
 
 export class BookingModel {
-  static create(data: CreateBookingRequest, userId: string): Booking {
+  static async create(data: CreateBookingRequest, userId: string): Promise<Booking> {
+    const db = getDb();
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    const stmt = db.prepare(`
-      INSERT INTO bookings (id, room_id, user_id, title, description, start_time, end_time, attendees, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
+    await db('bookings').insert({
       id,
-      data.roomId,
-      userId,
-      data.title,
-      data.description || '',
-      data.startTime,
-      data.endTime,
-      JSON.stringify(data.attendees || []),
-      BookingStatus.CONFIRMED,
-      now,
-      now
-    );
+      room_id: data.roomId,
+      user_id: userId,
+      title: data.title,
+      description: data.description || '',
+      start_time: data.startTime,
+      end_time: data.endTime,
+      attendees: JSON.stringify(data.attendees || []),
+      external_guests: JSON.stringify(data.externalGuests || []),
+      status: BookingStatus.CONFIRMED,
+      created_at: now,
+      updated_at: now,
+    });
 
-    return this.findById(id)!;
+    return (await this.findById(id))!;
   }
 
-  static findById(id: string): Booking | null {
-    const stmt = db.prepare('SELECT * FROM bookings WHERE id = ?');
-    const row = stmt.get(id) as any;
-
+  static async findById(id: string): Promise<Booking | null> {
+    const db = getDb();
+    const row = await db('bookings').where('id', id).first();
     if (!row) return null;
-
     return this.mapRowToBooking(row);
   }
 
-  static findByIdWithDetails(id: string): BookingWithDetails | null {
-    const booking = this.findById(id);
+  static async findByIdWithDetails(id: string): Promise<BookingWithDetails | null> {
+    const booking = await this.findById(id);
     if (!booking) return null;
 
-    const room = RoomModel.findById(booking.roomId);
-    const user = UserModel.findById(booking.userId);
+    const room = await RoomModel.findById(booking.roomId);
+    const user = await UserModel.findById(booking.userId);
 
     return {
       ...booking,
       room: room || undefined,
-      user: user ? { ...user, password: undefined } as any : undefined
+      user: user ? { ...user, password: undefined } as any : undefined,
     };
   }
 
-  static findByRoom(roomId: string, startDate?: string, endDate?: string): Booking[] {
-    let query = 'SELECT * FROM bookings WHERE room_id = ? AND status = ?';
-    const params: any[] = [roomId, BookingStatus.CONFIRMED];
+  static async findByRoom(roomId: string, startDate?: string, endDate?: string): Promise<Booking[]> {
+    const db = getDb();
+    let query = db('bookings')
+      .where('room_id', roomId)
+      .andWhere('status', BookingStatus.CONFIRMED);
 
     if (startDate && endDate) {
-      query += ' AND ((start_time >= ? AND start_time < ?) OR (end_time > ? AND end_time <= ?) OR (start_time <= ? AND end_time >= ?))';
-      params.push(startDate, endDate, startDate, endDate, startDate, endDate);
+      query = query.andWhere(function () {
+        this.where(function () {
+          this.where('start_time', '>=', startDate).andWhere('start_time', '<', endDate);
+        })
+          .orWhere(function () {
+            this.where('end_time', '>', startDate).andWhere('end_time', '<=', endDate);
+          })
+          .orWhere(function () {
+            this.where('start_time', '<=', startDate).andWhere('end_time', '>=', endDate);
+          });
+      });
     }
 
-    query += ' ORDER BY start_time';
-
-    const stmt = db.prepare(query);
-    const rows = stmt.all(...params) as any[];
-
+    const rows = await query.orderBy('start_time');
     return rows.map(this.mapRowToBooking);
   }
 
-  static findByUser(userId: string): Booking[] {
-    const stmt = db.prepare('SELECT * FROM bookings WHERE user_id = ? ORDER BY start_time DESC');
-    const rows = stmt.all(userId) as any[];
-
+  static async findByUser(userId: string): Promise<Booking[]> {
+    const db = getDb();
+    const rows = await db('bookings').where('user_id', userId).orderBy('start_time', 'desc');
     return rows.map(this.mapRowToBooking);
   }
 
-  static findAll(startDate?: string, endDate?: string): BookingWithDetails[] {
-    let query = 'SELECT * FROM bookings WHERE status = ?';
-    const params: any[] = [BookingStatus.CONFIRMED];
+  static async findAll(startDate?: string, endDate?: string): Promise<BookingWithDetails[]> {
+    const db = getDb();
+    let query = db('bookings').where('status', BookingStatus.CONFIRMED);
 
     if (startDate && endDate) {
-      query += ' AND start_time >= ? AND end_time <= ?';
-      params.push(startDate, endDate);
+      query = query.andWhere('start_time', '>=', startDate).andWhere('end_time', '<=', endDate);
     }
 
-    query += ' ORDER BY start_time';
+    const rows = await query.orderBy('start_time');
 
-    const stmt = db.prepare(query);
-    const rows = stmt.all(...params) as any[];
-
-    return rows.map(row => {
+    const results: BookingWithDetails[] = [];
+    for (const row of rows) {
       const booking = this.mapRowToBooking(row);
-      const room = RoomModel.findById(booking.roomId);
-      const user = UserModel.findById(booking.userId);
-
-      return {
+      const room = await RoomModel.findById(booking.roomId);
+      const user = await UserModel.findById(booking.userId);
+      results.push({
         ...booking,
         room: room || undefined,
-        user: user ? { ...user, password: undefined } as any : undefined
-      };
-    });
+        user: user ? { ...user, password: undefined } as any : undefined,
+      });
+    }
+    return results;
   }
 
-  static findAllByDateRange(startDate: string, endDate: string): BookingWithDetails[] {
-    const query = `
-      SELECT * FROM bookings
-      WHERE status = ?
-      AND (
-        (start_time >= ? AND start_time < ?)
-        OR (end_time > ? AND end_time <= ?)
-        OR (start_time <= ? AND end_time >= ?)
-      )
-      ORDER BY start_time
-    `;
+  static async findAllByDateRange(startDate: string, endDate: string): Promise<BookingWithDetails[]> {
+    const db = getDb();
+    const rows = await db('bookings')
+      .where('status', BookingStatus.CONFIRMED)
+      .andWhere(function () {
+        this.where(function () {
+          this.where('start_time', '>=', startDate).andWhere('start_time', '<', endDate);
+        })
+          .orWhere(function () {
+            this.where('end_time', '>', startDate).andWhere('end_time', '<=', endDate);
+          })
+          .orWhere(function () {
+            this.where('start_time', '<=', startDate).andWhere('end_time', '>=', endDate);
+          });
+      })
+      .orderBy('start_time');
 
-    const stmt = db.prepare(query);
-    const rows = stmt.all(
-      BookingStatus.CONFIRMED,
-      startDate, endDate,
-      startDate, endDate,
-      startDate, endDate
-    ) as any[];
-
-    return rows.map(row => {
+    const results: BookingWithDetails[] = [];
+    for (const row of rows) {
       const booking = this.mapRowToBooking(row);
-      const room = RoomModel.findById(booking.roomId);
-      const user = UserModel.findById(booking.userId);
-
-      return {
+      const room = await RoomModel.findById(booking.roomId);
+      const user = await UserModel.findById(booking.userId);
+      results.push({
         ...booking,
         room: room || undefined,
-        user: user ? { ...user, password: undefined } as any : undefined
-      };
-    });
+        user: user ? { ...user, password: undefined } as any : undefined,
+      });
+    }
+    return results;
   }
 
-  static checkConflict(roomId: string, startTime: string, endTime: string, excludeBookingId?: string): boolean {
-    let query = `
-      SELECT COUNT(*) as count FROM bookings
-      WHERE room_id = ?
-      AND status = ?
-      AND (
-        (start_time < ? AND end_time > ?)
-        OR (start_time >= ? AND start_time < ?)
-        OR (end_time > ? AND end_time <= ?)
-      )
-    `;
-
-    const params: any[] = [roomId, BookingStatus.CONFIRMED, endTime, startTime, startTime, endTime, startTime, endTime];
+  static async checkConflict(roomId: string, startTime: string, endTime: string, excludeBookingId?: string): Promise<boolean> {
+    const db = getDb();
+    let query = db('bookings')
+      .where('room_id', roomId)
+      .andWhere('status', BookingStatus.CONFIRMED)
+      .andWhere(function () {
+        this.where(function () {
+          this.where('start_time', '<', endTime).andWhere('end_time', '>', startTime);
+        })
+          .orWhere(function () {
+            this.where('start_time', '>=', startTime).andWhere('start_time', '<', endTime);
+          })
+          .orWhere(function () {
+            this.where('end_time', '>', startTime).andWhere('end_time', '<=', endTime);
+          });
+      });
 
     if (excludeBookingId) {
-      query += ' AND id != ?';
-      params.push(excludeBookingId);
+      query = query.andWhereNot('id', excludeBookingId);
     }
 
-    const stmt = db.prepare(query);
-    const result = stmt.get(...params) as { count: number };
-
-    return result.count > 0;
+    const result = await query.count('* as count').first();
+    return Number(result?.count || 0) > 0;
   }
 
-  static update(id: string, data: Partial<CreateBookingRequest> & { roomId?: string }): Booking | null {
-    const existing = this.findById(id);
+  static async update(id: string, data: Partial<CreateBookingRequest> & { roomId?: string }): Promise<Booking | null> {
+    const existing = await this.findById(id);
     if (!existing) return null;
 
+    const db = getDb();
     const now = new Date().toISOString();
-    const stmt = db.prepare(`
-      UPDATE bookings
-      SET room_id = ?, title = ?, description = ?, start_time = ?, end_time = ?, attendees = ?, updated_at = ?
-      WHERE id = ?
-    `);
 
-    stmt.run(
-      data.roomId ?? existing.roomId,
-      data.title ?? existing.title,
-      data.description ?? existing.description,
-      data.startTime ?? existing.startTime,
-      data.endTime ?? existing.endTime,
-      data.attendees ? JSON.stringify(data.attendees) : existing.attendees,
-      now,
-      id
-    );
+    await db('bookings').where('id', id).update({
+      room_id: data.roomId ?? existing.roomId,
+      title: data.title ?? existing.title,
+      description: data.description ?? existing.description,
+      start_time: data.startTime ?? existing.startTime,
+      end_time: data.endTime ?? existing.endTime,
+      attendees: data.attendees ? JSON.stringify(data.attendees) : existing.attendees,
+      external_guests: data.externalGuests ? JSON.stringify(data.externalGuests) : existing.externalGuests,
+      updated_at: now,
+    });
 
     return this.findById(id);
   }
 
-  static cancel(id: string): boolean {
-    const stmt = db.prepare('UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?');
-    const result = stmt.run(BookingStatus.CANCELLED, new Date().toISOString(), id);
-    return result.changes > 0;
+  static async cancel(id: string): Promise<boolean> {
+    const db = getDb();
+    const count = await db('bookings').where('id', id).update({
+      status: BookingStatus.CANCELLED,
+      updated_at: new Date().toISOString(),
+    });
+    return count > 0;
   }
 
-  static delete(id: string): boolean {
-    const stmt = db.prepare('DELETE FROM bookings WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
+  static async delete(id: string): Promise<boolean> {
+    const db = getDb();
+    const count = await db('bookings').where('id', id).del();
+    return count > 0;
   }
 
   private static mapRowToBooking(row: any): Booking {
@@ -210,9 +205,10 @@ export class BookingModel {
       startTime: row.start_time,
       endTime: row.end_time,
       attendees: row.attendees,
+      externalGuests: row.external_guests || '[]',
       status: row.status as BookingStatus,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 }

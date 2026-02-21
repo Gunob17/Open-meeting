@@ -7,7 +7,7 @@ import { UserRole } from '../types';
 const router = Router();
 
 // Get all rooms (filtered by park for non-super admins, and by company lock)
-router.get('/', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
     const queryParkId = req.query.parkId as string | undefined;
@@ -23,7 +23,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
       // Non-super admins always see their own park's rooms
       parkId = req.user?.parkId;
     }
-    let rooms = RoomModel.findAll(includeInactive, parkId);
+    let rooms = await RoomModel.findAll(includeInactive, parkId);
 
     // Filter out rooms locked to other companies (unless user is admin)
     if (!isAdmin && req.user?.companyId) {
@@ -51,10 +51,10 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Get single room with availability
-router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const room = RoomModel.findById(id);
+    const room = await RoomModel.findById(id);
 
     if (!room) {
       res.status(404).json({ error: 'Room not found' });
@@ -72,7 +72,7 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Get room availability for a date range
-router.get('/:id/availability', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/:id/availability', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { startDate, endDate } = req.query;
@@ -82,13 +82,13 @@ router.get('/:id/availability', authenticate, (req: AuthRequest, res: Response) 
       return;
     }
 
-    const room = RoomModel.findById(id);
+    const room = await RoomModel.findById(id);
     if (!room) {
       res.status(404).json({ error: 'Room not found' });
       return;
     }
 
-    const bookings = BookingModel.findByRoom(id, startDate as string, endDate as string);
+    const bookings = await BookingModel.findByRoom(id, startDate as string, endDate as string);
 
     res.json({
       room: {
@@ -109,7 +109,7 @@ router.get('/:id/availability', authenticate, (req: AuthRequest, res: Response) 
 });
 
 // Create room (park admin or above)
-router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyIds, quickBookDurations, parkId } = req.body;
 
@@ -118,8 +118,13 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
       return;
     }
 
-    if (typeof capacity !== 'number' || capacity < 1) {
-      res.status(400).json({ error: 'Capacity must be a positive number' });
+    if (name.length > 255 || floor.length > 100 || address.length > 500 || (description && description.length > 2000)) {
+      res.status(400).json({ error: 'Field length exceeded: name (255), floor (100), address (500), description (2000)' });
+      return;
+    }
+
+    if (typeof capacity !== 'number' || capacity < 1 || capacity > 10000) {
+      res.status(400).json({ error: 'Capacity must be a positive number (max 10000)' });
       return;
     }
 
@@ -155,7 +160,7 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
       return;
     }
 
-    const room = RoomModel.create({
+    const room = await RoomModel.create({
       name,
       capacity,
       amenities: amenities || [],
@@ -180,7 +185,7 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
 });
 
 // Update room (admin only)
-router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyIds, quickBookDurations } = req.body;
@@ -203,7 +208,7 @@ router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
       return;
     }
 
-    const room = RoomModel.update(id, {
+    const room = await RoomModel.update(id, {
       name,
       capacity,
       amenities,
@@ -233,7 +238,7 @@ router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
 });
 
 // Delete room (admin only)
-router.delete('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -241,13 +246,13 @@ router.delete('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Respon
     const softDelete = req.query.soft === 'true';
 
     if (softDelete) {
-      const success = RoomModel.deactivate(id);
+      const success = await RoomModel.deactivate(id);
       if (!success) {
         res.status(404).json({ error: 'Room not found' });
         return;
       }
     } else {
-      const deleted = RoomModel.delete(id);
+      const deleted = await RoomModel.delete(id);
       if (!deleted) {
         res.status(404).json({ error: 'Room not found' });
         return;

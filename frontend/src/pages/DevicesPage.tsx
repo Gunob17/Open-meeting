@@ -12,6 +12,7 @@ export function DevicesPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [uploadVersion, setUploadVersion] = useState('');
+  const [uploadDeviceType, setUploadDeviceType] = useState('esp32-display');
   const [uploadNotes, setUploadNotes] = useState('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -43,13 +44,14 @@ export function DevicesPage() {
 
   const handleUploadFirmware = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile || !uploadVersion) return;
+    if (!uploadFile || !uploadVersion || !uploadDeviceType) return;
 
     try {
       setUploading(true);
-      await api.uploadFirmware(uploadFile, uploadVersion, uploadNotes);
+      await api.uploadFirmware(uploadFile, uploadVersion, uploadDeviceType, uploadNotes);
       setShowUploadModal(false);
       setUploadVersion('');
+      setUploadDeviceType('esp32-display');
       setUploadNotes('');
       setUploadFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -145,15 +147,37 @@ export function DevicesPage() {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   };
 
+  // Group devices by device type
+  const devicesByType = devices.reduce((acc, device) => {
+    const type = device.deviceType || 'esp32-display';
+    if (!acc[type]) {
+      acc[type] = [];
+    }
+    acc[type].push(device);
+    return acc;
+  }, {} as Record<string, Device[]>);
+
+  const deviceTypes = Object.keys(devicesByType).sort();
+
   const latestFirmware = firmware.find(f => f.isActive) || firmware[0];
   const activeFirmware = firmware.filter(f => f.isActive);
+
+  // Get firmware for a specific device type
+  const getFirmwareForType = (deviceType: string) => {
+    return firmware.filter(f => f.deviceType === deviceType);
+  };
+
+  const getLatestFirmwareForType = (deviceType: string) => {
+    const typeFirmware = getFirmwareForType(deviceType).filter(f => f.isActive);
+    return typeFirmware[0];
+  };
 
   if (loading) {
     return <div className="loading">Loading devices...</div>;
   }
 
   return (
-    <div className="page-container">
+    <div className="devices-page">
       <div className="page-header">
         <h1>Devices & Firmware</h1>
       </div>
@@ -204,6 +228,7 @@ export function DevicesPage() {
                     {fw.isActive && <span className="badge badge-success">Active</span>}
                   </div>
                   <div className="firmware-compact-details">
+                    <span className="device-type-badge">{fw.deviceType}</span>
                     <span>{formatFileSize(fw.size)}</span>
                     <span>{new Date(fw.createdAt).toLocaleDateString()}</span>
                   </div>
@@ -248,61 +273,76 @@ export function DevicesPage() {
           {devices.length === 0 ? (
             <p className="empty-state">No devices registered in this park.</p>
           ) : (
-            <div className="devices-grid">
-              {devices.map(device => (
-                <div
-                  key={device.id}
-                  className={`device-card ${!device.isActive ? 'inactive' : ''} ${device.hasUpdate ? 'has-update' : ''} ${selectedDevices.has(device.id) ? 'selected' : ''} ${device.pendingFirmwareVersion ? 'pending-update' : ''}`}
-                >
-                  <div className="device-select">
-                    <input
-                      type="checkbox"
-                      checked={selectedDevices.has(device.id)}
-                      onChange={() => toggleDeviceSelection(device.id)}
-                      onClick={e => e.stopPropagation()}
-                    />
+            <div className="devices-by-type">
+              {deviceTypes.map(deviceType => {
+                const typeDevices = devicesByType[deviceType];
+                const latestTypeFirmware = getLatestFirmwareForType(deviceType);
+
+                return (
+                  <div key={deviceType} className="device-type-group">
+                    <div className="device-type-header">
+                      <h3>{deviceType}</h3>
+                      <span className="device-count">{typeDevices.length} device{typeDevices.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="devices-grid">
+                      {typeDevices.map(device => (
+                        <div
+                          key={device.id}
+                          className={`device-card ${!device.isActive ? 'inactive' : ''} ${device.hasUpdate ? 'has-update' : ''} ${selectedDevices.has(device.id) ? 'selected' : ''} ${device.pendingFirmwareVersion ? 'pending-update' : ''}`}
+                        >
+                          <div className="device-select">
+                            <input
+                              type="checkbox"
+                              checked={selectedDevices.has(device.id)}
+                              onChange={() => toggleDeviceSelection(device.id)}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </div>
+                          <div className="device-content" onClick={() => setSelectedDevice(device)}>
+                            <div className="device-header">
+                              <span className="device-name">{device.name}</span>
+                              {device.pendingFirmwareVersion && (
+                                <span className="pending-indicator" title={`Update to v${device.pendingFirmwareVersion} scheduled`}>
+                                  ⏳
+                                </span>
+                              )}
+                              {device.hasUpdate && !device.pendingFirmwareVersion && (
+                                <span className="update-indicator" title="Update available">
+                                  ↑
+                                </span>
+                              )}
+                            </div>
+                            <div className="device-room">
+                              {device.room?.name || 'No room assigned'}
+                            </div>
+                            <div className="device-info">
+                              <div className="device-version">
+                                <strong>Version:</strong>{' '}
+                                {device.firmwareVersion || 'Unknown'}
+                                {device.pendingFirmwareVersion && (
+                                  <span className="version-pending"> → v{device.pendingFirmwareVersion}</span>
+                                )}
+                                {device.hasUpdate && !device.pendingFirmwareVersion && latestTypeFirmware && (
+                                  <span className="version-update"> (v{latestTypeFirmware.version} available)</span>
+                                )}
+                              </div>
+                              <div className="device-status">
+                                <strong>Status:</strong>{' '}
+                                <span className={device.isActive ? 'status-active' : 'status-inactive'}>
+                                  {device.isActive ? 'Active' : 'Inactive'}
+                                </span>
+                              </div>
+                              <div className="device-last-seen">
+                                <strong>Last Seen:</strong> {formatLastSeen(device.lastSeenAt)}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="device-content" onClick={() => setSelectedDevice(device)}>
-                    <div className="device-header">
-                      <span className="device-name">{device.name}</span>
-                      {device.pendingFirmwareVersion && (
-                        <span className="pending-indicator" title={`Update to v${device.pendingFirmwareVersion} scheduled`}>
-                          ⏳
-                        </span>
-                      )}
-                      {device.hasUpdate && !device.pendingFirmwareVersion && (
-                        <span className="update-indicator" title="Update available">
-                          ↑
-                        </span>
-                      )}
-                    </div>
-                    <div className="device-room">
-                      {device.room?.name || 'No room assigned'}
-                    </div>
-                    <div className="device-info">
-                      <div className="device-version">
-                        <strong>Version:</strong>{' '}
-                        {device.firmwareVersion || 'Unknown'}
-                        {device.pendingFirmwareVersion && (
-                          <span className="version-pending"> → v{device.pendingFirmwareVersion}</span>
-                        )}
-                        {device.hasUpdate && !device.pendingFirmwareVersion && latestFirmware && (
-                          <span className="version-update"> (v{latestFirmware.version} available)</span>
-                        )}
-                      </div>
-                      <div className="device-status">
-                        <strong>Status:</strong>{' '}
-                        <span className={device.isActive ? 'status-active' : 'status-inactive'}>
-                          {device.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                      <div className="device-last-seen">
-                        <strong>Last Seen:</strong> {formatLastSeen(device.lastSeenAt)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -402,35 +442,63 @@ export function DevicesPage() {
       )}
 
       {/* Schedule Update Modal */}
-      {showUpgradeModal && (
-        <div className="modal-overlay" onClick={() => setShowUpgradeModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Schedule Firmware Update</h2>
-              <button className="modal-close" onClick={() => setShowUpgradeModal(false)}>&times;</button>
-            </div>
-            <div className="modal-body">
-              <p className="upgrade-info">
-                Schedule a firmware update for <strong>{selectedDevices.size} device(s)</strong>.
-                The devices will download and install the update on their next check-in.
-              </p>
+      {showUpgradeModal && (() => {
+        // Get device types of selected devices
+        const selectedDevicesList = Array.from(selectedDevices)
+          .map(id => devices.find(d => d.id === id))
+          .filter(Boolean) as Device[];
 
-              <div className="form-group">
-                <label htmlFor="firmware-version">Select Firmware Version</label>
-                <select
-                  id="firmware-version"
-                  value={selectedFirmwareVersion}
-                  onChange={e => setSelectedFirmwareVersion(e.target.value)}
-                  className="form-control"
-                >
-                  <option value="">-- Select Version --</option>
-                  {activeFirmware.map(fw => (
-                    <option key={fw.id} value={fw.version}>
-                      v{fw.version} ({formatFileSize(fw.size)})
-                    </option>
-                  ))}
-                </select>
+        const selectedDeviceTypes = new Set(selectedDevicesList.map(d => d.deviceType));
+        const hasMixedTypes = selectedDeviceTypes.size > 1;
+        const commonDeviceType = selectedDeviceTypes.size === 1 ? Array.from(selectedDeviceTypes)[0] : null;
+
+        // Filter firmware by common device type if all selected devices have the same type
+        const availableFirmware = commonDeviceType
+          ? activeFirmware.filter(fw => fw.deviceType === commonDeviceType)
+          : activeFirmware;
+
+        return (
+          <div className="modal-overlay" onClick={() => setShowUpgradeModal(false)}>
+            <div className="modal modal-large" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <h2>Schedule Firmware Update</h2>
+                <button className="modal-close" onClick={() => setShowUpgradeModal(false)}>&times;</button>
               </div>
+              <div className="modal-body">
+                <p className="upgrade-info">
+                  Schedule a firmware update for <strong>{selectedDevices.size} device(s)</strong>.
+                  The devices will download and install the update on their next check-in.
+                </p>
+
+                {hasMixedTypes && (
+                  <div className="alert alert-error">
+                    Warning: You have selected devices of different types. Please select devices of the same type to schedule an update.
+                  </div>
+                )}
+
+                {!hasMixedTypes && commonDeviceType && (
+                  <div className="info-box">
+                    Device Type: <strong>{commonDeviceType}</strong>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label htmlFor="firmware-version">Select Firmware Version</label>
+                  <select
+                    id="firmware-version"
+                    value={selectedFirmwareVersion}
+                    onChange={e => setSelectedFirmwareVersion(e.target.value)}
+                    className="form-control"
+                    disabled={hasMixedTypes}
+                  >
+                    <option value="">-- Select Version --</option>
+                    {availableFirmware.map(fw => (
+                      <option key={fw.id} value={fw.version}>
+                        v{fw.version} ({formatFileSize(fw.size)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
               {selectedFirmwareVersion && (
                 <div className="selected-firmware-info">
@@ -446,51 +514,64 @@ export function DevicesPage() {
                 </div>
               )}
 
-              <div className="selected-devices-list">
-                <h4>Devices to Update:</h4>
-                <ul>
-                  {Array.from(selectedDevices).map(id => {
-                    const device = devices.find(d => d.id === id);
-                    return device ? (
-                      <li key={id}>
-                        {device.name} (current: {device.firmwareVersion || 'unknown'})
+                <div className="selected-devices-list">
+                  <h4>Devices to Update:</h4>
+                  <ul>
+                    {selectedDevicesList.map(device => (
+                      <li key={device.id}>
+                        {device.name} ({device.deviceType}) - current: {device.firmwareVersion || 'unknown'}
                       </li>
-                    ) : null;
-                  })}
-                </ul>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowUpgradeModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={scheduling || !selectedFirmwareVersion || hasMixedTypes}
+                  onClick={handleScheduleUpdate}
+                >
+                  {scheduling ? 'Scheduling...' : 'Schedule Update'}
+                </button>
               </div>
             </div>
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowUpgradeModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={scheduling || !selectedFirmwareVersion}
-                onClick={handleScheduleUpdate}
-              >
-                {scheduling ? 'Scheduling...' : 'Schedule Update'}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Upload Firmware Modal */}
       {showUploadModal && (
         <div className="modal-overlay" onClick={() => setShowUploadModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal modal-large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Upload Firmware</h2>
               <button className="modal-close" onClick={() => setShowUploadModal(false)}>&times;</button>
             </div>
             <form onSubmit={handleUploadFirmware}>
               <div className="modal-body">
+                <div className="form-group">
+                  <label htmlFor="device-type">Device Type *</label>
+                  <select
+                    id="device-type"
+                    value={uploadDeviceType}
+                    onChange={e => setUploadDeviceType(e.target.value)}
+                    className="form-control"
+                    required
+                  >
+                    {deviceTypes.map(type => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                    <option value="other">Other (specify in version)</option>
+                  </select>
+                </div>
                 <div className="form-group">
                   <label htmlFor="version">Version *</label>
                   <input

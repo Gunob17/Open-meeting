@@ -1,12 +1,14 @@
-import { Router, Response } from 'express';
+import { Response, Router } from 'express';
+import { authenticate, AuthRequest, requireAdmin, requireCompanyAdminOrAbove } from '../middleware/auth.middleware';
 import { UserModel } from '../models/user.model';
-import { authenticate, requireAdmin, requireCompanyAdminOrAbove, AuthRequest } from '../middleware/auth.middleware';
+import { CompanyModel } from '../models/company.model';
+import { TrustedDeviceModel } from '../models/trusted-device.model';
 import { UserRole } from '../types';
 
 const router = Router();
 
 // Get all users (admin only)
-router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const queryParkId = req.query.parkId as string | undefined;
 
@@ -18,7 +20,7 @@ router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =>
       parkId = req.user?.parkId;
     }
 
-    const users = UserModel.findAll(parkId);
+    const users = await UserModel.findAll(parkId);
     res.json(users.map(u => ({
       id: u.id,
       email: u.email,
@@ -26,6 +28,9 @@ router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =>
       role: u.role,
       companyId: u.companyId,
       parkId: u.parkId,
+      addonRoles: u.addonRoles,
+      isActive: u.isActive,
+      authSource: u.authSource,
       createdAt: u.createdAt
     })));
   } catch (error) {
@@ -35,7 +40,7 @@ router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =>
 });
 
 // Get users by company (company admin or admin)
-router.get('/company/:companyId', authenticate, requireCompanyAdminOrAbove, (req: AuthRequest, res: Response) => {
+router.get('/company/:companyId', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
   try {
     const { companyId } = req.params;
 
@@ -45,13 +50,16 @@ router.get('/company/:companyId', authenticate, requireCompanyAdminOrAbove, (req
       return;
     }
 
-    const users = UserModel.findByCompany(companyId);
+    const users = await UserModel.findByCompany(companyId);
     res.json(users.map(u => ({
       id: u.id,
       email: u.email,
       name: u.name,
       role: u.role,
       companyId: u.companyId,
+      addonRoles: u.addonRoles,
+      isActive: u.isActive,
+      authSource: u.authSource,
       createdAt: u.createdAt
     })));
   } catch (error) {
@@ -61,10 +69,10 @@ router.get('/company/:companyId', authenticate, requireCompanyAdminOrAbove, (req
 });
 
 // Get single user
-router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const user = UserModel.findById(id);
+    const user = await UserModel.findById(id);
 
     if (!user) {
       res.status(404).json({ error: 'User not found' });
@@ -89,6 +97,7 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
       name: user.name,
       role: user.role,
       companyId: user.companyId,
+      addonRoles: user.addonRoles,
       createdAt: user.createdAt
     });
   } catch (error) {
@@ -100,7 +109,7 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
 // Create user
 router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
   try {
-    const { email, password, name, role, companyId } = req.body;
+    const { email, password, name, role, companyId, addonRoles } = req.body;
 
     // Validation
     if (!email || !password || !name || !role || !companyId) {
@@ -108,13 +117,13 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
       return;
     }
 
-    if (password.length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (password.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters' });
       return;
     }
 
     // Check if email already exists
-    const existingUser = UserModel.findByEmail(email);
+    const existingUser = await UserModel.findByEmail(email);
     if (existingUser) {
       res.status(400).json({ error: 'Email already registered' });
       return;
@@ -132,19 +141,39 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
       }
     }
 
-    // Only system admins can create admin users
-    if (role === UserRole.PARK_ADMIN && req.user!.role !== UserRole.PARK_ADMIN) {
-      res.status(403).json({ error: 'Only admins can create admin users' });
+    // Only super admins and park admins can create park admin users
+    if (role === UserRole.PARK_ADMIN && req.user!.role !== UserRole.PARK_ADMIN && req.user!.role !== UserRole.SUPER_ADMIN) {
+      res.status(403).json({ error: 'Only admins can create Park admin users' });
       return;
     }
 
-    const user = await UserModel.create({ email, password, name, role, companyId });
+    // Park admins can only create park admins within their own park
+    if (role === UserRole.PARK_ADMIN && req.user!.role === UserRole.PARK_ADMIN) {
+      const company = await CompanyModel.findById(companyId);
+      if (!company || company.parkId !== req.user!.parkId) {
+        res.status(403).json({ error: 'Park admins can only create park admins within their own park' });
+        return;
+      }
+    }
+
+    if (role === UserRole.SUPER_ADMIN && req.user!.role !== UserRole.SUPER_ADMIN) {
+      res.status(403).json({ error: 'Only super admins can create super admin users' });
+      return;
+
+    }
+
+    // Only park admins and above can set addon roles
+    const effectiveAddonRoles = (req.user!.role === UserRole.PARK_ADMIN || req.user!.role === UserRole.SUPER_ADMIN)
+      ? (addonRoles || []) : [];
+
+    const user = await UserModel.create({ email, password, name, role, companyId, addonRoles: effectiveAddonRoles });
     res.status(201).json({
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
       companyId: user.companyId,
+      addonRoles: user.addonRoles,
       createdAt: user.createdAt
     });
   } catch (error) {
@@ -157,9 +186,9 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
 router.put('/:id', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { email, name, role, companyId, password } = req.body;
+    const { email, name, role, companyId, password, addonRoles } = req.body;
 
-    const existingUser = UserModel.findById(id);
+    const existingUser = await UserModel.findById(id);
     if (!existingUser) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -184,26 +213,41 @@ router.put('/:id', authenticate, requireCompanyAdminOrAbove, async (req: AuthReq
     }
 
     // Cannot change admin's role unless you're an admin
-    if (existingUser.role === UserRole.PARK_ADMIN && req.user!.role !== UserRole.PARK_ADMIN) {
+    if (existingUser.role === UserRole.PARK_ADMIN && req.user!.role !== UserRole.PARK_ADMIN && req.user!.role !== UserRole.SUPER_ADMIN) {
       res.status(403).json({ error: 'Cannot modify admin users' });
+      return;
+    }
+
+    // Park admins can only modify users within their own park
+    if (req.user!.role === UserRole.PARK_ADMIN && existingUser.parkId !== req.user!.parkId) {
+      res.status(403).json({ error: 'Park admins can only modify users within their own park' });
       return;
     }
 
     // Check email uniqueness if changing
     if (email && email !== existingUser.email) {
-      const emailExists = UserModel.findByEmail(email);
+      const emailExists = await UserModel.findByEmail(email);
       if (emailExists) {
         res.status(400).json({ error: 'Email already in use' });
         return;
       }
     }
 
+    // Block password changes for LDAP/SSO-sourced users
+    if (existingUser.authSource !== 'local' && password) {
+      res.status(400).json({ error: 'Cannot change password for externally authenticated users' });
+      return;
+    }
+
     const updateData: any = {};
     if (email) updateData.email = email;
     if (name) updateData.name = name;
-    if (role && req.user!.role === UserRole.PARK_ADMIN) updateData.role = role;
-    if (companyId && req.user!.role === UserRole.PARK_ADMIN) updateData.companyId = companyId;
+    if (role && (req.user!.role === UserRole.PARK_ADMIN || req.user!.role === UserRole.SUPER_ADMIN)) updateData.role = role;
+    if (companyId && (req.user!.role === UserRole.PARK_ADMIN || req.user!.role === UserRole.SUPER_ADMIN)) updateData.companyId = companyId;
     if (password) updateData.password = password;
+    if (addonRoles !== undefined && (req.user!.role === UserRole.PARK_ADMIN || req.user!.role === UserRole.SUPER_ADMIN)) {
+      updateData.addonRoles = addonRoles;
+    }
 
     const user = await UserModel.update(id, updateData);
     res.json({
@@ -212,6 +256,7 @@ router.put('/:id', authenticate, requireCompanyAdminOrAbove, async (req: AuthReq
       name: user!.name,
       role: user!.role,
       companyId: user!.companyId,
+      addonRoles: user!.addonRoles,
       createdAt: user!.createdAt
     });
   } catch (error) {
@@ -220,12 +265,39 @@ router.put('/:id', authenticate, requireCompanyAdminOrAbove, async (req: AuthReq
   }
 });
 
-// Delete user
-router.delete('/:id', authenticate, requireCompanyAdminOrAbove, (req: AuthRequest, res: Response) => {
+// Reset 2FA for a user (park admin or above)
+router.post('/:id/reset-2fa', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const user = UserModel.findById(id);
+    const user = await UserModel.findById(id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Park admins can only reset users within their own park
+    if (req.user!.role === UserRole.PARK_ADMIN && user.parkId !== req.user!.parkId) {
+      res.status(403).json({ error: 'Park admins can only reset 2FA for users within their own park' });
+      return;
+    }
+
+    await UserModel.disableTwoFa(user.id);
+    await TrustedDeviceModel.deleteAllForUser(user.id);
+
+    res.json({ message: '2FA reset successfully for user' });
+  } catch (error) {
+    console.error('Reset 2FA error:', error);
+    res.status(500).json({ error: 'Failed to reset 2FA' });
+  }
+});
+
+// Delete user
+router.delete('/:id', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await UserModel.findById(id);
     if (!user) {
       res.status(404).json({ error: 'User not found' });
       return;
@@ -251,12 +323,18 @@ router.delete('/:id', authenticate, requireCompanyAdminOrAbove, (req: AuthReques
     }
 
     // Only admins can delete admin users
-    if (user.role === UserRole.PARK_ADMIN && req.user!.role !== UserRole.PARK_ADMIN) {
+    if (user.role === UserRole.PARK_ADMIN && req.user!.role !== UserRole.PARK_ADMIN && req.user!.role !== UserRole.SUPER_ADMIN) {
       res.status(403).json({ error: 'Cannot delete admin users' });
       return;
     }
 
-    UserModel.delete(id);
+    // Park admins can only delete users within their own park
+    if (req.user!.role === UserRole.PARK_ADMIN && user.parkId !== req.user!.parkId) {
+      res.status(403).json({ error: 'Park admins can only delete users within their own park' });
+      return;
+    }
+
+    await UserModel.delete(id);
     res.status(204).send();
   } catch (error) {
     console.error('Delete user error:', error);

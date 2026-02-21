@@ -1,4 +1,5 @@
 #include "ui_manager.h"
+#include <time.h>
 
 UIManager::UIManager(TFT_eSPI& tft, TouchController& touch)
     : _tft(tft), _touch(touch), _currentState(UI_LOADING), _buttonCount(0) {
@@ -83,31 +84,81 @@ void UIManager::drawCenteredText(const String& text, int y, uint8_t font) {
     _tft.drawString(text, SCREEN_WIDTH / 2, y, font);
 }
 
+// Helper function to check if a year is a leap year
+static bool isLeapYear(int year) {
+    return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+}
+
+// Helper function to convert UTC time to Unix timestamp
+// This is our own implementation of timegm() since ESP32 doesn't have it
+static time_t utcToTimestamp(int year, int month, int day, int hour, int minute, int second) {
+    // Days in each month (non-leap year)
+    const int daysInMonth[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+    // Count days since Unix epoch (Jan 1, 1970)
+    long days = 0;
+
+    // Add days for complete years
+    for (int y = 1970; y < year; y++) {
+        days += isLeapYear(y) ? 366 : 365;
+    }
+
+    // Add days for complete months in current year
+    for (int m = 1; m < month; m++) {
+        days += daysInMonth[m - 1];
+        // Add leap day if needed
+        if (m == 2 && isLeapYear(year)) {
+            days++;
+        }
+    }
+
+    // Add remaining days
+    days += day - 1;  // -1 because day 1 is the first day
+
+    // Convert to timestamp
+    time_t timestamp = (time_t)days * 86400L + (long)hour * 3600L + (long)minute * 60L + (long)second;
+
+    return timestamp;
+}
+
 String UIManager::formatTime(const String& isoTime) {
+    if (isoTime.length() == 0) return "";
+
+    // Parse ISO 8601 time string (e.g., "2024-01-15T14:30:00.000Z")
+    // Format: YYYY-MM-DDTHH:MM:SS.sssZ or YYYY-MM-DDTHH:MM:SSZ
     int tIndex = isoTime.indexOf('T');
     if (tIndex == -1) return isoTime;
 
-    // Parse UTC time from ISO string and convert to local time
-    String timePart = isoTime.substring(tIndex + 1, tIndex + 6);
-    int colonIndex = timePart.indexOf(':');
-    if (colonIndex == -1) return timePart;
+    // Extract date and time parts
+    String datePart = isoTime.substring(0, tIndex);  // YYYY-MM-DD
+    String timePart = isoTime.substring(tIndex + 1); // HH:MM:SS...
 
-    int hours = timePart.substring(0, colonIndex).toInt();
-    int minutes = timePart.substring(colonIndex + 1).toInt();
+    // Parse date
+    int year = datePart.substring(0, 4).toInt();
+    int month = datePart.substring(5, 7).toInt();
+    int day = datePart.substring(8, 10).toInt();
 
-    // Apply timezone offset (convert UTC to local time)
-    hours += _timezoneOffset;
+    // Parse time
+    int hours = timePart.substring(0, 2).toInt();
+    int minutes = timePart.substring(3, 5).toInt();
+    int seconds = timePart.substring(6, 8).toInt();
 
-    // Handle day wraparound
-    if (hours >= 24) {
-        hours -= 24;
-    } else if (hours < 0) {
-        hours += 24;
+    // Convert UTC time to Unix timestamp
+    time_t timestamp = utcToTimestamp(year, month, day, hours, minutes, seconds);
+
+    // Apply timezone if set
+    if (_timezone.length() > 0) {
+        setenv("TZ", _timezone.c_str(), 1);
+        tzset();
     }
 
-    // Format with leading zeros
+    // Convert to local time using timezone
+    struct tm localTime;
+    localtime_r(&timestamp, &localTime);
+
+    // Format as HH:MM
     char buffer[6];
-    snprintf(buffer, sizeof(buffer), "%02d:%02d", hours, minutes);
+    snprintf(buffer, sizeof(buffer), "%02d:%02d", localTime.tm_hour, localTime.tm_min);
     return String(buffer);
 }
 

@@ -3,18 +3,14 @@ import { BookingModel } from '../models/booking.model';
 import { RoomModel } from '../models/room.model';
 import { UserModel } from '../models/user.model';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
-import { sendMeetingInvite, sendCancellationNotice, sendAdminDeleteNotice, sendAdminMoveNotice } from '../services/email.service';
-import { UserRole, MeetingRoom } from '../types';
-import db from '../models/database';
+import { sendMeetingInvite, sendCancellationNotice, sendAdminDeleteNotice, sendAdminMoveNotice, sendReceptionNotification } from '../services/email.service';
+import { UserRole, MeetingRoom, ExternalGuest } from '../types';
+import { SettingsModel } from '../models/settings.model';
+import { ParkModel } from '../models/park.model';
 
 // Helper to get global settings
-function getGlobalSettings(): { openingHour: number; closingHour: number } {
-  const stmt = db.prepare('SELECT opening_hour, closing_hour FROM settings WHERE id = ?');
-  const row = stmt.get('global') as { opening_hour: number; closing_hour: number } | undefined;
-  return {
-    openingHour: row?.opening_hour ?? 8,
-    closingHour: row?.closing_hour ?? 18
-  };
+async function getGlobalSettings(): Promise<{ openingHour: number; closingHour: number }> {
+  return SettingsModel.getGlobal();
 }
 
 // Helper to extract hour and minute from a time string
@@ -31,12 +27,12 @@ function extractLocalTime(timeStr: string): { hour: number; minute: number } {
 }
 
 // Helper to validate booking time against room/global hours
-function validateBookingHours(
+async function validateBookingHours(
   room: MeetingRoom,
   startTimeStr: string,
   endTimeStr: string
-): { valid: boolean; error?: string } {
-  const globalSettings = getGlobalSettings();
+): Promise<{ valid: boolean; error?: string }> {
+  const globalSettings = await getGlobalSettings();
 
   // Use room-specific hours if set (not null/undefined), otherwise use global
   const openingHour = (room.openingHour !== null && room.openingHour !== undefined)
@@ -67,21 +63,22 @@ function validateBookingHours(
 const router = Router();
 
 // Get all bookings (with optional date range filter)
-router.get('/', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
 
     let bookings;
     if (startDate && endDate) {
-      bookings = BookingModel.findAllByDateRange(startDate as string, endDate as string);
+      bookings = await BookingModel.findAllByDateRange(startDate as string, endDate as string);
     } else {
-      bookings = BookingModel.findAll();
+      bookings = await BookingModel.findAll();
     }
 
-    // Parse attendees JSON
+    // Parse attendees and external guests JSON
     const bookingsWithParsedData = bookings.map(b => ({
       ...b,
       attendees: JSON.parse(b.attendees),
+      externalGuests: JSON.parse(b.externalGuests),
       room: b.room ? {
         ...b.room,
         amenities: JSON.parse(b.room.amenities)
@@ -96,21 +93,22 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Get my bookings
-router.get('/my', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const bookings = BookingModel.findByUser(req.user!.userId);
+    const bookings = await BookingModel.findByUser(req.user!.userId);
 
-    const bookingsWithDetails = bookings.map(b => {
-      const room = RoomModel.findById(b.roomId);
+    const bookingsWithDetails = await Promise.all(bookings.map(async (b) => {
+      const room = await RoomModel.findById(b.roomId);
       return {
         ...b,
         attendees: JSON.parse(b.attendees),
+        externalGuests: JSON.parse(b.externalGuests),
         room: room ? {
           ...room,
           amenities: JSON.parse(room.amenities)
         } : undefined
       };
-    });
+    }));
 
     res.json(bookingsWithDetails);
   } catch (error) {
@@ -120,10 +118,10 @@ router.get('/my', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Get single booking
-router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const booking = BookingModel.findByIdWithDetails(id);
+    const booking = await BookingModel.findByIdWithDetails(id);
 
     if (!booking) {
       res.status(404).json({ error: 'Booking not found' });
@@ -133,6 +131,7 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
     res.json({
       ...booking,
       attendees: JSON.parse(booking.attendees),
+      externalGuests: JSON.parse(booking.externalGuests),
       room: booking.room ? {
         ...booking.room,
         amenities: JSON.parse(booking.room.amenities)
@@ -147,7 +146,7 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
 // Create booking
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { roomId, title, description, startTime, endTime, attendees } = req.body;
+    const { roomId, title, description, startTime, endTime, attendees, externalGuests } = req.body;
 
     // Validation
     if (!roomId || !title || !startTime || !endTime) {
@@ -155,8 +154,28 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    if (title.length > 255) {
+      res.status(400).json({ error: 'Title must be 255 characters or less' });
+      return;
+    }
+
+    if (description && description.length > 2000) {
+      res.status(400).json({ error: 'Description must be 2000 characters or less' });
+      return;
+    }
+
+    if (externalGuests && Array.isArray(externalGuests) && externalGuests.length > 100) {
+      res.status(400).json({ error: 'Maximum 100 external guests allowed' });
+      return;
+    }
+
+    if (attendees && Array.isArray(attendees) && attendees.length > 100) {
+      res.status(400).json({ error: 'Maximum 100 attendees allowed' });
+      return;
+    }
+
     // Check room exists
-    const room = RoomModel.findById(roomId);
+    const room = await RoomModel.findById(roomId);
     if (!room) {
       res.status(404).json({ error: 'Room not found' });
       return;
@@ -196,31 +215,50 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 
     // Validate booking hours against room/global settings
     // Pass original string to avoid timezone conversion issues
-    const hoursValidation = validateBookingHours(room, startTime, endTime);
+    const hoursValidation = await validateBookingHours(room, startTime, endTime);
     if (!hoursValidation.valid) {
       res.status(400).json({ error: hoursValidation.error });
       return;
     }
 
     // Check for conflicts
-    const hasConflict = BookingModel.checkConflict(roomId, startTime, endTime);
+    const hasConflict = await BookingModel.checkConflict(roomId, startTime, endTime);
     if (hasConflict) {
       res.status(409).json({ error: 'Room is already booked for this time slot' });
       return;
     }
 
+    // Validate external guests if provided
+    if (externalGuests && Array.isArray(externalGuests)) {
+      for (const guest of externalGuests) {
+        if (!guest.name || guest.name.length > 255) {
+          res.status(400).json({ error: 'Each external guest must have a name (max 255 chars)' });
+          return;
+        }
+        if (guest.email && guest.email.length > 254) {
+          res.status(400).json({ error: 'Guest email must be 254 characters or less' });
+          return;
+        }
+        if (guest.company && guest.company.length > 255) {
+          res.status(400).json({ error: 'Guest company must be 255 characters or less' });
+          return;
+        }
+      }
+    }
+
     // Create booking
-    const booking = BookingModel.create({
+    const booking = await BookingModel.create({
       roomId,
       title,
       description,
       startTime,
       endTime,
-      attendees: attendees || []
+      attendees: attendees || [],
+      externalGuests: externalGuests || []
     }, req.user!.userId);
 
     // Get user for email
-    const user = UserModel.findById(req.user!.userId);
+    const user = await UserModel.findById(req.user!.userId);
 
     // Send meeting invite email
     if (user) {
@@ -232,9 +270,26 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Send reception notification if external guests are present
+    if (externalGuests && externalGuests.length > 0 && user) {
+      const park = await ParkModel.findById(room.parkId);
+      if (park?.receptionEmail) {
+        sendReceptionNotification({
+          booking,
+          room,
+          organizer: { ...user, password: undefined } as any,
+          externalGuests,
+          receptionEmail: park.receptionEmail,
+          parkName: park.name,
+          guestFields: park.receptionGuestFields
+        });
+      }
+    }
+
     res.status(201).json({
       ...booking,
       attendees: JSON.parse(booking.attendees),
+      externalGuests: JSON.parse(booking.externalGuests),
       room: {
         ...room,
         amenities: JSON.parse(room.amenities)
@@ -250,9 +305,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
 router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, description, startTime, endTime, attendees } = req.body;
+    const { title, description, startTime, endTime, attendees, externalGuests } = req.body;
 
-    const existingBooking = BookingModel.findById(id);
+    const existingBooking = await BookingModel.findById(id);
     if (!existingBooking) {
       res.status(404).json({ error: 'Booking not found' });
       return;
@@ -277,19 +332,20 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         return;
       }
 
-      const hasConflict = BookingModel.checkConflict(existingBooking.roomId, newStart, newEnd, id);
+      const hasConflict = await BookingModel.checkConflict(existingBooking.roomId, newStart, newEnd, id);
       if (hasConflict) {
         res.status(409).json({ error: 'Room is already booked for this time slot' });
         return;
       }
     }
 
-    const booking = BookingModel.update(id, {
+    const booking = await BookingModel.update(id, {
       title,
       description,
       startTime,
       endTime,
-      attendees
+      attendees,
+      externalGuests
     });
 
     if (!booking) {
@@ -297,8 +353,8 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const room = RoomModel.findById(booking.roomId);
-    const user = UserModel.findById(booking.userId);
+    const room = await RoomModel.findById(booking.roomId);
+    const user = await UserModel.findById(booking.userId);
 
     // Send updated meeting invite
     if (room && user) {
@@ -310,9 +366,27 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
+    // Send reception notification if external guests are present
+    const parsedExternalGuests = JSON.parse(booking.externalGuests) as ExternalGuest[];
+    if (parsedExternalGuests.length > 0 && room && user) {
+      const park = await ParkModel.findById(room.parkId);
+      if (park?.receptionEmail) {
+        sendReceptionNotification({
+          booking,
+          room,
+          organizer: { ...user, password: undefined } as any,
+          externalGuests: parsedExternalGuests,
+          receptionEmail: park.receptionEmail,
+          parkName: park.name,
+          guestFields: park.receptionGuestFields
+        });
+      }
+    }
+
     res.json({
       ...booking,
       attendees: JSON.parse(booking.attendees),
+      externalGuests: parsedExternalGuests,
       room: room ? {
         ...room,
         amenities: JSON.parse(room.amenities)
@@ -329,7 +403,7 @@ router.post('/:id/cancel', authenticate, async (req: AuthRequest, res: Response)
   try {
     const { id } = req.params;
 
-    const booking = BookingModel.findById(id);
+    const booking = await BookingModel.findById(id);
     if (!booking) {
       res.status(404).json({ error: 'Booking not found' });
       return;
@@ -341,15 +415,15 @@ router.post('/:id/cancel', authenticate, async (req: AuthRequest, res: Response)
       return;
     }
 
-    const success = BookingModel.cancel(id);
+    const success = await BookingModel.cancel(id);
     if (!success) {
       res.status(500).json({ error: 'Failed to cancel booking' });
       return;
     }
 
     // Send cancellation notice
-    const room = RoomModel.findById(booking.roomId);
-    const user = UserModel.findById(booking.userId);
+    const room = await RoomModel.findById(booking.roomId);
+    const user = await UserModel.findById(booking.userId);
 
     if (room && user) {
       sendCancellationNotice({
@@ -373,7 +447,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    const booking = BookingModel.findById(id);
+    const booking = await BookingModel.findById(id);
     if (!booking) {
       res.status(404).json({ error: 'Booking not found' });
       return;
@@ -389,11 +463,11 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     // Get details for email notification before deleting
-    const room = RoomModel.findById(booking.roomId);
-    const bookingOwner = UserModel.findById(booking.userId);
-    const admin = UserModel.findById(req.user!.userId);
+    const room = await RoomModel.findById(booking.roomId);
+    const bookingOwner = await UserModel.findById(booking.userId);
+    const admin = await UserModel.findById(req.user!.userId);
 
-    BookingModel.delete(id);
+    await BookingModel.delete(id);
 
     // If admin deleted someone else's booking, send notification
     if (isAdmin && !isOwner && room && bookingOwner && admin) {
@@ -431,14 +505,14 @@ router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) =
       return;
     }
 
-    const booking = BookingModel.findById(id);
+    const booking = await BookingModel.findById(id);
     if (!booking) {
       res.status(404).json({ error: 'Booking not found' });
       return;
     }
 
-    const oldRoom = RoomModel.findById(booking.roomId);
-    const newRoom = RoomModel.findById(newRoomId);
+    const oldRoom = await RoomModel.findById(booking.roomId);
+    const newRoom = await RoomModel.findById(newRoomId);
 
     if (!newRoom) {
       res.status(404).json({ error: 'New room not found' });
@@ -456,22 +530,22 @@ router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) =
     }
 
     // Check for conflicts in the new room
-    const hasConflict = BookingModel.checkConflict(newRoomId, booking.startTime, booking.endTime);
+    const hasConflict = await BookingModel.checkConflict(newRoomId, booking.startTime, booking.endTime);
     if (hasConflict) {
       res.status(409).json({ error: 'New room is already booked for this time slot' });
       return;
     }
 
     // Update the booking with the new room
-    const updatedBooking = BookingModel.update(id, { roomId: newRoomId });
+    const updatedBooking = await BookingModel.update(id, { roomId: newRoomId });
     if (!updatedBooking) {
       res.status(500).json({ error: 'Failed to move booking' });
       return;
     }
 
     // Send notification to booking owner
-    const bookingOwner = UserModel.findById(booking.userId);
-    const admin = UserModel.findById(req.user!.userId);
+    const bookingOwner = await UserModel.findById(booking.userId);
+    const admin = await UserModel.findById(req.user!.userId);
 
     if (oldRoom && newRoom && bookingOwner && admin) {
       await sendAdminMoveNotice({
@@ -489,6 +563,7 @@ router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) =
     res.json({
       ...updatedBooking,
       attendees: JSON.parse(updatedBooking.attendees),
+      externalGuests: JSON.parse(updatedBooking.externalGuests),
       room: {
         ...newRoom,
         amenities: JSON.parse(newRoom.amenities)

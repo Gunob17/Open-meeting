@@ -8,26 +8,26 @@ import { UserRole } from '../types';
 const router = Router();
 
 // Get all devices (admin only)
-router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const includeInactive = req.query.includeInactive === 'true';
     const parkId = req.query.parkId as string | undefined;
 
     let devices;
     if (parkId) {
-      devices = DeviceModel.findByPark(parkId, includeInactive);
+      devices = await DeviceModel.findByPark(parkId, includeInactive);
     } else if (req.user?.role !== UserRole.SUPER_ADMIN && req.user?.parkId) {
       // Park admins can only see devices in their park
-      devices = DeviceModel.findByPark(req.user.parkId, includeInactive);
+      devices = await DeviceModel.findByPark(req.user.parkId, includeInactive);
     } else {
-      devices = DeviceModel.findAll(includeInactive);
+      devices = await DeviceModel.findAll(includeInactive);
     }
 
-    // Get latest firmware for update indication
-    const latestFirmware = FirmwareModel.findLatest();
-
     // Map devices with parsed room amenities and update status
-    const devicesWithParsedData = devices.map(d => {
+    const devicesWithParsedData = await Promise.all(devices.map(async d => {
+      // Get latest firmware for this device type
+      const latestFirmware = await FirmwareModel.findLatest(d.deviceType);
+
       const hasUpdate = latestFirmware && d.firmwareVersion
         ? FirmwareModel.compareVersions(latestFirmware.version, d.firmwareVersion) > 0
         : latestFirmware && !d.firmwareVersion;
@@ -41,7 +41,7 @@ router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =>
           amenities: JSON.parse(d.room.amenities)
         } : undefined
       };
-    });
+    }));
 
     res.json(devicesWithParsedData);
   } catch (error) {
@@ -51,15 +51,10 @@ router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =>
 });
 
 // Get devices for a room (admin only) - MUST be before /:id to avoid route conflict
-router.get('/room/:roomId', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/room/:roomId', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { roomId } = req.params;
-    console.log('Fetching devices for room:', roomId);
-    const devices = DeviceModel.findByRoom(roomId);
-    console.log('Found devices:', devices.length, 'devices');
-    if (devices.length > 0) {
-      console.log('First device has token:', !!devices[0].token, 'token length:', devices[0].token?.length);
-    }
+    const devices = await DeviceModel.findByRoom(roomId);
 
     const devicesWithParsedData = devices.map(d => ({
       ...d,
@@ -77,10 +72,10 @@ router.get('/room/:roomId', authenticate, requireAdmin, (req: AuthRequest, res: 
 });
 
 // Get single device (admin only)
-router.get('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const device = DeviceModel.findByIdWithRoom(id);
+    const device = await DeviceModel.findByIdWithRoom(id);
 
     if (!device) {
       res.status(404).json({ error: 'Device not found' });
@@ -101,25 +96,22 @@ router.get('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
 });
 
 // Create new device (admin only)
-router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, roomId } = req.body;
-    console.log('Creating device:', { name, roomId });
-
+    const { name, roomId, deviceType } = req.body;
     if (!name || !roomId) {
       res.status(400).json({ error: 'Name and room ID are required' });
       return;
     }
 
     // Check room exists
-    const room = RoomModel.findById(roomId);
+    const room = await RoomModel.findById(roomId);
     if (!room) {
       res.status(404).json({ error: 'Room not found' });
       return;
     }
 
-    const device = DeviceModel.create({ name, roomId });
-    console.log('Created device with id:', device.id, 'token present:', !!device.token, 'token length:', device.token?.length);
+    const device = await DeviceModel.create({ name, roomId, deviceType });
 
     res.status(201).json({
       ...device,
@@ -135,12 +127,12 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
 });
 
 // Update device (admin only)
-router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, roomId, isActive } = req.body;
+    const { name, roomId, deviceType, isActive } = req.body;
 
-    const existing = DeviceModel.findById(id);
+    const existing = await DeviceModel.findById(id);
     if (!existing) {
       res.status(404).json({ error: 'Device not found' });
       return;
@@ -148,15 +140,15 @@ router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
 
     // If changing room, check room exists
     if (roomId && roomId !== existing.roomId) {
-      const room = RoomModel.findById(roomId);
+      const room = await RoomModel.findById(roomId);
       if (!room) {
         res.status(404).json({ error: 'Room not found' });
         return;
       }
     }
 
-    const device = DeviceModel.update(id, { name, roomId, isActive });
-    const deviceWithRoom = DeviceModel.findByIdWithRoom(id);
+    const device = await DeviceModel.update(id, { name, roomId, deviceType, isActive });
+    const deviceWithRoom = await DeviceModel.findByIdWithRoom(id);
 
     res.json({
       ...deviceWithRoom,
@@ -172,18 +164,18 @@ router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
 });
 
 // Regenerate device token (admin only)
-router.post('/:id/regenerate-token', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.post('/:id/regenerate-token', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const existing = DeviceModel.findById(id);
+    const existing = await DeviceModel.findById(id);
     if (!existing) {
       res.status(404).json({ error: 'Device not found' });
       return;
     }
 
-    const device = DeviceModel.regenerateToken(id);
-    const deviceWithRoom = DeviceModel.findByIdWithRoom(id);
+    const device = await DeviceModel.regenerateToken(id);
+    const deviceWithRoom = await DeviceModel.findByIdWithRoom(id);
 
     res.json({
       ...deviceWithRoom,
@@ -199,12 +191,12 @@ router.post('/:id/regenerate-token', authenticate, requireAdmin, (req: AuthReque
 });
 
 // Schedule firmware update for multiple devices (admin only)
-router.post('/firmware/schedule-update', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.post('/firmware/schedule-update', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { deviceIds, firmwareVersion } = req.body;
 
-    if (!deviceIds || !Array.isArray(deviceIds) || deviceIds.length === 0) {
-      res.status(400).json({ error: 'Device IDs array is required' });
+    if (!deviceIds || !Array.isArray(deviceIds) || deviceIds.length === 0 || deviceIds.length > 1000) {
+      res.status(400).json({ error: 'Device IDs array is required (max 1000)' });
       return;
     }
 
@@ -214,7 +206,7 @@ router.post('/firmware/schedule-update', authenticate, requireAdmin, (req: AuthR
     }
 
     // Verify firmware version exists and is active
-    const firmware = FirmwareModel.findByVersion(firmwareVersion);
+    const firmware = await FirmwareModel.findByVersion(firmwareVersion);
     if (!firmware) {
       res.status(404).json({ error: 'Firmware version not found' });
       return;
@@ -225,8 +217,20 @@ router.post('/firmware/schedule-update', authenticate, requireAdmin, (req: AuthR
       return;
     }
 
+    // Verify all selected devices have the same device type as the firmware
+    const devices = (await Promise.all(deviceIds.map(id => DeviceModel.findById(id)))).filter(Boolean);
+    const incompatibleDevices = devices.filter(d => d && d.deviceType !== firmware.deviceType);
+
+    if (incompatibleDevices.length > 0) {
+      res.status(400).json({
+        error: `Cannot install ${firmware.deviceType} firmware on devices of different types`,
+        incompatibleDevices: incompatibleDevices.map(d => ({ id: d!.id, name: d!.name, deviceType: d!.deviceType }))
+      });
+      return;
+    }
+
     // Schedule update for all devices
-    const updatedCount = DeviceModel.setPendingFirmwareBatch(deviceIds, firmwareVersion);
+    const updatedCount = await DeviceModel.setPendingFirmwareBatch(deviceIds, firmwareVersion);
 
     res.json({
       success: true,
@@ -241,18 +245,18 @@ router.post('/firmware/schedule-update', authenticate, requireAdmin, (req: AuthR
 });
 
 // Cancel pending firmware update for a device (admin only)
-router.post('/:id/firmware/cancel-update', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.post('/:id/firmware/cancel-update', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const existing = DeviceModel.findById(id);
+    const existing = await DeviceModel.findById(id);
     if (!existing) {
       res.status(404).json({ error: 'Device not found' });
       return;
     }
 
-    DeviceModel.clearPendingFirmware(id);
-    const device = DeviceModel.findByIdWithRoom(id);
+    await DeviceModel.clearPendingFirmware(id);
+    const device = await DeviceModel.findByIdWithRoom(id);
 
     res.json({
       ...device,
@@ -268,17 +272,17 @@ router.post('/:id/firmware/cancel-update', authenticate, requireAdmin, (req: Aut
 });
 
 // Delete device (admin only)
-router.delete('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const existing = DeviceModel.findById(id);
+    const existing = await DeviceModel.findById(id);
     if (!existing) {
       res.status(404).json({ error: 'Device not found' });
       return;
     }
 
-    DeviceModel.delete(id);
+    await DeviceModel.delete(id);
     res.status(204).send();
   } catch (error) {
     console.error('Delete device error:', error);

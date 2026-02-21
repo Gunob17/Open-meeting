@@ -1,107 +1,111 @@
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import db from './database';
+import { getDb } from './database';
 import { Firmware, CreateFirmwareRequest } from '../types';
 import path from 'path';
 import fs from 'fs';
 
-// Firmware files storage directory
 const firmwareDir = path.join(__dirname, '../../data/firmware');
 
-// Ensure firmware directory exists
 if (!fs.existsSync(firmwareDir)) {
   fs.mkdirSync(firmwareDir, { recursive: true });
 }
 
 export class FirmwareModel {
-  static create(data: CreateFirmwareRequest, fileBuffer: Buffer): Firmware {
+  static async create(data: CreateFirmwareRequest, fileBuffer: Buffer): Promise<Firmware> {
+    const db = getDb();
     const id = uuidv4();
-    const filename = `firmware_${data.version.replace(/\./g, '_')}.bin`;
+    const deviceType = data.deviceType || 'esp32-display';
+    const filename = `firmware_${deviceType}_${data.version.replace(/\./g, '_')}.bin`;
     const filePath = path.join(firmwareDir, filename);
     const checksum = crypto.createHash('md5').update(fileBuffer).digest('hex');
     const size = fileBuffer.length;
     const now = new Date().toISOString();
 
-    // Save the firmware file
     fs.writeFileSync(filePath, fileBuffer);
 
-    const stmt = db.prepare(`
-      INSERT INTO firmware (id, version, filename, size, checksum, release_notes, is_active, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-    `);
+    await db('firmware').insert({
+      id,
+      version: data.version,
+      device_type: deviceType,
+      filename,
+      size,
+      checksum,
+      release_notes: data.releaseNotes || '',
+      is_active: true,
+      created_at: now,
+    });
 
-    stmt.run(id, data.version, filename, size, checksum, data.releaseNotes || '', now);
-
-    return this.findById(id)!;
+    return (await this.findById(id))!;
   }
 
-  static findById(id: string): Firmware | null {
-    const stmt = db.prepare('SELECT * FROM firmware WHERE id = ?');
-    const row = stmt.get(id) as any;
-
+  static async findById(id: string): Promise<Firmware | null> {
+    const db = getDb();
+    const row = await db('firmware').where('id', id).first();
     if (!row) return null;
-
     return this.mapRowToFirmware(row);
   }
 
-  static findByVersion(version: string): Firmware | null {
-    const stmt = db.prepare('SELECT * FROM firmware WHERE version = ?');
-    const row = stmt.get(version) as any;
-
+  static async findByVersion(version: string): Promise<Firmware | null> {
+    const db = getDb();
+    const row = await db('firmware').where('version', version).first();
     if (!row) return null;
-
     return this.mapRowToFirmware(row);
   }
 
-  static findLatest(): Firmware | null {
-    // Get the latest active firmware by comparing semantic versions
-    const stmt = db.prepare(`
-      SELECT * FROM firmware
-      WHERE is_active = 1
-      ORDER BY created_at DESC
-      LIMIT 1
-    `);
-    const row = stmt.get() as any;
+  static async findLatest(deviceType?: string): Promise<Firmware | null> {
+    const db = getDb();
+    let query = db('firmware').where('is_active', true);
 
+    if (deviceType) {
+      query = query.andWhere('device_type', deviceType);
+    }
+
+    const row = await query.orderBy('created_at', 'desc').first();
     if (!row) return null;
-
     return this.mapRowToFirmware(row);
   }
 
-  static findAll(): Firmware[] {
-    const stmt = db.prepare('SELECT * FROM firmware ORDER BY created_at DESC');
-    const rows = stmt.all() as any[];
+  static async findAll(deviceType?: string): Promise<Firmware[]> {
+    const db = getDb();
+    let query = db('firmware');
 
-    return rows.map(row => this.mapRowToFirmware(row));
+    if (deviceType) {
+      query = query.where('device_type', deviceType);
+    }
+
+    const rows = await query.orderBy([
+      { column: 'device_type', order: 'asc' },
+      { column: 'created_at', order: 'desc' },
+    ]);
+    return rows.map((row: any) => this.mapRowToFirmware(row));
   }
 
   static getFilePath(firmware: Firmware): string {
     return path.join(firmwareDir, firmware.filename);
   }
 
-  static delete(id: string): boolean {
-    const firmware = this.findById(id);
+  static async delete(id: string): Promise<boolean> {
+    const firmware = await this.findById(id);
     if (!firmware) return false;
 
-    // Delete the file
     const filePath = this.getFilePath(firmware);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
-    const stmt = db.prepare('DELETE FROM firmware WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
+    const db = getDb();
+    const count = await db('firmware').where('id', id).del();
+    return count > 0;
   }
 
-  static setActive(id: string, isActive: boolean): Firmware | null {
-    const stmt = db.prepare('UPDATE firmware SET is_active = ? WHERE id = ?');
-    stmt.run(isActive ? 1 : 0, id);
+  static async setActive(id: string, isActive: boolean): Promise<Firmware | null> {
+    const db = getDb();
+    await db('firmware').where('id', id).update({ is_active: isActive });
     return this.findById(id);
   }
 
   static compareVersions(v1: string, v2: string): number {
-    // Compare semantic versions (e.g., "1.0.0" vs "1.0.1")
     const parts1 = v1.split('.').map(Number);
     const parts2 = v2.split('.').map(Number);
 
@@ -114,8 +118,8 @@ export class FirmwareModel {
     return 0;
   }
 
-  static isUpdateAvailable(currentVersion: string | null): { available: boolean; firmware: Firmware | null } {
-    const latest = this.findLatest();
+  static async isUpdateAvailable(currentVersion: string | null, deviceType: string): Promise<{ available: boolean; firmware: Firmware | null }> {
+    const latest = await this.findLatest(deviceType);
 
     if (!latest) {
       return { available: false, firmware: null };
@@ -128,7 +132,7 @@ export class FirmwareModel {
     const comparison = this.compareVersions(latest.version, currentVersion);
     return {
       available: comparison > 0,
-      firmware: comparison > 0 ? latest : null
+      firmware: comparison > 0 ? latest : null,
     };
   }
 
@@ -136,12 +140,13 @@ export class FirmwareModel {
     return {
       id: row.id,
       version: row.version,
+      deviceType: row.device_type || 'esp32-display',
       filename: row.filename,
       size: row.size,
       checksum: row.checksum,
       releaseNotes: row.release_notes,
-      isActive: row.is_active === 1,
-      createdAt: row.created_at
+      isActive: !!row.is_active,
+      createdAt: row.created_at,
     };
   }
 }

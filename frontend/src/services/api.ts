@@ -1,4 +1,4 @@
-import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park, Firmware } from '../types';
+import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park, Firmware, TwoFaSetupResponse, TwoFaStatusResponse, TrustedDeviceInfo, ExternalGuest, GuestVisit, LdapConfig, LdapSyncResult, SsoConfig, SsoDiscoveryResult } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -39,15 +39,23 @@ class ApiService {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${this.token}`;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
-      headers
+      headers,
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
       throw new Error(error.error || 'Request failed');
     }
+
+    this.updateLastActivity();
 
     if (response.status === 204) {
       return null as T;
@@ -73,18 +81,67 @@ class ApiService {
     });
   }
 
+  // Keep me logged in / activity tracking
+  getKeepLoggedIn(): boolean {
+    return localStorage.getItem('keepLoggedIn') === 'true';
+  }
+
+  setKeepLoggedIn(keep: boolean) {
+    if (keep) {
+      localStorage.setItem('keepLoggedIn', 'true');
+    } else {
+      localStorage.removeItem('keepLoggedIn');
+    }
+  }
+
+  private updateLastActivity() {
+    localStorage.setItem('lastActivity', Date.now().toString());
+  }
+
+  isInactive(): boolean {
+    const lastActivity = localStorage.getItem('lastActivity');
+    if (!lastActivity) return false;
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    return Date.now() - parseInt(lastActivity, 10) > SEVEN_DAYS_MS;
+  }
+
+  // Device token management (for trusted device 2FA)
+  getDeviceToken(): string | null {
+    return localStorage.getItem('deviceToken');
+  }
+
+  setDeviceToken(token: string | null) {
+    if (token) {
+      localStorage.setItem('deviceToken', token);
+    } else {
+      localStorage.removeItem('deviceToken');
+    }
+  }
+
   // Auth
-  async login(email: string, password: string): Promise<AuthResponse> {
+  async login(email: string, password: string, keepLoggedIn: boolean = false): Promise<AuthResponse> {
+    const deviceToken = this.getDeviceToken();
+    this.setKeepLoggedIn(keepLoggedIn);
     const response = await this.request<AuthResponse>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, deviceToken, keepLoggedIn })
     });
     this.setToken(response.token);
+    if (response.deviceToken) {
+      this.setDeviceToken(response.deviceToken);
+    }
     return response;
   }
 
   async getCurrentUser(): Promise<User> {
     return this.request<User>('/auth/me');
+  }
+
+  async refreshToken(): Promise<void> {
+    const response = await this.request<{ token: string }>('/auth/refresh', {
+      method: 'POST'
+    });
+    this.setToken(response.token);
   }
 
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
@@ -96,6 +153,80 @@ class ApiService {
 
   logout() {
     this.setToken(null);
+    this.setKeepLoggedIn(false);
+    localStorage.removeItem('lastActivity');
+    // Note: do NOT clear deviceToken on logout — it persists across sessions
+  }
+
+  // 2FA
+  async twofaSetup(): Promise<TwoFaSetupResponse> {
+    return this.request<TwoFaSetupResponse>('/auth/2fa/setup', { method: 'POST' });
+  }
+
+  async twofaSetupConfirm(code: string): Promise<{
+    message: string;
+    backupCodes: string[];
+    token?: string;
+    user?: User;
+  }> {
+    const keepLoggedIn = this.getKeepLoggedIn();
+    const response = await this.request<any>('/auth/2fa/setup/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ code, keepLoggedIn })
+    });
+    if (response.token) {
+      this.setToken(response.token);
+    }
+    return response;
+  }
+
+  async twofaVerify(code: string, trustDevice: boolean = false): Promise<AuthResponse> {
+    const keepLoggedIn = this.getKeepLoggedIn();
+    const response = await this.request<AuthResponse>('/auth/2fa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ code, trustDevice, keepLoggedIn })
+    });
+    if (response.token) {
+      this.setToken(response.token);
+    }
+    if (response.deviceToken) {
+      this.setDeviceToken(response.deviceToken);
+    }
+    return response;
+  }
+
+  async twofaDisable(password: string): Promise<void> {
+    await this.request('/auth/2fa/disable', {
+      method: 'POST',
+      body: JSON.stringify({ password })
+    });
+  }
+
+  async twofaGetStatus(): Promise<TwoFaStatusResponse> {
+    return this.request<TwoFaStatusResponse>('/auth/2fa/status');
+  }
+
+  async twofaGetTrustedDevices(): Promise<TrustedDeviceInfo[]> {
+    return this.request<TrustedDeviceInfo[]>('/auth/2fa/trusted-devices');
+  }
+
+  async twofaRevokeTrustedDevice(id: string): Promise<void> {
+    await this.request(`/auth/2fa/trusted-devices/${id}`, { method: 'DELETE' });
+  }
+
+  async resetUserTwoFa(userId: string): Promise<void> {
+    await this.request(`/users/${userId}/reset-2fa`, { method: 'POST' });
+  }
+
+  async updateTwoFaSettings(data: {
+    twofaEnforcement: string;
+    twofaMode: string;
+    twofaTrustedDeviceDays: number;
+  }): Promise<Settings> {
+    return this.request<Settings>('/settings/2fa', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
   }
 
   // Companies
@@ -116,7 +247,7 @@ class ApiService {
     });
   }
 
-  async updateCompany(id: string, data: { name?: string; address?: string }): Promise<Company> {
+  async updateCompany(id: string, data: { name?: string; address?: string; twofaEnforcement?: string }): Promise<Company> {
     return this.request<Company>(`/companies/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
@@ -148,6 +279,7 @@ class ApiService {
     name: string;
     role: UserRole;
     companyId: string;
+    addonRoles?: string[];
   }): Promise<User> {
     return this.request<User>('/users', {
       method: 'POST',
@@ -161,6 +293,7 @@ class ApiService {
     role?: UserRole;
     companyId?: string;
     password?: string;
+    addonRoles?: string[];
   }): Promise<User> {
     return this.request<User>(`/users/${id}`, {
       method: 'PUT',
@@ -257,6 +390,7 @@ class ApiService {
     startTime: string;
     endTime: string;
     attendees?: string[];
+    externalGuests?: ExternalGuest[];
   }): Promise<Booking> {
     return this.request<Booking>('/bookings', {
       method: 'POST',
@@ -270,6 +404,7 @@ class ApiService {
     startTime?: string;
     endTime?: string;
     attendees?: string[];
+    externalGuests?: ExternalGuest[];
   }): Promise<Booking> {
     return this.request<Booking>(`/bookings/${id}`, {
       method: 'PUT',
@@ -358,7 +493,7 @@ class ApiService {
     });
   }
 
-  async updatePark(id: string, data: { name?: string; address?: string; description?: string; isActive?: boolean }): Promise<Park> {
+  async updatePark(id: string, data: { name?: string; address?: string; description?: string; isActive?: boolean; twofaEnforcement?: string; receptionEmail?: string | null; receptionGuestFields?: string[] }): Promise<Park> {
     return this.request<Park>(`/parks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
@@ -400,6 +535,13 @@ class ApiService {
     return this.request<Park>(`/parks/${parkId}/logo`, { method: 'DELETE' });
   }
 
+  async updateParkReception(parkId: string, data: { receptionEmail?: string | null; receptionGuestFields?: string[] }): Promise<Park> {
+    return this.request<Park>(`/parks/${parkId}/reception`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
   // Firmware
   async getFirmwareList(): Promise<Firmware[]> {
     return this.request<Firmware[]>('/firmware');
@@ -409,13 +551,12 @@ class ApiService {
     return this.request<Firmware>('/firmware/latest');
   }
 
-  async uploadFirmware(file: File, version: string, releaseNotes?: string): Promise<Firmware> {
+  async uploadFirmware(file: File, version: string, deviceType: string, releaseNotes?: string): Promise<Firmware> {
     const formData = new FormData();
     formData.append('firmware', file);
     formData.append('version', version);
+    formData.append('deviceType', deviceType);
     if (releaseNotes) formData.append('releaseNotes', releaseNotes);
-
-    console.log('Uploading firmware:', { filename: file.name, size: file.size, version });
 
     const response = await fetch(`${API_BASE}/firmware`, {
       method: 'POST',
@@ -425,11 +566,8 @@ class ApiService {
       body: formData
     });
 
-    console.log('Upload response status:', response.status);
-
     if (!response.ok) {
       const text = await response.text();
-      console.error('Upload error response:', text);
       let error;
       try {
         error = JSON.parse(text);
@@ -580,6 +718,152 @@ class ApiService {
     if (limit) params.append('limit', limit.toString());
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/statistics/top-bookers${query}`);
+  }
+  // Receptionist
+  async getReceptionistGuests(date?: string): Promise<{ date: string; guests: GuestVisit[]; closingHour: number }> {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    const selectedPark = this.getSelectedParkId();
+    if (selectedPark) params.append('parkId', selectedPark);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/receptionist/guests${query}`);
+  }
+
+  async checkInGuest(visitId: string): Promise<GuestVisit> {
+    return this.request<GuestVisit>(`/receptionist/guests/${visitId}/checkin`, { method: 'POST' });
+  }
+
+  async checkOutGuest(visitId: string): Promise<GuestVisit> {
+    return this.request<GuestVisit>(`/receptionist/guests/${visitId}/checkout`, { method: 'POST' });
+  }
+
+  async undoCheckInGuest(visitId: string): Promise<GuestVisit> {
+    return this.request<GuestVisit>(`/receptionist/guests/${visitId}/undo-checkin`, { method: 'POST' });
+  }
+
+  // LDAP
+  async getLdapConfig(companyId: string): Promise<LdapConfig | null> {
+    try {
+      return await this.request<LdapConfig>(`/ldap/config/${companyId}`);
+    } catch {
+      return null;
+    }
+  }
+
+  async createLdapConfig(data: {
+    companyId: string;
+    serverUrl: string;
+    bindDn: string;
+    bindPassword: string;
+    searchBase: string;
+    userFilter?: string;
+    usernameAttribute?: string;
+    emailAttribute?: string;
+    nameAttribute?: string;
+    groupSearchBase?: string;
+    groupFilter?: string;
+    groupMemberAttribute?: string;
+    roleMappings?: { ldapGroupDn: string; appRole: string }[];
+    defaultRole?: string;
+    syncIntervalHours?: number;
+    useStarttls?: boolean;
+    tlsRejectUnauthorized?: boolean;
+    connectionTimeoutMs?: number;
+  }): Promise<LdapConfig> {
+    return this.request<LdapConfig>('/ldap/config', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateLdapConfig(id: string, data: Record<string, any>): Promise<LdapConfig> {
+    return this.request<LdapConfig>(`/ldap/config/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteLdapConfig(id: string): Promise<void> {
+    await this.request(`/ldap/config/${id}`, { method: 'DELETE' });
+  }
+
+  async enableLdap(configId: string): Promise<LdapConfig> {
+    return this.request<LdapConfig>(`/ldap/config/${configId}/enable`, { method: 'POST' });
+  }
+
+  async disableLdap(configId: string): Promise<LdapConfig> {
+    return this.request<LdapConfig>(`/ldap/config/${configId}/disable`, { method: 'POST' });
+  }
+
+  async testLdapConnection(configId: string): Promise<{ success: boolean; message: string; userCount?: number }> {
+    return this.request(`/ldap/config/${configId}/test`, { method: 'POST' });
+  }
+
+  async syncLdap(configId: string): Promise<LdapSyncResult> {
+    return this.request<LdapSyncResult>(`/ldap/config/${configId}/sync`, { method: 'POST' });
+  }
+
+  async getLdapSyncStatus(configId: string): Promise<{
+    lastSyncAt: string | null;
+    lastSyncStatus: string | null;
+    lastSyncMessage: string | null;
+    lastSyncUserCount: number | null;
+  }> {
+    return this.request(`/ldap/config/${configId}/sync-status`);
+  }
+
+  // SSO
+  async discoverSso(email: string): Promise<SsoDiscoveryResult> {
+    return this.request<SsoDiscoveryResult>(`/sso/discover?email=${encodeURIComponent(email)}`);
+  }
+
+  async getSsoConfig(companyId: string): Promise<SsoConfig | null> {
+    try {
+      return await this.request<SsoConfig>(`/sso/config/${companyId}`);
+    } catch {
+      return null;
+    }
+  }
+
+  async createSsoConfig(data: {
+    companyId: string;
+    protocol: string;
+    displayName?: string;
+    oidcIssuerUrl?: string;
+    oidcClientId?: string;
+    oidcClientSecret?: string;
+    oidcScopes?: string;
+    samlEntryPoint?: string;
+    samlIssuer?: string;
+    samlCert?: string;
+    samlCallbackUrl?: string;
+    autoCreateUsers?: boolean;
+    defaultRole?: string;
+    emailDomains?: string[];
+  }): Promise<SsoConfig> {
+    return this.request<SsoConfig>('/sso/config', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateSsoConfig(id: string, data: Record<string, any>): Promise<SsoConfig> {
+    return this.request<SsoConfig>(`/sso/config/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteSsoConfig(id: string): Promise<void> {
+    await this.request(`/sso/config/${id}`, { method: 'DELETE' });
+  }
+
+  async enableSso(configId: string): Promise<SsoConfig> {
+    return this.request<SsoConfig>(`/sso/config/${configId}/enable`, { method: 'POST' });
+  }
+
+  async disableSso(configId: string): Promise<SsoConfig> {
+    return this.request<SsoConfig>(`/sso/config/${configId}/disable`, { method: 'POST' });
   }
 }
 

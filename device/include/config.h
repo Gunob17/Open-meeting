@@ -52,14 +52,29 @@
 #define WIFI_AP_NAME "MeetingRoom-Setup"
 #define WIFI_AP_PASSWORD "setup1234"
 
+// Web setup authentication
+#define SETUP_PIN "1234"  // Default PIN for setup page access
+
+// NTP Server settings
+#define NTP_SERVER1 "pool.ntp.org"
+#define NTP_SERVER2 "time.nist.gov"
+#define NTP_SERVER3 "time.google.com"
+
 // Preferences namespace
 #define PREFS_NAMESPACE "meetingroom"
 #define PREF_API_URL "api_url"
 #define PREF_DEVICE_TOKEN "device_token"
-#define PREF_TIMEZONE_OFFSET "tz_offset"
+#define PREF_TIMEZONE "timezone"
+#define PREF_SETUP_PIN "setup_pin"
+#define PREF_BOOT_COUNT "boot_count"
+#define PREF_BOOT_TIME "boot_time"
 
-// Default timezone offset in hours (0 = UTC)
-#define DEFAULT_TIMEZONE_OFFSET 0
+// Boot loop detection
+#define BOOT_LOOP_THRESHOLD 3     // Number of rapid reboots before safe mode
+#define BOOT_LOOP_WINDOW 30       // Seconds - reboots within this window count as rapid
+
+// Default timezone (UTC)
+#define DEFAULT_TIMEZONE "UTC0"
 
 // RGB LED pins (active LOW on CYD boards)
 #define LED_RED_PIN 4
@@ -85,6 +100,6 @@
 
 // Firmware/OTA update settings
 #define FIRMWARE_CHECK_INTERVAL 300000   // 5 minutes - how often to check for updates
-#define FIRMWARE_VERSION "1.0.3"         // Current firmware version - update this with each release
+#define FIRMWARE_VERSION "1.1.1"         // Current firmware version - update this with each release
 
 #endif // CONFIG_H

@@ -1,18 +1,30 @@
 import nodemailer from 'nodemailer';
 import { createEvent, EventAttributes } from 'ics';
-import { Booking, MeetingRoom, User } from '../types';
+import { Booking, MeetingRoom, User, ExternalGuest } from '../types';
+
+// Strict email validation to prevent header injection
+const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email) && email.length <= 254 && !email.includes('\n') && !email.includes('\r');
+}
+
+function sanitizeEmails(emails: string[]): string[] {
+  return emails.filter(e => e && isValidEmail(e));
+}
 
 // Configure transporter - use environment variables in production
+const isProduction = process.env.NODE_ENV === 'production';
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
   port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
+  secure: process.env.SMTP_SECURE === 'true',
   auth: {
-    user: process.env.SMTP_USER || 'test@ethereal.email',
-    pass: process.env.SMTP_PASS || 'testpassword'
+    user: process.env.SMTP_USER || (isProduction ? undefined : 'test@ethereal.email'),
+    pass: process.env.SMTP_PASS || (isProduction ? undefined : 'testpassword'),
   },
-  logger: true,
-  debug: true
+  logger: !isProduction,
+  debug: !isProduction,
 });
 
 interface MeetingInviteParams {
@@ -169,7 +181,8 @@ export async function sendMeetingInvite(params: MeetingInviteParams): Promise<vo
 </html>
     `;
 
-    const allRecipients = [organizer.email, ...attendeeEmails].filter(Boolean);
+    const allRecipients = sanitizeEmails([organizer.email, ...attendeeEmails]);
+    if (allRecipients.length === 0) return;
 
     const mailOptions = {
       from: process.env.SMTP_FROM || '"Open Meeting" <noreply@openmeeting.com>',
@@ -244,7 +257,7 @@ export async function sendCancellationNotice(params: MeetingInviteParams): Promi
 </html>
     `;
 
-    const allRecipients = [organizer.email, ...attendeeEmails].filter(Boolean);
+    const allRecipients = sanitizeEmails([organizer.email, ...attendeeEmails]);
 
     await transporter.sendMail({
       from: process.env.SMTP_FROM || '"Open Meeting" <noreply@openmeeting.com>',
@@ -343,6 +356,16 @@ export async function sendAdminDeleteNotice(params: AdminActionParams): Promise<
   }
 }
 
+interface ReceptionNotificationParams {
+  booking: Booking;
+  room: MeetingRoom;
+  organizer: Omit<User, 'password'>;
+  externalGuests: ExternalGuest[];
+  receptionEmail: string;
+  parkName: string;
+  guestFields: string[];
+}
+
 interface AdminMoveParams extends AdminActionParams {
   oldRoom: MeetingRoom;
   newRoom: MeetingRoom;
@@ -429,5 +452,129 @@ export async function sendAdminMoveNotice(params: AdminMoveParams): Promise<void
     console.log(`Admin move notice sent to: ${allRecipients.join(', ')}`);
   } catch (error) {
     console.error('Failed to send admin move notice:', error);
+  }
+}
+
+export async function sendReceptionNotification(params: ReceptionNotificationParams): Promise<void> {
+  const { booking, room, organizer, externalGuests, receptionEmail, parkName, guestFields } = params;
+
+  if (!receptionEmail || externalGuests.length === 0) {
+    return;
+  }
+
+  try {
+    const startTime = new Date(booking.startTime);
+    const endTime = new Date(booking.endTime);
+    const dateOptions: Intl.DateTimeFormatOptions = {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    };
+    const timeOptions: Intl.DateTimeFormatOptions = {
+      hour: '2-digit',
+      minute: '2-digit'
+    };
+
+    const showEmail = guestFields.includes('email');
+    const showCompany = guestFields.includes('company');
+
+    // Build table headers based on configured fields
+    let headerCells = '<th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left; background: #f3f4f6;">Name</th>';
+    if (showEmail) {
+      headerCells += '<th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left; background: #f3f4f6;">Email</th>';
+    }
+    if (showCompany) {
+      headerCells += '<th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left; background: #f3f4f6;">Company / Organization</th>';
+    }
+
+    // Build table rows based on configured fields
+    const guestRows = externalGuests.map(guest => {
+      let cells = `<td style="padding: 8px; border: 1px solid #e5e7eb;">${guest.name}</td>`;
+      if (showEmail) {
+        cells += `<td style="padding: 8px; border: 1px solid #e5e7eb;">${guest.email || '-'}</td>`;
+      }
+      if (showCompany) {
+        cells += `<td style="padding: 8px; border: 1px solid #e5e7eb;">${guest.company || '-'}</td>`;
+      }
+      return `<tr>${cells}</tr>`;
+    }).join('');
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #059669; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+    .details { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
+    .detail-row { margin: 10px 0; }
+    .label { font-weight: bold; color: #6b7280; }
+    .guest-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    .footer { margin-top: 20px; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin: 0;">External Guest Notification</h1>
+      <p style="margin: 10px 0 0 0;">Guest passes may be required</p>
+    </div>
+    <div class="content">
+      <p>An upcoming meeting at <strong>${parkName}</strong> will include external guests. Please prepare the necessary guest passes.</p>
+
+      <div class="details">
+        <div class="detail-row">
+          <span class="label">Meeting:</span> ${booking.title}
+        </div>
+        <div class="detail-row">
+          <span class="label">Date:</span> ${startTime.toLocaleDateString('en-US', dateOptions)}
+        </div>
+        <div class="detail-row">
+          <span class="label">Time:</span> ${startTime.toLocaleTimeString('en-US', timeOptions)} - ${endTime.toLocaleTimeString('en-US', timeOptions)}
+        </div>
+        <div class="detail-row">
+          <span class="label">Room:</span> ${room.name} (${room.floor})
+        </div>
+        <div class="detail-row">
+          <span class="label">Organizer:</span> ${organizer.name} (${organizer.email})
+        </div>
+      </div>
+
+      <h3>External Guests (${externalGuests.length})</h3>
+      <table class="guest-table">
+        <thead>
+          <tr>${headerCells}</tr>
+        </thead>
+        <tbody>
+          ${guestRows}
+        </tbody>
+      </table>
+
+      ${booking.description ? `<p><strong>Meeting Description:</strong><br>${booking.description}</p>` : ''}
+
+      <p class="footer">
+        This notification was sent automatically from Open Meeting.<br>
+        Please ensure guest passes are prepared before the meeting time.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || '"Open Meeting" <noreply@openmeeting.com>',
+      to: receptionEmail,
+      subject: `External Guest Notification: ${booking.title} - ${startTime.toLocaleDateString('en-US', dateOptions)}`,
+      html: htmlContent
+    });
+
+    console.log(`Reception notification sent to: ${receptionEmail}`);
+  } catch (error) {
+    console.error('Failed to send reception notification:', error);
+    // Don't throw - email failure shouldn't fail the booking
   }
 }

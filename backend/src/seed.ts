@@ -6,7 +6,7 @@ import { UserRole } from './types';
 
 async function seed() {
   console.log('Initializing database...');
-  initializeDatabase();
+  await initializeDatabase();
 
   console.log('Creating seed data...');
 
@@ -14,19 +14,19 @@ async function seed() {
   const defaultParkId = 'default';
 
   // Create companies
-  const sharedOffice = CompanyModel.create({
+  const sharedOffice = await CompanyModel.create({
     name: 'Shared Office Management',
     address: '123 Business Center, Suite 100, New York, NY 10001',
     parkId: defaultParkId
   });
 
-  const techCorp = CompanyModel.create({
+  const techCorp = await CompanyModel.create({
     name: 'TechCorp Inc.',
     address: '456 Innovation Drive, San Francisco, CA 94105',
     parkId: defaultParkId
   });
 
-  const startupHub = CompanyModel.create({
+  const startupHub = await CompanyModel.create({
     name: 'StartupHub',
     address: '789 Entrepreneur Way, Austin, TX 78701',
     parkId: defaultParkId
@@ -98,7 +98,7 @@ async function seed() {
   console.log('Created users:', user1.name, user2.name, user3.name);
 
   // Create meeting rooms
-  const room1 = RoomModel.create({
+  const room1 = await RoomModel.create({
     name: 'Innovation Lab',
     capacity: 20,
     amenities: ['Projector', 'Whiteboard', 'Video Conferencing', 'Air Conditioning'],
@@ -108,7 +108,7 @@ async function seed() {
     parkId: defaultParkId
   });
 
-  const room2 = RoomModel.create({
+  const room2 = await RoomModel.create({
     name: 'Brainstorm Studio',
     capacity: 8,
     amenities: ['Whiteboard', 'TV Screen', 'Standing Desk'],
@@ -118,7 +118,7 @@ async function seed() {
     parkId: defaultParkId
   });
 
-  const room3 = RoomModel.create({
+  const room3 = await RoomModel.create({
     name: 'Executive Boardroom',
     capacity: 12,
     amenities: ['Video Conferencing', 'Projector', 'Conference Phone', 'Catering Service'],
@@ -128,7 +128,7 @@ async function seed() {
     parkId: defaultParkId
   });
 
-  const room4 = RoomModel.create({
+  const room4 = await RoomModel.create({
     name: 'Focus Pod A',
     capacity: 4,
     amenities: ['TV Screen', 'Whiteboard'],
@@ -138,7 +138,7 @@ async function seed() {
     parkId: defaultParkId
   });
 
-  const room5 = RoomModel.create({
+  const room5 = await RoomModel.create({
     name: 'Focus Pod B',
     capacity: 4,
     amenities: ['TV Screen', 'Whiteboard'],
@@ -148,7 +148,7 @@ async function seed() {
     parkId: defaultParkId
   });
 
-  const room6 = RoomModel.create({
+  const room6 = await RoomModel.create({
     name: 'Training Center',
     capacity: 30,
     amenities: ['Projector', 'Multiple Screens', 'Microphones', 'Recording Equipment', 'Air Conditioning'],

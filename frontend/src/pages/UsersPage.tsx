@@ -15,7 +15,8 @@ export function UsersPage() {
     password: '',
     name: '',
     role: UserRole.USER,
-    companyId: ''
+    companyId: '',
+    isReceptionist: false
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -51,7 +52,8 @@ export function UsersPage() {
         password: '',
         name: user.name,
         role: user.role,
-        companyId: user.companyId
+        companyId: user.companyId,
+        isReceptionist: user.addonRoles?.includes('receptionist') || false
       });
     } else {
       setEditingUser(null);
@@ -60,7 +62,8 @@ export function UsersPage() {
         password: '',
         name: '',
         role: UserRole.USER,
-        companyId: currentUser?.companyId || ''
+        companyId: currentUser?.companyId || '',
+        isReceptionist: false
       });
     }
     setError('');
@@ -84,6 +87,7 @@ export function UsersPage() {
         if (isAdmin) {
           updateData.role = formData.role;
           updateData.companyId = formData.companyId;
+          updateData.addonRoles = formData.isReceptionist ? ['receptionist'] : [];
         }
         await api.updateUser(editingUser.id, updateData);
       } else {
@@ -92,7 +96,8 @@ export function UsersPage() {
           password: formData.password,
           name: formData.name,
           role: formData.role,
-          companyId: formData.companyId
+          companyId: formData.companyId,
+          addonRoles: formData.isReceptionist ? ['receptionist'] : []
         });
       }
       setShowModal(false);
@@ -139,18 +144,35 @@ export function UsersPage() {
               <th>Name</th>
               <th>Email</th>
               <th>Role</th>
+              <th>Source</th>
               {isAdmin && <th>Company</th>}
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.map(user => (
-              <tr key={user.id}>
-                <td>{user.name}</td>
+              <tr key={user.id} style={user.isActive === false ? { opacity: 0.5 } : undefined}>
+                <td>
+                  {user.name}
+                  {user.isActive === false && (
+                    <span className="role-badge" style={{ marginLeft: '0.25rem', background: 'var(--danger)', color: '#fff' }}>disabled</span>
+                  )}
+                </td>
                 <td>{user.email}</td>
                 <td>
                   <span className={`role-badge ${user.role}`}>
                     {user.role.replace('_', ' ')}
+                  </span>
+                  {user.addonRoles?.includes('receptionist') && (
+                    <span className="role-badge receptionist" style={{ marginLeft: '0.25rem' }}>receptionist</span>
+                  )}
+                </td>
+                <td>
+                  <span className="role-badge" style={{
+                    background: user.authSource === 'ldap' ? '#2563eb' : user.authSource === 'oidc' ? '#7c3aed' : user.authSource === 'saml' ? '#059669' : 'var(--bg-tertiary)',
+                    color: user.authSource !== 'local' ? '#fff' : 'inherit'
+                  }}>
+                    {user.authSource === 'ldap' ? 'LDAP' : user.authSource === 'oidc' ? 'OIDC' : user.authSource === 'saml' ? 'SAML' : 'Local'}
                   </span>
                 </td>
                 {isAdmin && <td>{getCompanyName(user.companyId)}</td>}
@@ -212,19 +234,28 @@ export function UsersPage() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="password">
-                    Password {editingUser ? '(leave blank to keep current)' : '*'}
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    value={formData.password}
-                    onChange={e => setFormData({ ...formData, password: e.target.value })}
-                    required={!editingUser}
-                    minLength={6}
-                  />
-                </div>
+                {editingUser?.authSource && editingUser.authSource !== 'local' ? (
+                  <div className="form-group">
+                    <label>Password</label>
+                    <small style={{ color: 'var(--text-muted)' }}>
+                      Managed by {editingUser.authSource === 'ldap' ? 'LDAP directory' : 'SSO identity provider'}
+                    </small>
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label htmlFor="password">
+                      Password {editingUser ? '(leave blank to keep current)' : '*'}
+                    </label>
+                    <input
+                      type="password"
+                      id="password"
+                      value={formData.password}
+                      onChange={e => setFormData({ ...formData, password: e.target.value })}
+                      required={!editingUser}
+                      minLength={6}
+                    />
+                  </div>
+                )}
 
                 {isAdmin && (
                   <>
@@ -257,6 +288,17 @@ export function UsersPage() {
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label className="checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={formData.isReceptionist}
+                          onChange={e => setFormData({ ...formData, isReceptionist: e.target.checked })}
+                        />
+                        Receptionist (can manage guest check-in/check-out)
+                      </label>
                     </div>
                   </>
                 )}

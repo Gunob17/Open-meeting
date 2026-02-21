@@ -1,0 +1,52 @@
+<svg width="420" height="120" viewBox="0 0 420 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .brand-text {
+        font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+        font-weight: 600;
+        letter-spacing: 0.4px;
+      }
+    </style>
+  </defs>
+
+  <!-- Custom Speech Bubble -->
+  <g transform="translate(20,18)">
+    <!-- Bubble outline (open corner) -->
+    <path
+      d="M10 8
+         H68
+         C78 8 86 16 86 26
+         V44
+         C86 54 78 62 68 62
+         H34
+         L20 74
+         L22 62
+         H18
+         C8 62 0 54 0 44
+         V18"
+      fill="none"
+      stroke="#60A5FA"
+      stroke-width="4"
+      stroke-linejoin="round"
+    />
+
+    <!-- Meeting circle -->
+    <circle cx="43" cy="34" r="10" fill="none" stroke="#60A5FA" stroke-width="3"/>
+
+    <!-- Attendee nodes -->
+    <circle cx="43" cy="22" r="2.5" fill="#60A5FA"/>
+    <circle cx="33" cy="38" r="2.5" fill="#60A5FA"/>
+    <circle cx="53" cy="38" r="2.5" fill="#60A5FA"/>
+  </g>
+
+  <!-- Brand name -->
+  <text x="120" y="68" font-size="36" class="brand-text" fill="#F1F5F9">
+    Open
+    <tspan fill="#60A5FA">Meeting</tspan>
+  </text>
+
+  <!-- Optional domain -->
+  <text x="122" y="92" font-size="14" fill="#94A3B8" font-family="Inter, Arial, sans-serif">
+    open-meeting.com
+  </text>
+</svg>
