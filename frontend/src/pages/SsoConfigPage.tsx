@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { SsoConfig, SsoProtocol, Company } from '../types';
 
 export function SsoConfigPage() {
   const { companyId } = useParams<{ companyId: string }>();
-  const navigate = useNavigate();
   const [config, setConfig] = useState<SsoConfig | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,11 +30,7 @@ export function SsoConfigPage() {
 
   const appUrl = window.location.origin;
 
-  useEffect(() => {
-    loadData();
-  }, [companyId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
     try {
@@ -63,7 +58,11 @@ export function SsoConfigPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyId]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();

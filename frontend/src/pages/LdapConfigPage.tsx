@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { LdapConfig, LdapRoleMapping, LdapSyncResult, Company, UserRole } from '../types';
-import { useAuth } from '../context/AuthContext';
+import { LdapConfig, LdapRoleMapping, LdapSyncResult, Company } from '../types';
 
 export function LdapConfigPage() {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
   const [company, setCompany] = useState<Company | null>(null);
   const [config, setConfig] = useState<LdapConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,11 +37,7 @@ export function LdapConfigPage() {
     connectionTimeoutMs: 10000,
   });
 
-  useEffect(() => {
-    if (companyId) loadData();
-  }, [companyId]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [companyData, configData] = await Promise.all([
@@ -78,7 +72,11 @@ export function LdapConfigPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [companyId]);
+
+  useEffect(() => {
+    if (companyId) loadData();
+  }, [companyId, loadData]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
