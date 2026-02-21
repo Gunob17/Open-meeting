@@ -191,6 +191,7 @@ export function StatisticsPage() {
                     className="hour-bar"
                     style={{
                       height: `${(stat.bookingCount / maxHourlyBookings) * 100}%`,
+                      minHeight: stat.bookingCount > 0 ? '4px' : '0',
                       backgroundColor: stat.hour === peakHour.hour ? '#4f46e5' : '#94a3b8'
                     }}
                     title={`${formatHour(stat.hour)}: ${stat.bookingCount} bookings`}
@@ -210,7 +211,8 @@ export function StatisticsPage() {
                   <div
                     className="day-bar"
                     style={{
-                      height: `${(stat.bookingCount / maxDailyBookings) * 100}%`
+                      height: `${(stat.bookingCount / maxDailyBookings) * 100}%`,
+                      minHeight: stat.bookingCount > 0 ? '4px' : '0'
                     }}
                     title={`${format(new Date(stat.date), 'MMM d')}: ${stat.bookingCount} bookings, ${stat.totalHours}h`}
                   />

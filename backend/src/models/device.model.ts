@@ -1,242 +1,215 @@
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
-import db from './database';
+import { getDb } from './database';
 import { Device, DeviceWithRoom, CreateDeviceRequest, MeetingRoom } from '../types';
 
 export class DeviceModel {
-  // Generate a secure random token for device authentication
   private static generateToken(): string {
     return crypto.randomBytes(32).toString('hex');
   }
 
-  static create(data: CreateDeviceRequest): Device {
+  static async create(data: CreateDeviceRequest): Promise<Device> {
+    const db = getDb();
     const id = uuidv4();
     const token = this.generateToken();
     const now = new Date().toISOString();
+    const deviceType = data.deviceType || 'esp32-display';
 
-    const stmt = db.prepare(`
-      INSERT INTO devices (id, name, token, room_id, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
+    await db('devices').insert({
+      id,
+      name: data.name,
+      token,
+      room_id: data.roomId,
+      device_type: deviceType,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    });
 
-    stmt.run(id, data.name, token, data.roomId, 1, now, now);
-
-    return this.findById(id)!;
+    return (await this.findById(id))!;
   }
 
-  static findById(id: string): Device | null {
-    const stmt = db.prepare('SELECT * FROM devices WHERE id = ?');
-    const row = stmt.get(id) as any;
-
+  static async findById(id: string): Promise<Device | null> {
+    const db = getDb();
+    const row = await db('devices').where('id', id).first();
     if (!row) return null;
-
     return this.mapRowToDevice(row);
   }
 
-  static findByToken(token: string): Device | null {
-    const stmt = db.prepare('SELECT * FROM devices WHERE token = ? AND is_active = 1');
-    const row = stmt.get(token) as any;
-
+  static async findByToken(token: string): Promise<Device | null> {
+    const db = getDb();
+    const row = await db('devices').where('token', token).andWhere('is_active', true).first();
     if (!row) return null;
-
     return this.mapRowToDevice(row);
   }
 
-  static findByIdWithRoom(id: string): DeviceWithRoom | null {
-    const stmt = db.prepare(`
-      SELECT d.*,
-             r.id as room_id, r.name as room_name, r.capacity as room_capacity,
-             r.amenities as room_amenities, r.floor as room_floor, r.address as room_address,
-             r.description as room_description, r.is_active as room_is_active,
-             r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
-             r.locked_to_company_id as room_locked_to_company_id,
-             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
-             r.created_at as room_created_at, r.updated_at as room_updated_at
-      FROM devices d
-      LEFT JOIN meeting_rooms r ON d.room_id = r.id
-      WHERE d.id = ?
-    `);
-    const row = stmt.get(id) as any;
+  private static deviceWithRoomColumns() {
+    return [
+      'd.*',
+      'r.id as room_id_join', 'r.name as room_name', 'r.capacity as room_capacity',
+      'r.amenities as room_amenities', 'r.floor as room_floor', 'r.address as room_address',
+      'r.description as room_description', 'r.is_active as room_is_active',
+      'r.opening_hour as room_opening_hour', 'r.closing_hour as room_closing_hour',
+      'r.locked_to_company_id as room_locked_to_company_id',
+      'r.quick_book_durations as room_quick_book_durations', 'r.park_id as room_park_id',
+      'r.created_at as room_created_at', 'r.updated_at as room_updated_at',
+    ];
+  }
 
+  static async findByIdWithRoom(id: string): Promise<DeviceWithRoom | null> {
+    const db = getDb();
+    const row = await db('devices as d')
+      .leftJoin('meeting_rooms as r', 'd.room_id', 'r.id')
+      .select(this.deviceWithRoomColumns())
+      .where('d.id', id)
+      .first();
     if (!row) return null;
-
     return this.mapRowToDeviceWithRoom(row);
   }
 
-  static findByTokenWithRoom(token: string): DeviceWithRoom | null {
-    const stmt = db.prepare(`
-      SELECT d.*,
-             r.id as room_id, r.name as room_name, r.capacity as room_capacity,
-             r.amenities as room_amenities, r.floor as room_floor, r.address as room_address,
-             r.description as room_description, r.is_active as room_is_active,
-             r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
-             r.locked_to_company_id as room_locked_to_company_id,
-             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
-             r.created_at as room_created_at, r.updated_at as room_updated_at
-      FROM devices d
-      LEFT JOIN meeting_rooms r ON d.room_id = r.id
-      WHERE d.token = ? AND d.is_active = 1
-    `);
-    const row = stmt.get(token) as any;
-
+  static async findByTokenWithRoom(token: string): Promise<DeviceWithRoom | null> {
+    const db = getDb();
+    const row = await db('devices as d')
+      .leftJoin('meeting_rooms as r', 'd.room_id', 'r.id')
+      .select(this.deviceWithRoomColumns())
+      .where('d.token', token)
+      .andWhere('d.is_active', true)
+      .first();
     if (!row) return null;
-
     return this.mapRowToDeviceWithRoom(row);
   }
 
-  static findAll(includeInactive = false): DeviceWithRoom[] {
-    let query = `
-      SELECT d.*,
-             r.id as room_id, r.name as room_name, r.capacity as room_capacity,
-             r.amenities as room_amenities, r.floor as room_floor, r.address as room_address,
-             r.description as room_description, r.is_active as room_is_active,
-             r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
-             r.locked_to_company_id as room_locked_to_company_id,
-             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
-             r.created_at as room_created_at, r.updated_at as room_updated_at
-      FROM devices d
-      LEFT JOIN meeting_rooms r ON d.room_id = r.id
-    `;
+  static async findAll(includeInactive = false): Promise<DeviceWithRoom[]> {
+    const db = getDb();
+    let query = db('devices as d')
+      .leftJoin('meeting_rooms as r', 'd.room_id', 'r.id')
+      .select(this.deviceWithRoomColumns());
 
     if (!includeInactive) {
-      query += ' WHERE d.is_active = 1';
+      query = query.where('d.is_active', true);
     }
-    query += ' ORDER BY d.name';
 
-    const stmt = db.prepare(query);
-    const rows = stmt.all() as any[];
-
-    return rows.map(row => this.mapRowToDeviceWithRoom(row));
+    const rows = await query.orderBy('d.name');
+    return rows.map((row: any) => this.mapRowToDeviceWithRoom(row));
   }
 
-  static findByRoom(roomId: string): DeviceWithRoom[] {
-    const stmt = db.prepare(`
-      SELECT d.*,
-             r.id as room_id, r.name as room_name, r.capacity as room_capacity,
-             r.amenities as room_amenities, r.floor as room_floor, r.address as room_address,
-             r.description as room_description, r.is_active as room_is_active,
-             r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
-             r.locked_to_company_id as room_locked_to_company_id,
-             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
-             r.created_at as room_created_at, r.updated_at as room_updated_at
-      FROM devices d
-      LEFT JOIN meeting_rooms r ON d.room_id = r.id
-      WHERE d.room_id = ?
-      ORDER BY d.name
-    `);
-    const rows = stmt.all(roomId) as any[];
-
-    return rows.map(row => this.mapRowToDeviceWithRoom(row));
+  static async findByRoom(roomId: string): Promise<DeviceWithRoom[]> {
+    const db = getDb();
+    const rows = await db('devices as d')
+      .leftJoin('meeting_rooms as r', 'd.room_id', 'r.id')
+      .select(this.deviceWithRoomColumns())
+      .where('d.room_id', roomId)
+      .orderBy('d.name');
+    return rows.map((row: any) => this.mapRowToDeviceWithRoom(row));
   }
 
-  static update(id: string, data: Partial<{ name: string; roomId: string; isActive: boolean }>): Device | null {
-    const existing = this.findById(id);
+  static async findByPark(parkId: string, includeInactive = false): Promise<DeviceWithRoom[]> {
+    const db = getDb();
+    let query = db('devices as d')
+      .leftJoin('meeting_rooms as r', 'd.room_id', 'r.id')
+      .select(this.deviceWithRoomColumns())
+      .where('r.park_id', parkId);
+
+    if (!includeInactive) {
+      query = query.andWhere('d.is_active', true);
+    }
+
+    const rows = await query.orderBy('d.name');
+    return rows.map((row: any) => this.mapRowToDeviceWithRoom(row));
+  }
+
+  static async update(id: string, data: Partial<{ name: string; roomId: string; deviceType: string; isActive: boolean }>): Promise<Device | null> {
+    const existing = await this.findById(id);
     if (!existing) return null;
 
+    const db = getDb();
     const now = new Date().toISOString();
-    const stmt = db.prepare(`
-      UPDATE devices
-      SET name = ?, room_id = ?, is_active = ?, updated_at = ?
-      WHERE id = ?
-    `);
 
-    stmt.run(
-      data.name ?? existing.name,
-      data.roomId ?? existing.roomId,
-      data.isActive !== undefined ? (data.isActive ? 1 : 0) : (existing.isActive ? 1 : 0),
-      now,
-      id
-    );
+    await db('devices').where('id', id).update({
+      name: data.name ?? existing.name,
+      room_id: data.roomId ?? existing.roomId,
+      device_type: data.deviceType ?? existing.deviceType,
+      is_active: data.isActive !== undefined ? data.isActive : existing.isActive,
+      updated_at: now,
+    });
 
     return this.findById(id);
   }
 
-  static regenerateToken(id: string): Device | null {
-    const existing = this.findById(id);
+  static async regenerateToken(id: string): Promise<Device | null> {
+    const existing = await this.findById(id);
     if (!existing) return null;
 
+    const db = getDb();
     const newToken = this.generateToken();
     const now = new Date().toISOString();
 
-    const stmt = db.prepare('UPDATE devices SET token = ?, updated_at = ? WHERE id = ?');
-    stmt.run(newToken, now, id);
+    await db('devices').where('id', id).update({
+      token: newToken,
+      updated_at: now,
+    });
 
     return this.findById(id);
   }
 
-  static updateLastSeen(id: string): void {
+  static async updateLastSeen(id: string): Promise<void> {
+    const db = getDb();
+    await db('devices').where('id', id).update({
+      last_seen_at: new Date().toISOString(),
+    });
+  }
+
+  static async delete(id: string): Promise<boolean> {
+    const db = getDb();
+    const count = await db('devices').where('id', id).del();
+    return count > 0;
+  }
+
+  static async deactivate(id: string): Promise<boolean> {
+    const db = getDb();
+    const count = await db('devices').where('id', id).update({
+      is_active: false,
+      updated_at: new Date().toISOString(),
+    });
+    return count > 0;
+  }
+
+  static async updateFirmwareVersion(id: string, version: string): Promise<void> {
+    const db = getDb();
     const now = new Date().toISOString();
-    const stmt = db.prepare('UPDATE devices SET last_seen_at = ? WHERE id = ?');
-    stmt.run(now, id);
+    await db('devices').where('id', id).update({
+      firmware_version: version,
+      last_seen_at: now,
+      updated_at: now,
+    });
   }
 
-  static delete(id: string): boolean {
-    const stmt = db.prepare('DELETE FROM devices WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
+  static async setPendingFirmware(id: string, version: string): Promise<boolean> {
+    const db = getDb();
+    const count = await db('devices').where('id', id).update({
+      pending_firmware_version: version,
+      updated_at: new Date().toISOString(),
+    });
+    return count > 0;
   }
 
-  static deactivate(id: string): boolean {
-    const stmt = db.prepare('UPDATE devices SET is_active = 0, updated_at = ? WHERE id = ?');
-    const result = stmt.run(new Date().toISOString(), id);
-    return result.changes > 0;
-  }
-
-  static updateFirmwareVersion(id: string, version: string): void {
+  static async setPendingFirmwareBatch(deviceIds: string[], version: string): Promise<number> {
+    const db = getDb();
     const now = new Date().toISOString();
-    const stmt = db.prepare('UPDATE devices SET firmware_version = ?, last_seen_at = ?, updated_at = ? WHERE id = ?');
-    stmt.run(version, now, now, id);
+    const count = await db('devices').whereIn('id', deviceIds).update({
+      pending_firmware_version: version,
+      updated_at: now,
+    });
+    return count;
   }
 
-  static findByPark(parkId: string, includeInactive = false): DeviceWithRoom[] {
-    let query = `
-      SELECT d.*,
-             r.id as room_id, r.name as room_name, r.capacity as room_capacity,
-             r.amenities as room_amenities, r.floor as room_floor, r.address as room_address,
-             r.description as room_description, r.is_active as room_is_active,
-             r.opening_hour as room_opening_hour, r.closing_hour as room_closing_hour,
-             r.locked_to_company_id as room_locked_to_company_id,
-             r.quick_book_durations as room_quick_book_durations, r.park_id as room_park_id,
-             r.created_at as room_created_at, r.updated_at as room_updated_at
-      FROM devices d
-      LEFT JOIN meeting_rooms r ON d.room_id = r.id
-      WHERE r.park_id = ?
-    `;
-
-    if (!includeInactive) {
-      query += ' AND d.is_active = 1';
-    }
-    query += ' ORDER BY d.name';
-
-    const stmt = db.prepare(query);
-    const rows = stmt.all(parkId) as any[];
-
-    return rows.map(row => this.mapRowToDeviceWithRoom(row));
-  }
-
-  static setPendingFirmware(id: string, version: string): boolean {
-    const now = new Date().toISOString();
-    const stmt = db.prepare('UPDATE devices SET pending_firmware_version = ?, updated_at = ? WHERE id = ?');
-    const result = stmt.run(version, now, id);
-    return result.changes > 0;
-  }
-
-  static setPendingFirmwareBatch(deviceIds: string[], version: string): number {
-    const now = new Date().toISOString();
-    let updatedCount = 0;
-    for (const id of deviceIds) {
-      const stmt = db.prepare('UPDATE devices SET pending_firmware_version = ?, updated_at = ? WHERE id = ?');
-      const result = stmt.run(version, now, id);
-      updatedCount += result.changes;
-    }
-    return updatedCount;
-  }
-
-  static clearPendingFirmware(id: string): boolean {
-    const now = new Date().toISOString();
-    const stmt = db.prepare('UPDATE devices SET pending_firmware_version = NULL, updated_at = ? WHERE id = ?');
-    const result = stmt.run(now, id);
-    return result.changes > 0;
+  static async clearPendingFirmware(id: string): Promise<boolean> {
+    const db = getDb();
+    const count = await db('devices').where('id', id).update({
+      pending_firmware_version: null,
+      updated_at: new Date().toISOString(),
+    });
+    return count > 0;
   }
 
   private static mapRowToDevice(row: any): Device {
@@ -245,29 +218,26 @@ export class DeviceModel {
       name: row.name,
       token: row.token,
       roomId: row.room_id,
-      isActive: row.is_active === 1,
+      deviceType: row.device_type || 'esp32-display',
+      isActive: !!row.is_active,
       lastSeenAt: row.last_seen_at,
       firmwareVersion: row.firmware_version,
       pendingFirmwareVersion: row.pending_firmware_version,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 
   private static mapRowToDeviceWithRoom(row: any): DeviceWithRoom {
     const device = this.mapRowToDevice(row);
 
-    // Parse quickBookDurations from JSON string
     let quickBookDurations = [30, 60, 90, 120];
     try {
       if (row.room_quick_book_durations) {
         quickBookDurations = JSON.parse(row.room_quick_book_durations);
       }
-    } catch (e) {
-      // Keep default durations
-    }
+    } catch (e) { /* keep defaults */ }
 
-    // Parse locked company IDs - handle both JSON array and legacy single ID
     let lockedToCompanyIds: string[] = [];
     if (row.room_locked_to_company_id) {
       try {
@@ -278,32 +248,31 @@ export class DeviceModel {
           lockedToCompanyIds = [row.room_locked_to_company_id];
         }
       } catch (e) {
-        // Not JSON, treat as legacy single company ID
         lockedToCompanyIds = [row.room_locked_to_company_id];
       }
     }
 
     const room: MeetingRoom | undefined = row.room_name ? {
-      id: row.room_id,
+      id: row.room_id_join || row.room_id,
       name: row.room_name,
       capacity: row.room_capacity,
       amenities: row.room_amenities,
       floor: row.room_floor,
       address: row.room_address,
       description: row.room_description,
-      isActive: row.room_is_active === 1,
+      isActive: !!row.room_is_active,
       parkId: row.room_park_id,
       openingHour: row.room_opening_hour,
       closingHour: row.room_closing_hour,
-      lockedToCompanyIds: lockedToCompanyIds,
-      quickBookDurations: quickBookDurations,
+      lockedToCompanyIds,
+      quickBookDurations,
       createdAt: row.room_created_at,
-      updatedAt: row.room_updated_at
+      updatedAt: row.room_updated_at,
     } : undefined;
 
     return {
       ...device,
-      room
+      room,
     };
   }
 }

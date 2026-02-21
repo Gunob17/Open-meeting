@@ -4,20 +4,21 @@ import { UserModel } from '../models/user.model';
 import { RoomModel } from '../models/room.model';
 import { ParkModel } from '../models/park.model';
 import { UserRole } from '../types';
-import db from '../models/database';
+import { getDb } from '../models/database';
 
 const router = Router();
 
 // Check if system has been set up
-router.get('/status', (req, res: Response) => {
+router.get('/status', async (req, res: Response) => {
   try {
     // Count only real users (exclude system users like device-booking-user)
-    const stmt = db.prepare("SELECT COUNT(*) as count FROM users WHERE company_id != 'system'");
-    const result = stmt.get() as { count: number };
+    const db = getDb();
+    const result = await db('users').whereNot('company_id', 'system').count('* as count').first();
+    const count = Number(result?.count || 0);
 
     res.json({
-      isSetup: result.count > 0,
-      hasUsers: result.count > 0
+      isSetup: count > 0,
+      hasUsers: count > 0
     });
   } catch (error) {
     console.error('Setup status error:', error);
@@ -29,30 +30,31 @@ router.get('/status', (req, res: Response) => {
 router.post('/demo', async (req, res: Response) => {
   try {
     // Check if already set up (exclude system users)
-    const stmt = db.prepare("SELECT COUNT(*) as count FROM users WHERE company_id != 'system'");
-    const result = stmt.get() as { count: number };
+    const db = getDb();
+    const result = await db('users').whereNot('company_id', 'system').count('* as count').first();
+    const count = Number(result?.count || 0);
 
-    if (result.count > 0) {
+    if (count > 0) {
       res.status(400).json({ error: 'System is already set up' });
       return;
     }
 
     // Update default park name
-    ParkModel.update('default', {
+    await ParkModel.update('default', {
       name: 'Downtown Business Park',
       address: '123 Business Center, New York, NY 10001',
       description: 'Main downtown location with premium meeting facilities'
     });
 
     // Create second park
-    const techPark = ParkModel.create({
+    const techPark = await ParkModel.create({
       name: 'Tech Innovation Hub',
       address: '456 Silicon Valley Blvd, San Jose, CA 95110',
       description: 'Modern tech campus with state-of-the-art facilities'
     });
 
     // Create third park
-    const creativePark = ParkModel.create({
+    const creativePark = await ParkModel.create({
       name: 'Creative Arts Center',
       address: '789 Arts District, Los Angeles, CA 90012',
       description: 'Creative workspace designed for media and design companies'
@@ -64,19 +66,19 @@ router.post('/demo', async (req, res: Response) => {
     const defaultParkId = 'default';
 
     // Create companies for Downtown Park
-    const sharedOffice = CompanyModel.create({
+    const sharedOffice = await CompanyModel.create({
       name: 'Shared Office Management',
       address: '123 Business Center, Suite 100, New York, NY 10001',
       parkId: defaultParkId
     });
 
-    const techCorp = CompanyModel.create({
+    const techCorp = await CompanyModel.create({
       name: 'TechCorp Inc.',
       address: '123 Business Center, Suite 200, New York, NY 10001',
       parkId: defaultParkId
     });
 
-    const startupHub = CompanyModel.create({
+    const startupHub = await CompanyModel.create({
       name: 'StartupHub',
       address: '123 Business Center, Suite 300, New York, NY 10001',
       parkId: defaultParkId
@@ -138,7 +140,7 @@ router.post('/demo', async (req, res: Response) => {
     });
 
     // Create meeting rooms for Downtown Park
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Innovation Lab',
       capacity: 20,
       amenities: ['Projector', 'Whiteboard', 'Video Conferencing', 'Air Conditioning'],
@@ -148,7 +150,7 @@ router.post('/demo', async (req, res: Response) => {
       parkId: defaultParkId
     });
 
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Brainstorm Studio',
       capacity: 8,
       amenities: ['Whiteboard', 'TV Screen', 'Standing Desk'],
@@ -158,7 +160,7 @@ router.post('/demo', async (req, res: Response) => {
       parkId: defaultParkId
     });
 
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Executive Boardroom',
       capacity: 12,
       amenities: ['Video Conferencing', 'Projector', 'Conference Phone', 'Catering Service'],
@@ -168,7 +170,7 @@ router.post('/demo', async (req, res: Response) => {
       parkId: defaultParkId
     });
 
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Focus Pod A',
       capacity: 4,
       amenities: ['TV Screen', 'Whiteboard'],
@@ -183,13 +185,13 @@ router.post('/demo', async (req, res: Response) => {
     // =====================
 
     // Create companies for Tech Park
-    const innovateTech = CompanyModel.create({
+    const innovateTech = await CompanyModel.create({
       name: 'InnovateTech Solutions',
       address: '456 Silicon Valley Blvd, Building A',
       parkId: techPark.id
     });
 
-    const aiStartup = CompanyModel.create({
+    const aiStartup = await CompanyModel.create({
       name: 'AI Dynamics',
       address: '456 Silicon Valley Blvd, Building B',
       parkId: techPark.id
@@ -224,7 +226,7 @@ router.post('/demo', async (req, res: Response) => {
     });
 
     // Create meeting rooms for Tech Park
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Quantum Lab',
       capacity: 15,
       amenities: ['Multiple Screens', 'Video Conferencing', '3D Display', 'Whiteboard'],
@@ -234,7 +236,7 @@ router.post('/demo', async (req, res: Response) => {
       parkId: techPark.id
     });
 
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Agile Room',
       capacity: 10,
       amenities: ['Kanban Board', 'Whiteboard', 'Standing Desks', 'TV Screen'],
@@ -244,7 +246,7 @@ router.post('/demo', async (req, res: Response) => {
       parkId: techPark.id
     });
 
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Neural Network Suite',
       capacity: 25,
       amenities: ['AI Demo Setup', 'Multiple Screens', 'Video Conferencing', 'Recording Equipment'],
@@ -259,13 +261,13 @@ router.post('/demo', async (req, res: Response) => {
     // =====================
 
     // Create companies for Creative Park
-    const designStudio = CompanyModel.create({
+    const designStudio = await CompanyModel.create({
       name: 'Pixel Perfect Design',
       address: '789 Arts District, Studio 100',
       parkId: creativePark.id
     });
 
-    const mediaHouse = CompanyModel.create({
+    const mediaHouse = await CompanyModel.create({
       name: 'Bright Media Productions',
       address: '789 Arts District, Studio 200',
       parkId: creativePark.id
@@ -300,7 +302,7 @@ router.post('/demo', async (req, res: Response) => {
     });
 
     // Create meeting rooms for Creative Park
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Design Studio A',
       capacity: 8,
       amenities: ['Drawing Tablets', 'Large Monitor', 'Whiteboard', 'Color Calibrated Display'],
@@ -310,7 +312,7 @@ router.post('/demo', async (req, res: Response) => {
       parkId: creativePark.id
     });
 
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Screening Room',
       capacity: 20,
       amenities: ['4K Projector', 'Surround Sound', 'Blackout Curtains', 'Comfortable Seating'],
@@ -320,7 +322,7 @@ router.post('/demo', async (req, res: Response) => {
       parkId: creativePark.id
     });
 
-    RoomModel.create({
+    await RoomModel.create({
       name: 'Green Room',
       capacity: 6,
       amenities: ['Makeup Station', 'Full Mirror', 'Comfortable Seating'],
@@ -362,16 +364,17 @@ router.post('/production', async (req, res: Response) => {
       return;
     }
 
-    if (adminPassword.length < 6) {
-      res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (adminPassword.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters' });
       return;
     }
 
     // Check if already set up (exclude system users)
-    const stmt = db.prepare("SELECT COUNT(*) as count FROM users WHERE company_id != 'system'");
-    const result = stmt.get() as { count: number };
+    const db = getDb();
+    const result = await db('users').whereNot('company_id', 'system').count('* as count').first();
+    const count = Number(result?.count || 0);
 
-    if (result.count > 0) {
+    if (count > 0) {
       res.status(400).json({ error: 'System is already set up' });
       return;
     }
@@ -380,7 +383,7 @@ router.post('/production', async (req, res: Response) => {
     const defaultParkId = 'default';
 
     // Create the company
-    const company = CompanyModel.create({
+    const company = await CompanyModel.create({
       name: companyName,
       address: companyAddress,
       parkId: defaultParkId

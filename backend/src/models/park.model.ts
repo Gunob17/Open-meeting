@@ -1,90 +1,106 @@
 import { v4 as uuidv4 } from 'uuid';
-import db from './database';
-import { Park, CreateParkRequest } from '../types';
+import { getDb } from './database';
+import { Park, CreateParkRequest, TwoFaLevelEnforcement } from '../types';
 
 export class ParkModel {
-  static create(data: CreateParkRequest): Park {
+  static async create(data: CreateParkRequest): Promise<Park> {
+    const db = getDb();
     const id = uuidv4();
     const now = new Date().toISOString();
 
-    const stmt = db.prepare(`
-      INSERT INTO parks (id, name, address, description, is_active, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 1, ?, ?)
-    `);
-
-    stmt.run(
+    const insertObj: Record<string, any> = {
       id,
-      data.name,
-      data.address,
-      data.description || '',
-      now,
-      now
-    );
+      name: data.name,
+      address: data.address,
+      description: data.description || '',
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    };
 
-    return this.findById(id)!;
+    if (data.receptionEmail !== undefined) {
+      insertObj.reception_email = data.receptionEmail || null;
+    }
+    if (data.receptionGuestFields !== undefined) {
+      insertObj.reception_guest_fields = JSON.stringify(data.receptionGuestFields);
+    }
+
+    await db('parks').insert(insertObj);
+
+    return (await this.findById(id))!;
   }
 
-  static findById(id: string): Park | null {
-    const stmt = db.prepare('SELECT * FROM parks WHERE id = ?');
-    const row = stmt.get(id) as any;
-    return row ? this.mapRowToPark(row) : null;
+  static async findById(id: string): Promise<Park | null> {
+    const db = getDb();
+    const row = await db('parks').where('id', id).first();
+    if (!row) return null;
+    return this.mapRowToPark(row);
   }
 
-  static findAll(includeInactive = false): Park[] {
-    const query = includeInactive
-      ? 'SELECT * FROM parks ORDER BY name'
-      : 'SELECT * FROM parks WHERE is_active = 1 ORDER BY name';
-    const stmt = db.prepare(query);
-    const rows = stmt.all() as any[];
-    return rows.map(row => this.mapRowToPark(row));
+  static async findAll(includeInactive = false): Promise<Park[]> {
+    const db = getDb();
+    let query = db('parks');
+    if (!includeInactive) {
+      query = query.where('is_active', true);
+    }
+    const rows = await query.orderBy('name');
+    return rows.map((row: any) => this.mapRowToPark(row));
   }
 
-  static update(id: string, data: Partial<CreateParkRequest> & { isActive?: boolean }): Park | null {
-    const existing = this.findById(id);
+  static async update(id: string, data: Partial<CreateParkRequest> & { isActive?: boolean; twofaEnforcement?: TwoFaLevelEnforcement }): Promise<Park | null> {
+    const existing = await this.findById(id);
     if (!existing) return null;
 
+    const db = getDb();
     const now = new Date().toISOString();
 
-    const stmt = db.prepare(`
-      UPDATE parks SET
-        name = ?, address = ?, description = ?, is_active = ?, updated_at = ?
-      WHERE id = ?
-    `);
+    const updateObj: Record<string, any> = {
+      name: data.name ?? existing.name,
+      address: data.address ?? existing.address,
+      description: data.description ?? existing.description,
+      is_active: data.isActive !== undefined ? data.isActive : existing.isActive,
+      twofa_enforcement: data.twofaEnforcement ?? existing.twofaEnforcement,
+      updated_at: now,
+    };
 
-    stmt.run(
-      data.name ?? existing.name,
-      data.address ?? existing.address,
-      data.description ?? existing.description,
-      data.isActive !== undefined ? (data.isActive ? 1 : 0) : (existing.isActive ? 1 : 0),
-      now,
-      id
-    );
+    if (data.receptionEmail !== undefined) {
+      updateObj.reception_email = data.receptionEmail || null;
+    }
+    if (data.receptionGuestFields !== undefined) {
+      updateObj.reception_guest_fields = JSON.stringify(data.receptionGuestFields);
+    }
+
+    await db('parks').where('id', id).update(updateObj);
 
     return this.findById(id);
   }
 
-  static delete(id: string): boolean {
-    // Don't delete the default park
+  static async delete(id: string): Promise<boolean> {
     if (id === 'default') return false;
 
-    const stmt = db.prepare('DELETE FROM parks WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
+    const db = getDb();
+    const count = await db('parks').where('id', id).del();
+    return count > 0;
   }
 
-  static deactivate(id: string): boolean {
-    const stmt = db.prepare('UPDATE parks SET is_active = 0, updated_at = ? WHERE id = ?');
-    const result = stmt.run(new Date().toISOString(), id);
-    return result.changes > 0;
+  static async deactivate(id: string): Promise<boolean> {
+    const db = getDb();
+    const count = await db('parks').where('id', id).update({
+      is_active: false,
+      updated_at: new Date().toISOString(),
+    });
+    return count > 0;
   }
 
-  static updateLogo(id: string, logoUrl: string | null): Park | null {
-    const existing = this.findById(id);
+  static async updateLogo(id: string, logoUrl: string | null): Promise<Park | null> {
+    const existing = await this.findById(id);
     if (!existing) return null;
 
-    const now = new Date().toISOString();
-    const stmt = db.prepare('UPDATE parks SET logo_url = ?, updated_at = ? WHERE id = ?');
-    stmt.run(logoUrl, now, id);
+    const db = getDb();
+    await db('parks').where('id', id).update({
+      logo_url: logoUrl,
+      updated_at: new Date().toISOString(),
+    });
 
     return this.findById(id);
   }
@@ -96,9 +112,12 @@ export class ParkModel {
       address: row.address,
       description: row.description || '',
       logoUrl: row.logo_url || null,
-      isActive: row.is_active === 1,
+      isActive: !!row.is_active,
+      twofaEnforcement: row.twofa_enforcement || 'inherit',
+      receptionEmail: row.reception_email || null,
+      receptionGuestFields: JSON.parse(row.reception_guest_fields || '["name"]'),
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 }

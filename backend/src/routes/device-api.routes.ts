@@ -4,8 +4,9 @@ import { DeviceModel } from '../models/device.model';
 import { BookingModel } from '../models/booking.model';
 import { RoomModel } from '../models/room.model';
 import { FirmwareModel } from '../models/firmware.model';
+import { SettingsModel } from '../models/settings.model';
 import { DeviceWithRoom, DeviceRoomStatus, BookingWithDetails, BookingStatus } from '../types';
-import db from '../models/database';
+import { getDb } from '../models/database';
 import fs from 'fs';
 
 const router = Router();
@@ -16,17 +17,12 @@ interface DeviceRequest extends Request {
 }
 
 // Helper to get global settings
-function getGlobalSettings(): { openingHour: number; closingHour: number } {
-  const stmt = db.prepare('SELECT opening_hour, closing_hour FROM settings WHERE id = ?');
-  const row = stmt.get('global') as { opening_hour: number; closing_hour: number } | undefined;
-  return {
-    openingHour: row?.opening_hour ?? 8,
-    closingHour: row?.closing_hour ?? 18
-  };
+async function getGlobalSettings(): Promise<{ openingHour: number; closingHour: number }> {
+  return SettingsModel.getGlobal();
 }
 
 // Middleware to authenticate device by token
-function authenticateDevice(req: DeviceRequest, res: Response, next: NextFunction): void {
+async function authenticateDevice(req: DeviceRequest, res: Response, next: NextFunction): Promise<void> {
   const token = req.headers['x-device-token'] as string;
 
   if (!token) {
@@ -34,14 +30,14 @@ function authenticateDevice(req: DeviceRequest, res: Response, next: NextFunctio
     return;
   }
 
-  const device = DeviceModel.findByTokenWithRoom(token);
+  const device = await DeviceModel.findByTokenWithRoom(token);
   if (!device) {
     res.status(401).json({ error: 'Invalid or inactive device token' });
     return;
   }
 
   // Update last seen timestamp
-  DeviceModel.updateLastSeen(device.id);
+  await DeviceModel.updateLastSeen(device.id);
 
   req.device = device;
   next();
@@ -57,7 +53,7 @@ function parseBookingTime(timeStr: string): Date {
 }
 
 // Get room status and upcoming bookings
-router.get('/status', authenticateDevice, (req: DeviceRequest, res: Response) => {
+router.get('/status', authenticateDevice, async (req: DeviceRequest, res: Response) => {
   try {
     const device = req.device!;
     const room = device.room;
@@ -78,7 +74,7 @@ router.get('/status', authenticateDevice, (req: DeviceRequest, res: Response) =>
     console.log('Device status check - Server time:', now.toISOString(), 'Local:', now.toString());
 
     // Get all bookings for today and beyond for this room
-    const bookings = BookingModel.findByRoom(
+    const bookings = await BookingModel.findByRoom(
       room.id,
       todayStart.toISOString(),
       new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString() // Next 7 days
@@ -133,7 +129,7 @@ router.get('/status', authenticateDevice, (req: DeviceRequest, res: Response) =>
 });
 
 // Quick book the room (no login required)
-router.post('/quick-book', authenticateDevice, (req: DeviceRequest, res: Response) => {
+router.post('/quick-book', authenticateDevice, async (req: DeviceRequest, res: Response) => {
   try {
     const device = req.device!;
     const room = device.room;
@@ -172,7 +168,7 @@ router.post('/quick-book', authenticateDevice, (req: DeviceRequest, res: Respons
     const endTime = new Date(startTime.getTime() + duration * 60 * 1000);
 
     // Get room/global settings for hour validation
-    const globalSettings = getGlobalSettings();
+    const globalSettings = await getGlobalSettings();
     const openingHour = room.openingHour ?? globalSettings.openingHour;
     const closingHour = room.closingHour ?? globalSettings.closingHour;
 
@@ -188,7 +184,7 @@ router.post('/quick-book', authenticateDevice, (req: DeviceRequest, res: Respons
     }
 
     // Check for conflicts
-    const hasConflict = BookingModel.checkConflict(
+    const hasConflict = await BookingModel.checkConflict(
       room.id,
       startTime.toISOString(),
       endTime.toISOString()
@@ -206,26 +202,22 @@ router.post('/quick-book', authenticateDevice, (req: DeviceRequest, res: Respons
     const bookingId = uuidv4();
     const nowIso = new Date().toISOString();
 
-    const stmt = db.prepare(`
-      INSERT INTO bookings (id, room_id, user_id, title, description, start_time, end_time, attendees, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
-      bookingId,
-      room.id,
-      deviceBookingUserId,
+    const db = getDb();
+    await db('bookings').insert({
+      id: bookingId,
+      room_id: room.id,
+      user_id: deviceBookingUserId,
       title,
-      `Quick booking from ${device.name}`,
-      startTime.toISOString(),
-      endTime.toISOString(),
-      JSON.stringify([]),
-      BookingStatus.CONFIRMED,
-      nowIso,
-      nowIso
-    );
+      description: `Quick booking from ${device.name}`,
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+      attendees: JSON.stringify([]),
+      status: BookingStatus.CONFIRMED,
+      created_at: nowIso,
+      updated_at: nowIso,
+    });
 
-    const booking = BookingModel.findById(bookingId);
+    const booking = await BookingModel.findById(bookingId);
 
     res.status(201).json({
       ...booking,
@@ -239,7 +231,7 @@ router.post('/quick-book', authenticateDevice, (req: DeviceRequest, res: Respons
 });
 
 // Get device info (for display on screen)
-router.get('/info', authenticateDevice, (req: DeviceRequest, res: Response) => {
+router.get('/info', authenticateDevice, async (req: DeviceRequest, res: Response) => {
   try {
     const device = req.device!;
 
@@ -257,12 +249,12 @@ router.get('/info', authenticateDevice, (req: DeviceRequest, res: Response) => {
 });
 
 // Health check endpoint (for device connectivity monitoring)
-router.get('/ping', authenticateDevice, (req: DeviceRequest, res: Response) => {
+router.get('/ping', authenticateDevice, async (req: DeviceRequest, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Report current firmware version
-router.post('/firmware/report', authenticateDevice, (req: DeviceRequest, res: Response) => {
+router.post('/firmware/report', authenticateDevice, async (req: DeviceRequest, res: Response) => {
   try {
     const device = req.device!;
     const { version } = req.body;
@@ -272,11 +264,11 @@ router.post('/firmware/report', authenticateDevice, (req: DeviceRequest, res: Re
       return;
     }
 
-    DeviceModel.updateFirmwareVersion(device.id, version);
+    await DeviceModel.updateFirmwareVersion(device.id, version);
 
     // Clear pending firmware if the reported version matches the pending version
     if (device.pendingFirmwareVersion && device.pendingFirmwareVersion === version) {
-      DeviceModel.clearPendingFirmware(device.id);
+      await DeviceModel.clearPendingFirmware(device.id);
     }
 
     res.json({ success: true });
@@ -287,7 +279,7 @@ router.post('/firmware/report', authenticateDevice, (req: DeviceRequest, res: Re
 });
 
 // Check for firmware updates (only returns pending firmware, not automatic latest)
-router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Response) => {
+router.get('/firmware/check', authenticateDevice, async (req: DeviceRequest, res: Response) => {
   try {
     const device = req.device!;
     const currentVersion = device.firmwareVersion;
@@ -313,7 +305,7 @@ router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Resp
     if (pendingVersion === currentVersion) {
       console.log('  Pending version matches current, clearing pending flag');
       // Already at this version, clear the pending flag
-      DeviceModel.clearPendingFirmware(device.id);
+      await DeviceModel.clearPendingFirmware(device.id);
       res.json({
         updateAvailable: false,
         currentVersion: currentVersion,
@@ -324,13 +316,26 @@ router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Resp
     }
 
     // Get the pending firmware details
-    const firmware = FirmwareModel.findByVersion(pendingVersion);
-    console.log('  Found firmware:', firmware ? `v${firmware.version} (active: ${firmware.isActive})` : 'NOT FOUND');
+    const firmware = await FirmwareModel.findByVersion(pendingVersion);
+    console.log('  Found firmware:', firmware ? `v${firmware.version} (active: ${firmware.isActive}, type: ${firmware.deviceType})` : 'NOT FOUND');
 
     if (!firmware || !firmware.isActive) {
       console.log('  Firmware not found or inactive, clearing pending flag');
       // Pending firmware not found or inactive, clear the pending flag
-      DeviceModel.clearPendingFirmware(device.id);
+      await DeviceModel.clearPendingFirmware(device.id);
+      res.json({
+        updateAvailable: false,
+        currentVersion: currentVersion,
+        latestVersion: null,
+        latestFirmware: null
+      });
+      return;
+    }
+
+    // Verify device type matches firmware type
+    if (firmware.deviceType !== device.deviceType) {
+      console.log('  Device type mismatch! Device:', device.deviceType, 'Firmware:', firmware.deviceType);
+      await DeviceModel.clearPendingFirmware(device.id);
       res.json({
         updateAvailable: false,
         currentVersion: currentVersion,
@@ -348,6 +353,7 @@ router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Resp
       latestFirmware: {
         id: firmware.id,
         version: firmware.version,
+        deviceType: firmware.deviceType,
         size: firmware.size,
         checksum: firmware.checksum,
         releaseNotes: firmware.releaseNotes
@@ -360,14 +366,14 @@ router.get('/firmware/check', authenticateDevice, (req: DeviceRequest, res: Resp
 });
 
 // Download firmware update
-router.get('/firmware/download/:version', authenticateDevice, (req: DeviceRequest, res: Response) => {
+router.get('/firmware/download/:version', authenticateDevice, async (req: DeviceRequest, res: Response) => {
   try {
     const device = req.device!;
     const { version } = req.params;
 
-    console.log('Firmware download request from device:', device.name, '| Requesting version:', version);
+    console.log('Firmware download request from device:', device.name, '| Requesting version:', version, '| Device type:', device.deviceType);
 
-    const firmware = FirmwareModel.findByVersion(version);
+    const firmware = await FirmwareModel.findByVersion(version);
     if (!firmware) {
       console.log('  Firmware version not found:', version);
       res.status(404).json({ error: 'Firmware version not found' });
@@ -376,6 +382,13 @@ router.get('/firmware/download/:version', authenticateDevice, (req: DeviceReques
 
     if (!firmware.isActive) {
       res.status(400).json({ error: 'Firmware version is not active' });
+      return;
+    }
+
+    // Verify device type matches firmware type
+    if (firmware.deviceType !== device.deviceType) {
+      console.log('  Device type mismatch! Device:', device.deviceType, 'Firmware:', firmware.deviceType);
+      res.status(400).json({ error: 'Firmware is not compatible with this device type' });
       return;
     }
 

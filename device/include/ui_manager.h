@@ -61,14 +61,13 @@ public:
     // Get current state
     UIState getState() const { return _currentState; }
 
+    // Timezone management
+    void setTimezone(const String& timezone) { _timezone = timezone; }
+
     // Input handling for token setup
     void handleTokenInput(char c);
     String getTokenInput() const { return _tokenInput; }
     void clearTokenInput() { _tokenInput = ""; }
-
-    // Timezone
-    void setTimezoneOffset(int hours) { _timezoneOffset = hours; }
-    int getTimezoneOffset() const { return _timezoneOffset; }
 
 private:
     TFT_eSPI& _tft;
@@ -78,7 +77,7 @@ private:
     int _buttonCount;
     String _tokenInput;
     String _apiUrlInput;
-    int _timezoneOffset = 0;  // Timezone offset in hours
+    String _timezone;  // POSIX timezone string (e.g., "CET-1CEST,M3.5.0,M10.5.0/3")
     int _quickBookDurations[4] = {30, 60, 90, 120};  // Current quick book durations
     int _quickBookDurationCount = 4;
 

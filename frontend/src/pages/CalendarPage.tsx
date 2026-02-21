@@ -23,6 +23,10 @@ export function CalendarPage() {
   const [moveTargetRoom, setMoveTargetRoom] = useState('');
   const [adminActionReason, setAdminActionReason] = useState('');
 
+  // Mobile responsiveness
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [selectedMobileRoomId, setSelectedMobileRoomId] = useState<string>('');
+
   // Show 7 days starting from startDate
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate]);
   const endDate = useMemo(() => addDays(startDate, 7), [startDate]);
@@ -64,6 +68,25 @@ export function CalendarPage() {
     if (!room.lockedToCompanyIds || room.lockedToCompanyIds.length === 0) return true;
     return room.lockedToCompanyIds.includes(user?.companyId || '');
   }, [user]);
+
+  // Set initial mobile room when rooms load
+  useEffect(() => {
+    if (rooms.length > 0 && !selectedMobileRoomId) {
+      setSelectedMobileRoomId(rooms[0].id);
+    }
+  }, [rooms, selectedMobileRoomId]);
+
+  // Listen for resize to toggle mobile mode
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Rooms to render in the grid: single room on mobile, all rooms on desktop
+  const displayRooms = isMobile
+    ? rooms.filter(r => r.id === selectedMobileRoomId)
+    : rooms;
 
   useEffect(() => {
     loadData();
@@ -264,16 +287,32 @@ export function CalendarPage() {
         <h1>Meeting Room Calendar</h1>
         <div className="calendar-nav">
           <button onClick={() => setStartDate(subDays(startDate, 7))} className="btn btn-secondary">
-            Previous 7 Days
+            {isMobile ? '\u25C0 7d' : 'Previous 7 Days'}
           </button>
           <button onClick={() => setStartDate(new Date())} className="btn btn-secondary">
             Today
           </button>
           <button onClick={() => setStartDate(addDays(startDate, 7))} className="btn btn-secondary">
-            Next 7 Days
+            {isMobile ? '7d \u25B6' : 'Next 7 Days'}
           </button>
         </div>
         <h2>{format(startDate, 'MMM d')} - {format(addDays(startDate, 6), 'MMM d, yyyy')}</h2>
+        {isMobile && rooms.length > 0 && (
+          <div className="mobile-room-selector">
+            <label htmlFor="mobile-room-select">Room:</label>
+            <select
+              id="mobile-room-select"
+              value={selectedMobileRoomId}
+              onChange={(e) => setSelectedMobileRoomId(e.target.value)}
+            >
+              {rooms.map(room => (
+                <option key={room.id} value={room.id}>
+                  {room.name} ({room.capacity} people)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="calendar-legend">
           <div className="legend-item">
             <span className="legend-color available"></span>
@@ -308,7 +347,7 @@ export function CalendarPage() {
           <div className="calendar-corner">
             <div className="room-header">Time / Room</div>
           </div>
-          {rooms.map(room => (
+          {displayRooms.map(room => (
             <div key={room.id} className="room-column-header">
               <div className="room-name">{room.name}</div>
               <div className="room-capacity">{room.capacity} people</div>
@@ -319,7 +358,7 @@ export function CalendarPage() {
           {days.map(day => (
             <React.Fragment key={day.toISOString()}>
               {/* Day header spanning all room columns */}
-              <div className="day-header" style={{ gridColumn: `1 / span ${rooms.length + 1}` }}>
+              <div className="day-header" style={{ gridColumn: `1 / span ${displayRooms.length + 1}` }}>
                 {format(day, 'EEEE, MMM d')}
                 {isSameDay(day, new Date()) && <span className="today-badge">Today</span>}
               </div>
@@ -330,7 +369,7 @@ export function CalendarPage() {
                   <div className="time-slot-label">
                     {format(new Date().setHours(hour, 0), 'h:mm a')}
                   </div>
-                  {rooms.map(room => {
+                  {displayRooms.map(room => {
                     const booking = getBookingForSlot(room.id, day, hour);
                     const hasBooking = booking !== null;
                     const fullyBooked = hasBooking && isSlotFullyBooked(room.id, day, hour);
@@ -501,14 +540,12 @@ export function CalendarPage() {
               <p><strong>Current Room:</strong> {selectedBooking.room?.name}</p>
               <p><strong>Time:</strong> {format(parseISO(selectedBooking.startTime), 'MMM d, yyyy h:mm a')} - {format(parseISO(selectedBooking.endTime), 'h:mm a')}</p>
 
-              <div className="form-group" style={{ marginTop: '1rem' }}>
+              <div className="form-group mt-4">
                 <label htmlFor="targetRoom"><strong>Move to Room:</strong></label>
                 <select
                   id="targetRoom"
                   value={moveTargetRoom}
                   onChange={(e) => setMoveTargetRoom(e.target.value)}
-                  className="form-control"
-                  style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
                 >
                   <option value="">Select a room...</option>
                   {rooms
@@ -522,7 +559,7 @@ export function CalendarPage() {
                 </select>
               </div>
 
-              <div className="form-group" style={{ marginTop: '1rem' }}>
+              <div className="form-group mt-4">
                 <label htmlFor="reason"><strong>Reason (optional):</strong></label>
                 <input
                   type="text"
@@ -530,12 +567,10 @@ export function CalendarPage() {
                   value={adminActionReason}
                   onChange={(e) => setAdminActionReason(e.target.value)}
                   placeholder="e.g., Room maintenance, double booking fix..."
-                  className="form-control"
-                  style={{ width: '100%', padding: '0.5rem', marginTop: '0.5rem' }}
                 />
               </div>
 
-              <p style={{ marginTop: '1rem', color: '#6b7280', fontSize: '0.875rem' }}>
+              <p className="mt-4" style={{ color: '#6b7280', fontSize: '0.875rem' }}>
                 The meeting organizer will be notified via email about this change.
               </p>
             </div>

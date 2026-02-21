@@ -2,7 +2,7 @@
 # Builds both frontend and backend, serves via nginx with backend as upstream
 
 # Stage 1: Build backend
-FROM node:18-alpine AS backend-builder
+FROM node:20-alpine AS backend-builder
 
 WORKDIR /app/backend
 
@@ -13,7 +13,7 @@ COPY backend/ .
 RUN npm run build
 
 # Stage 2: Build frontend
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -25,7 +25,7 @@ ENV REACT_APP_API_URL=/api
 RUN npm run build
 
 # Stage 3: Production image
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 # Install nginx and supervisor
 RUN apk add --no-cache nginx supervisor

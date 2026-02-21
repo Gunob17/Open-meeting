@@ -70,8 +70,6 @@ public:
 
     String getApiUrl() const { return _apiUrl; }
     String getDeviceToken() const { return _deviceToken; }
-    int getTimezoneOffset() const { return _timezoneOffset; }
-    void setTimezoneOffset(int offset) { _timezoneOffset = offset; }
     bool isConfigured() const { return _apiUrl.length() > 0 && _deviceToken.length() > 0; }
 
     // API methods
@@ -87,7 +85,6 @@ public:
 private:
     String _apiUrl;
     String _deviceToken;
-    int _timezoneOffset = 0;  // Timezone offset in hours from UTC
 
     String makeRequest(const String& endpoint, const String& method = "GET", const String& body = "");
     Booking parseBooking(JsonObject& obj);

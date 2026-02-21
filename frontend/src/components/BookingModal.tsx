@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
 import { api } from '../services/api';
-import { MeetingRoom, Booking } from '../types';
+import { MeetingRoom, Booking, Park, ExternalGuest } from '../types';
 
 interface BookingModalProps {
   room: MeetingRoom;
@@ -34,6 +34,40 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [park, setPark] = useState<Park | null>(null);
+  const [externalGuests, setExternalGuests] = useState<ExternalGuest[]>(
+    existingBooking?.externalGuests || []
+  );
+
+  useEffect(() => {
+    const loadPark = async () => {
+      try {
+        const parkData = await api.getPark(room.parkId);
+        setPark(parkData);
+      } catch (err) {
+        console.error('Failed to load park:', err);
+      }
+    };
+    loadPark();
+  }, [room.parkId]);
+
+  const hasReception = !!park?.receptionEmail;
+  const guestFields = park?.receptionGuestFields || ['name'];
+
+  const addExternalGuest = () => {
+    setExternalGuests([...externalGuests, { name: '', email: '', company: '' }]);
+  };
+
+  const removeExternalGuest = (index: number) => {
+    setExternalGuests(externalGuests.filter((_, i) => i !== index));
+  };
+
+  const updateExternalGuest = (index: number, field: keyof ExternalGuest, value: string) => {
+    const updated = [...externalGuests];
+    updated[index] = { ...updated[index], [field]: value };
+    setExternalGuests(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -50,13 +84,19 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
       const startTimeUTC = new Date(startTime).toISOString();
       const endTimeUTC = new Date(endTime).toISOString();
 
+      // Filter out guests without a name
+      const validGuests = hasReception
+        ? externalGuests.filter(g => g.name.trim().length > 0)
+        : [];
+
       if (isEditing) {
         await api.updateBooking(existingBooking.id, {
           title,
           description,
           startTime: startTimeUTC,
           endTime: endTimeUTC,
-          attendees: attendeeList
+          attendees: attendeeList,
+          externalGuests: validGuests
         });
       } else {
         await api.createBooking({
@@ -65,7 +105,8 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
           description,
           startTime: startTimeUTC,
           endTime: endTimeUTC,
-          attendees: attendeeList
+          attendees: attendeeList,
+          externalGuests: validGuests
         });
       }
 
@@ -155,6 +196,60 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
               />
               <small>Attendees will receive an email with a calendar invite</small>
             </div>
+
+            {hasReception && (
+              <div className="form-group">
+                <label>External Guests</label>
+                <small style={{ display: 'block', marginBottom: '8px' }}>
+                  Add visitors from outside the park. The reception will be notified to prepare guest passes.
+                </small>
+
+                {externalGuests.map((guest, index) => (
+                  <div key={index} className="external-guest-row">
+                    <input
+                      type="text"
+                      placeholder="Name *"
+                      value={guest.name}
+                      onChange={(e) => updateExternalGuest(index, 'name', e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    {guestFields.includes('email') && (
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        value={guest.email || ''}
+                        onChange={(e) => updateExternalGuest(index, 'email', e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                    )}
+                    {guestFields.includes('company') && (
+                      <input
+                        type="text"
+                        placeholder="Company / Organization"
+                        value={guest.company || ''}
+                        onChange={(e) => updateExternalGuest(index, 'company', e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-small btn-danger"
+                      onClick={() => removeExternalGuest(index)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  className="btn btn-small btn-secondary"
+                  onClick={addExternalGuest}
+                >
+                  + Add External Guest
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="modal-footer">

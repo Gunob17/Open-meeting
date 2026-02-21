@@ -6,6 +6,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    pull_policy: always
+
     ports:
       - "3001:3001"
     volumes:
@@ -19,6 +21,16 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-"Open Meeting <noreply@openmeeting.com>"}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://localhost:3000}
+      # Database configuration (default: SQLite)
+      # Supported: sqlite, postgres, mysql, mariadb, mssql
+      - DB_TYPE=${DB_TYPE:-sqlite}
+      - DB_HOST=${DB_HOST:-localhost}
+      - DB_PORT=${DB_PORT:-}
+      - DB_NAME=${DB_NAME:-meeting_booking}
+      - DB_USER=${DB_USER:-}
+      - DB_PASSWORD=${DB_PASSWORD:-}
+      - APP_URL=${APP_URL:-http://localhost}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
@@ -31,6 +43,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+
+    pull_policy: always
     ports:
       - "80:80"
     depends_on:
@@ -43,6 +57,19 @@ services:
       timeout: 10s
       retries: 3
       start_period: 5s
+
+  # Keycloak for SSO testing (optional — start with: docker compose -f docker-compose.dev.yml up keycloak)
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    command: start-dev
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+    ports:
+      - "8080:8080"
+    profiles:
+      - sso-test
+    restart: unless-stopped
 
 volumes:
   backend-data:

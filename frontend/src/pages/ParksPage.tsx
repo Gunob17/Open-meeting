@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
-import { Park } from '../types';
+import { Park, Settings, TwoFaLevelEnforcement } from '../types';
 
 export function ParksPage() {
   const [parks, setParks] = useState<Park[]>([]);
@@ -10,16 +10,30 @@ export function ParksPage() {
   const [formData, setFormData] = useState({
     name: '',
     address: '',
-    description: ''
+    description: '',
+    receptionEmail: '',
+    receptionGuestFields: ['name'] as string[]
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploadingLogoFor, setUploadingLogoFor] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [parkTwofaEnforcement, setParkTwofaEnforcement] = useState<TwoFaLevelEnforcement>('inherit');
 
   useEffect(() => {
     loadParks();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await api.getSettings();
+      setSettings(data);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  };
 
   const loadParks = async () => {
     setLoading(true);
@@ -39,15 +53,21 @@ export function ParksPage() {
       setFormData({
         name: park.name,
         address: park.address,
-        description: park.description || ''
+        description: park.description || '',
+        receptionEmail: park.receptionEmail || '',
+        receptionGuestFields: park.receptionGuestFields || ['name']
       });
+      setParkTwofaEnforcement(park.twofaEnforcement || 'inherit');
     } else {
       setEditingPark(null);
       setFormData({
         name: '',
         address: '',
-        description: ''
+        description: '',
+        receptionEmail: '',
+        receptionGuestFields: ['name']
       });
+      setParkTwofaEnforcement('inherit');
     }
     setError('');
     setShowModal(true);
@@ -60,7 +80,14 @@ export function ParksPage() {
 
     try {
       if (editingPark) {
-        await api.updatePark(editingPark.id, formData);
+        await api.updatePark(editingPark.id, {
+          name: formData.name,
+          address: formData.address,
+          description: formData.description,
+          twofaEnforcement: parkTwofaEnforcement,
+          receptionEmail: formData.receptionEmail || null,
+          receptionGuestFields: formData.receptionGuestFields
+        });
       } else {
         await api.createPark(formData);
       }
@@ -286,6 +313,75 @@ export function ParksPage() {
                     rows={3}
                   />
                 </div>
+
+                {editingPark && (
+                  <div className="form-group">
+                    <label htmlFor="receptionEmail">Reception Email</label>
+                    <input
+                      type="email"
+                      id="receptionEmail"
+                      value={formData.receptionEmail}
+                      onChange={e => setFormData({ ...formData, receptionEmail: e.target.value })}
+                      placeholder="reception@example.com (optional)"
+                    />
+                    <small>When set, users can add external guests to bookings. The reception will be notified to prepare guest passes.</small>
+
+                    {formData.receptionEmail && (
+                      <div className="mt-4">
+                        <label>Guest Information Fields</label>
+                        <small>Choose which information to collect from external guests.</small>
+                        <div className="checkbox-row">
+                          <label>
+                            <input type="checkbox" checked disabled />
+                            Name (always required)
+                          </label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={formData.receptionGuestFields.includes('email')}
+                              onChange={e => {
+                                const fields = e.target.checked
+                                  ? [...formData.receptionGuestFields, 'email']
+                                  : formData.receptionGuestFields.filter(f => f !== 'email');
+                                setFormData({ ...formData, receptionGuestFields: fields });
+                              }}
+                            />
+                            Email
+                          </label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={formData.receptionGuestFields.includes('company')}
+                              onChange={e => {
+                                const fields = e.target.checked
+                                  ? [...formData.receptionGuestFields, 'company']
+                                  : formData.receptionGuestFields.filter(f => f !== 'company');
+                                setFormData({ ...formData, receptionGuestFields: fields });
+                              }}
+                            />
+                            Company / Organization
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {editingPark && settings?.twofaEnforcement === 'optional' && (
+                  <div className="form-group">
+                    <label htmlFor="parkTwofaEnforcement">Two-Factor Authentication</label>
+                    <select
+                      id="parkTwofaEnforcement"
+                      value={parkTwofaEnforcement}
+                      onChange={e => setParkTwofaEnforcement(e.target.value as TwoFaLevelEnforcement)}
+                    >
+                      <option value="inherit">Inherit from System (Optional)</option>
+                      <option value="optional">Optional - Users can enable 2FA</option>
+                      <option value="required">Required - All users in this park must use 2FA</option>
+                    </select>
+                    <small>Override system 2FA enforcement for this park</small>
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer">

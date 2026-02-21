@@ -1,106 +1,83 @@
 import { v4 as uuidv4 } from 'uuid';
-import db from './database';
+import { getDb } from './database';
 import { MeetingRoom, CreateRoomRequest } from '../types';
 
 export class RoomModel {
-  static create(data: CreateRoomRequest): MeetingRoom {
+  static async create(data: CreateRoomRequest): Promise<MeetingRoom> {
+    const db = getDb();
     const id = uuidv4();
     const now = new Date().toISOString();
     const defaultDurations = [30, 60, 90, 120];
 
-    // Store locked company IDs as JSON array
     const lockedCompanyIds = data.lockedToCompanyIds && data.lockedToCompanyIds.length > 0
       ? JSON.stringify(data.lockedToCompanyIds)
       : null;
 
-    const stmt = db.prepare(`
-      INSERT INTO meeting_rooms (id, name, capacity, amenities, floor, address, description, is_active, park_id, opening_hour, closing_hour, locked_to_company_id, quick_book_durations, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    stmt.run(
+    await db('meeting_rooms').insert({
       id,
-      data.name,
-      data.capacity,
-      JSON.stringify(data.amenities),
-      data.floor,
-      data.address,
-      data.description || '',
-      1,
-      data.parkId,
-      data.openingHour ?? null,
-      data.closingHour ?? null,
-      lockedCompanyIds,
-      JSON.stringify(data.quickBookDurations ?? defaultDurations),
-      now,
-      now
-    );
+      name: data.name,
+      capacity: data.capacity,
+      amenities: JSON.stringify(data.amenities),
+      floor: data.floor,
+      address: data.address,
+      description: data.description || '',
+      is_active: true,
+      park_id: data.parkId,
+      opening_hour: data.openingHour ?? null,
+      closing_hour: data.closingHour ?? null,
+      locked_to_company_id: lockedCompanyIds,
+      quick_book_durations: JSON.stringify(data.quickBookDurations ?? defaultDurations),
+      created_at: now,
+      updated_at: now,
+    });
 
-    return this.findById(id)!;
+    return (await this.findById(id))!;
   }
 
-  static findById(id: string): MeetingRoom | null {
-    const stmt = db.prepare('SELECT * FROM meeting_rooms WHERE id = ?');
-    const row = stmt.get(id) as any;
-
+  static async findById(id: string): Promise<MeetingRoom | null> {
+    const db = getDb();
+    const row = await db('meeting_rooms').where('id', id).first();
     if (!row) return null;
-
     return this.mapRowToRoom(row);
   }
 
-  static findAll(includeInactive = false, parkId?: string | null): MeetingRoom[] {
-    let query = 'SELECT * FROM meeting_rooms WHERE 1=1';
-    const params: any[] = [];
+  static async findAll(includeInactive = false, parkId?: string | null): Promise<MeetingRoom[]> {
+    const db = getDb();
+    let query = db('meeting_rooms');
 
     if (!includeInactive) {
-      query += ' AND is_active = 1';
+      query = query.where('is_active', true);
     }
 
     if (parkId) {
-      query += ' AND park_id = ?';
-      params.push(parkId);
+      query = query.andWhere('park_id', parkId);
     }
 
-    query += ' ORDER BY name';
-
-    const stmt = db.prepare(query);
-    const rows = stmt.all(...params) as any[];
-
+    const rows = await query.orderBy('name');
     return rows.map(this.mapRowToRoom);
   }
 
-  static findByPark(parkId: string, includeInactive = false): MeetingRoom[] {
-    let query = 'SELECT * FROM meeting_rooms WHERE park_id = ?';
+  static async findByPark(parkId: string, includeInactive = false): Promise<MeetingRoom[]> {
+    const db = getDb();
+    let query = db('meeting_rooms').where('park_id', parkId);
     if (!includeInactive) {
-      query += ' AND is_active = 1';
+      query = query.andWhere('is_active', true);
     }
-    query += ' ORDER BY name';
-
-    const stmt = db.prepare(query);
-    const rows = stmt.all(parkId) as any[];
-
+    const rows = await query.orderBy('name');
     return rows.map(this.mapRowToRoom);
   }
 
-  static update(id: string, data: Partial<CreateRoomRequest & { isActive?: boolean }>): MeetingRoom | null {
-    const existing = this.findById(id);
+  static async update(id: string, data: Partial<CreateRoomRequest & { isActive?: boolean }>): Promise<MeetingRoom | null> {
+    const existing = await this.findById(id);
     if (!existing) return null;
 
+    const db = getDb();
     const now = new Date().toISOString();
-    const stmt = db.prepare(`
-      UPDATE meeting_rooms
-      SET name = ?, capacity = ?, amenities = ?, floor = ?, address = ?, description = ?, is_active = ?,
-          opening_hour = ?, closing_hour = ?, locked_to_company_id = ?, quick_book_durations = ?, updated_at = ?
-      WHERE id = ?
-    `);
 
     const amenities = data.amenities ? JSON.stringify(data.amenities) : existing.amenities;
-
-    // Handle undefined vs null for optional fields
     const openingHour = data.openingHour !== undefined ? data.openingHour : existing.openingHour;
     const closingHour = data.closingHour !== undefined ? data.closingHour : existing.closingHour;
 
-    // Handle locked company IDs - store as JSON array or null if empty
     let lockedCompanyIds: string | null;
     if (data.lockedToCompanyIds !== undefined) {
       lockedCompanyIds = data.lockedToCompanyIds && data.lockedToCompanyIds.length > 0
@@ -112,37 +89,41 @@ export class RoomModel {
         : null;
     }
 
-    const quickBookDurations = data.quickBookDurations !== undefined ? JSON.stringify(data.quickBookDurations) : JSON.stringify(existing.quickBookDurations);
+    const quickBookDurations = data.quickBookDurations !== undefined
+      ? JSON.stringify(data.quickBookDurations)
+      : JSON.stringify(existing.quickBookDurations);
 
-    stmt.run(
-      data.name ?? existing.name,
-      data.capacity ?? existing.capacity,
+    await db('meeting_rooms').where('id', id).update({
+      name: data.name ?? existing.name,
+      capacity: data.capacity ?? existing.capacity,
       amenities,
-      data.floor ?? existing.floor,
-      data.address ?? existing.address,
-      data.description ?? existing.description,
-      data.isActive !== undefined ? (data.isActive ? 1 : 0) : (existing.isActive ? 1 : 0),
-      openingHour,
-      closingHour,
-      lockedCompanyIds,
-      quickBookDurations,
-      now,
-      id
-    );
+      floor: data.floor ?? existing.floor,
+      address: data.address ?? existing.address,
+      description: data.description ?? existing.description,
+      is_active: data.isActive !== undefined ? data.isActive : existing.isActive,
+      opening_hour: openingHour,
+      closing_hour: closingHour,
+      locked_to_company_id: lockedCompanyIds,
+      quick_book_durations: quickBookDurations,
+      updated_at: now,
+    });
 
     return this.findById(id);
   }
 
-  static delete(id: string): boolean {
-    const stmt = db.prepare('DELETE FROM meeting_rooms WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
+  static async delete(id: string): Promise<boolean> {
+    const db = getDb();
+    const count = await db('meeting_rooms').where('id', id).del();
+    return count > 0;
   }
 
-  static deactivate(id: string): boolean {
-    const stmt = db.prepare('UPDATE meeting_rooms SET is_active = 0, updated_at = ? WHERE id = ?');
-    const result = stmt.run(new Date().toISOString(), id);
-    return result.changes > 0;
+  static async deactivate(id: string): Promise<boolean> {
+    const db = getDb();
+    const count = await db('meeting_rooms').where('id', id).update({
+      is_active: false,
+      updated_at: new Date().toISOString(),
+    });
+    return count > 0;
   }
 
   private static mapRowToRoom(row: any): MeetingRoom {
@@ -154,20 +135,16 @@ export class RoomModel {
       quickBookDurations = defaultDurations;
     }
 
-    // Parse locked company IDs - handle both JSON array and legacy single ID
     let lockedToCompanyIds: string[] = [];
     if (row.locked_to_company_id) {
       try {
-        // Try to parse as JSON array first
         const parsed = JSON.parse(row.locked_to_company_id);
         if (Array.isArray(parsed)) {
           lockedToCompanyIds = parsed;
         } else {
-          // If parsed but not array, treat as single ID
           lockedToCompanyIds = [row.locked_to_company_id];
         }
       } catch (e) {
-        // Not JSON, treat as legacy single company ID
         lockedToCompanyIds = [row.locked_to_company_id];
       }
     }
@@ -180,14 +157,14 @@ export class RoomModel {
       floor: row.floor,
       address: row.address,
       description: row.description,
-      isActive: row.is_active === 1,
+      isActive: !!row.is_active,
       parkId: row.park_id,
       openingHour: row.opening_hour,
       closingHour: row.closing_hour,
-      lockedToCompanyIds: lockedToCompanyIds,
-      quickBookDurations: quickBookDurations,
+      lockedToCompanyIds,
+      quickBookDurations,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     };
   }
 }

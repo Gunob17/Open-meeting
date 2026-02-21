@@ -14,16 +14,22 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ParksPage } from './pages/ParksPage';
 import { DevicesPage } from './pages/DevicesPage';
 import { StatisticsPage } from './pages/StatisticsPage';
+import { TwoFaSettingsPage } from './pages/TwoFaSettingsPage';
+import { ReceptionistPage } from './pages/ReceptionistPage';
+import { LdapConfigPage } from './pages/LdapConfigPage';
+import { SsoCallbackPage } from './pages/SsoCallbackPage';
+import { SsoConfigPage } from './pages/SsoConfigPage';
 import { api } from './services/api';
 import './styles.css';
 
-function PrivateRoute({ children, adminOnly = false, companyAdminOnly = false, superAdminOnly = false }: {
+function PrivateRoute({ children, adminOnly = false, companyAdminOnly = false, superAdminOnly = false, receptionistOnly = false }: {
   children: React.ReactNode;
   adminOnly?: boolean;
   companyAdminOnly?: boolean;
   superAdminOnly?: boolean;
+  receptionistOnly?: boolean;
 }) {
-  const { user, loading, isAdmin, isCompanyAdmin, isSuperAdmin } = useAuth();
+  const { user, loading, isAdmin, isCompanyAdmin, isSuperAdmin, isReceptionist } = useAuth();
 
   if (loading) {
     return <div className="loading">Loading...</div>;
@@ -42,6 +48,10 @@ function PrivateRoute({ children, adminOnly = false, companyAdminOnly = false, s
   }
 
   if (superAdminOnly && !isSuperAdmin) {
+    return <Navigate to="/" />;
+  }
+
+  if (receptionistOnly && !isReceptionist) {
     return <Navigate to="/" />;
   }
 
@@ -82,6 +92,14 @@ function AppRoutes() {
         element={
           <PrivateRoute>
             <MyBookingsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/account/security"
+        element={
+          <PrivateRoute>
+            <TwoFaSettingsPage />
           </PrivateRoute>
         }
       />
@@ -140,6 +158,34 @@ function AppRoutes() {
             <StatisticsPage />
           </PrivateRoute>
         }
+      />
+      <Route
+        path="/admin/ldap/:companyId"
+        element={
+          <PrivateRoute companyAdminOnly>
+            <LdapConfigPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/sso/:companyId"
+        element={
+          <PrivateRoute companyAdminOnly>
+            <SsoConfigPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/reception"
+        element={
+          <PrivateRoute receptionistOnly>
+            <ReceptionistPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/sso/callback"
+        element={<SsoCallbackPage />}
       />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

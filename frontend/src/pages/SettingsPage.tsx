@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { Settings, MeetingRoom, Company } from '../types';
+import { Settings, MeetingRoom, Company, TwoFaEnforcement, TwoFaMode } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 export function SettingsPage() {
+  const { isSuperAdmin } = useAuth();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -14,6 +16,12 @@ export function SettingsPage() {
   // Global settings form
   const [openingHour, setOpeningHour] = useState(8);
   const [closingHour, setClosingHour] = useState(18);
+
+  // 2FA settings (super admin only)
+  const [twofaEnforcement, setTwofaEnforcement] = useState<TwoFaEnforcement>('disabled');
+  const [twofaMode, setTwofaMode] = useState<TwoFaMode>('trusted_device');
+  const [twofaTrustedDeviceDays, setTwofaTrustedDeviceDays] = useState(30);
+  const [saving2fa, setSaving2fa] = useState(false);
 
   // Room edit modal state
   const [editingRoom, setEditingRoom] = useState<MeetingRoom | null>(null);
@@ -36,6 +44,9 @@ export function SettingsPage() {
       setSettings(settingsData);
       setOpeningHour(settingsData.openingHour);
       setClosingHour(settingsData.closingHour);
+      setTwofaEnforcement((settingsData.twofaEnforcement as TwoFaEnforcement) || 'disabled');
+      setTwofaMode((settingsData.twofaMode as TwoFaMode) || 'trusted_device');
+      setTwofaTrustedDeviceDays(settingsData.twofaTrustedDeviceDays ?? 30);
       setRooms(roomsData);
       setCompanies(companiesData);
     } catch (err) {
@@ -66,6 +77,27 @@ export function SettingsPage() {
       setError(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSave2faSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setSaving2fa(true);
+
+    try {
+      const updated = await api.updateTwoFaSettings({
+        twofaEnforcement,
+        twofaMode,
+        twofaTrustedDeviceDays
+      });
+      setSettings(updated);
+      setSuccess('Two-factor authentication settings saved successfully');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save 2FA settings');
+    } finally {
+      setSaving2fa(false);
     }
   };
 
@@ -175,6 +207,67 @@ export function SettingsPage() {
           </button>
         </form>
       </section>
+
+      {/* Two-Factor Authentication Settings (Super Admin only) */}
+      {isSuperAdmin && (
+        <section className="settings-section">
+          <h2>Two-Factor Authentication</h2>
+          <p className="section-description">
+            Configure system-wide two-factor authentication enforcement.
+            Park and company admins can further restrict their own scope when set to Optional.
+          </p>
+
+          <form onSubmit={handleSave2faSettings} className="settings-form">
+            <div className="form-group">
+              <label htmlFor="twofaEnforcement">System Enforcement</label>
+              <select
+                id="twofaEnforcement"
+                value={twofaEnforcement}
+                onChange={e => setTwofaEnforcement(e.target.value as TwoFaEnforcement)}
+              >
+                <option value="disabled">Disabled - 2FA is not available</option>
+                <option value="optional">Optional - Users can enable 2FA voluntarily</option>
+                <option value="required">Required - All users must set up 2FA</option>
+              </select>
+            </div>
+
+            {twofaEnforcement !== 'disabled' && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="twofaMode">Verification Mode</label>
+                  <select
+                    id="twofaMode"
+                    value={twofaMode}
+                    onChange={e => setTwofaMode(e.target.value as TwoFaMode)}
+                  >
+                    <option value="every_login">Every Login - Always require 2FA code</option>
+                    <option value="trusted_device">Trusted Device - Remember verified devices</option>
+                  </select>
+                </div>
+
+                {twofaMode === 'trusted_device' && (
+                  <div className="form-group">
+                    <label htmlFor="twofaTrustedDeviceDays">Trusted Device Duration (days)</label>
+                    <input
+                      type="number"
+                      id="twofaTrustedDeviceDays"
+                      value={twofaTrustedDeviceDays}
+                      onChange={e => setTwofaTrustedDeviceDays(Math.max(1, parseInt(e.target.value) || 1))}
+                      min={1}
+                      max={365}
+                    />
+                    <small>How long a device stays trusted before requiring 2FA again</small>
+                  </div>
+                )}
+              </>
+            )}
+
+            <button type="submit" className="btn btn-primary" disabled={saving2fa}>
+              {saving2fa ? 'Saving...' : 'Save 2FA Settings'}
+            </button>
+          </form>
+        </section>
+      )}
 
       {/* Room-Specific Settings */}
       <section className="settings-section">

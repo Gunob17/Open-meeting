@@ -6,7 +6,7 @@ import { UserRole } from '../types';
 const router = Router();
 
 // Get all companies (filtered by park for non-super admins)
-router.get('/', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const queryParkId = req.query.parkId as string | undefined;
 
@@ -17,7 +17,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
     } else {
       parkId = req.user?.parkId;
     }
-    const companies = CompanyModel.findAll(parkId);
+    const companies = await CompanyModel.findAll(parkId);
     res.json(companies);
   } catch (error) {
     console.error('Get companies error:', error);
@@ -26,10 +26,10 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Get single company
-router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const company = CompanyModel.findById(id);
+    const company = await CompanyModel.findById(id);
 
     if (!company) {
       res.status(404).json({ error: 'Company not found' });
@@ -44,7 +44,7 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Create company (park admin or above)
-router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { name, address, parkId } = req.body;
 
@@ -67,7 +67,7 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
       }
     }
 
-    const company = CompanyModel.create({ name, address, parkId: targetParkId });
+    const company = await CompanyModel.create({ name, address, parkId: targetParkId });
     res.status(201).json(company);
   } catch (error) {
     console.error('Create company error:', error);
@@ -76,18 +76,22 @@ router.post('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =
 });
 
 // Update company (park admin or above)
-router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, address, parkId } = req.body;
+    const { name, address, parkId, twofaEnforcement } = req.body;
 
     // Only super admins can change parkId
     const updateData: any = { name, address };
     if (req.user?.role === UserRole.SUPER_ADMIN && parkId !== undefined) {
       updateData.parkId = parkId;
     }
+    // Park admins and above can set 2FA enforcement for a company
+    if (twofaEnforcement !== undefined) {
+      updateData.twofaEnforcement = twofaEnforcement;
+    }
 
-    const company = CompanyModel.update(id, updateData);
+    const company = await CompanyModel.update(id, updateData);
     if (!company) {
       res.status(404).json({ error: 'Company not found' });
       return;
@@ -101,11 +105,11 @@ router.put('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response)
 });
 
 // Delete company (park admin or above)
-router.delete('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const deleted = CompanyModel.delete(id);
+    const deleted = await CompanyModel.delete(id);
     if (!deleted) {
       res.status(404).json({ error: 'Company not found' });
       return;

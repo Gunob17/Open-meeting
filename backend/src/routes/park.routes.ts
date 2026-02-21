@@ -61,15 +61,15 @@ function requireSuperAdmin(req: AuthRequest, res: Response, next: Function): voi
 }
 
 // Get all parks (super admin sees all, park admin sees only their park)
-router.get('/', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     if (req.user?.role === UserRole.SUPER_ADMIN) {
       const includeInactive = req.query.includeInactive === 'true';
-      const parks = ParkModel.findAll(includeInactive);
+      const parks = await ParkModel.findAll(includeInactive);
       res.json(parks);
     } else if (req.user?.parkId) {
       // Non-super admins only see their own park
-      const park = ParkModel.findById(req.user.parkId);
+      const park = await ParkModel.findById(req.user.parkId);
       res.json(park ? [park] : []);
     } else {
       res.json([]);
@@ -81,7 +81,7 @@ router.get('/', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Get single park
-router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -91,7 +91,7 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const park = ParkModel.findById(id);
+    const park = await ParkModel.findById(id);
     if (!park) {
       res.status(404).json({ error: 'Park not found' });
       return;
@@ -105,7 +105,7 @@ router.get('/:id', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // Create park (super admin only)
-router.post('/', authenticate, requireSuperAdmin, (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, requireSuperAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { name, address, description } = req.body;
 
@@ -114,7 +114,12 @@ router.post('/', authenticate, requireSuperAdmin, (req: AuthRequest, res: Respon
       return;
     }
 
-    const park = ParkModel.create({ name, address, description });
+    if (name.length > 255 || address.length > 500 || (description && description.length > 2000)) {
+      res.status(400).json({ error: 'Name (max 255), address (max 500), or description (max 2000) too long' });
+      return;
+    }
+
+    const park = await ParkModel.create({ name, address, description });
     res.status(201).json(park);
   } catch (error) {
     console.error('Create park error:', error);
@@ -123,12 +128,12 @@ router.post('/', authenticate, requireSuperAdmin, (req: AuthRequest, res: Respon
 });
 
 // Update park (super admin only)
-router.put('/:id', authenticate, requireSuperAdmin, (req: AuthRequest, res: Response) => {
+router.put('/:id', authenticate, requireSuperAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, address, description, isActive } = req.body;
+    const { name, address, description, isActive, twofaEnforcement, receptionEmail, receptionGuestFields } = req.body;
 
-    const park = ParkModel.update(id, { name, address, description, isActive });
+    const park = await ParkModel.update(id, { name, address, description, isActive, twofaEnforcement, receptionEmail, receptionGuestFields });
     if (!park) {
       res.status(404).json({ error: 'Park not found' });
       return;
@@ -141,8 +146,56 @@ router.put('/:id', authenticate, requireSuperAdmin, (req: AuthRequest, res: Resp
   }
 });
 
+// Update park reception settings (super admin or park admin of that park)
+router.put('/:id/reception', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Authorization: super_admin or park_admin of this park
+    if (req.user?.role !== UserRole.SUPER_ADMIN && req.user?.role !== UserRole.PARK_ADMIN) {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    if (req.user?.role === UserRole.PARK_ADMIN && req.user?.parkId !== id) {
+      res.status(403).json({ error: 'Access denied to this park' });
+      return;
+    }
+
+    const { receptionEmail, receptionGuestFields } = req.body;
+
+    // Validate email format if provided
+    if (receptionEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(receptionEmail)) {
+      res.status(400).json({ error: 'Invalid email format' });
+      return;
+    }
+
+    // Ensure guest fields always includes 'name'
+    let fields = receptionGuestFields;
+    if (fields && Array.isArray(fields)) {
+      if (!fields.includes('name')) {
+        fields = ['name', ...fields];
+      }
+    }
+
+    const park = await ParkModel.update(id, {
+      receptionEmail: receptionEmail || null,
+      receptionGuestFields: fields,
+    });
+
+    if (!park) {
+      res.status(404).json({ error: 'Park not found' });
+      return;
+    }
+
+    res.json(park);
+  } catch (error) {
+    console.error('Update park reception error:', error);
+    res.status(500).json({ error: 'Failed to update park reception settings' });
+  }
+});
+
 // Delete park (super admin only)
-router.delete('/:id', authenticate, requireSuperAdmin, (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticate, requireSuperAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -154,13 +207,13 @@ router.delete('/:id', authenticate, requireSuperAdmin, (req: AuthRequest, res: R
     const softDelete = req.query.soft === 'true';
 
     if (softDelete) {
-      const success = ParkModel.deactivate(id);
+      const success = await ParkModel.deactivate(id);
       if (!success) {
         res.status(404).json({ error: 'Park not found' });
         return;
       }
     } else {
-      const deleted = ParkModel.delete(id);
+      const deleted = await ParkModel.delete(id);
       if (!deleted) {
         res.status(404).json({ error: 'Park not found' });
         return;
@@ -175,7 +228,7 @@ router.delete('/:id', authenticate, requireSuperAdmin, (req: AuthRequest, res: R
 });
 
 // Upload park logo (super admin or park admin of that park)
-router.post('/:id/logo', authenticate, logoUploadMiddleware, (req: MulterAuthRequest, res: Response) => {
+router.post('/:id/logo', authenticate, logoUploadMiddleware, async (req: MulterAuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const file = req.file;
@@ -192,7 +245,7 @@ router.post('/:id/logo', authenticate, logoUploadMiddleware, (req: MulterAuthReq
       return;
     }
 
-    const park = ParkModel.findById(id);
+    const park = await ParkModel.findById(id);
     if (!park) {
       res.status(404).json({ error: 'Park not found' });
       return;
@@ -219,7 +272,7 @@ router.post('/:id/logo', authenticate, logoUploadMiddleware, (req: MulterAuthReq
 
     // Update park with new logo URL
     const logoUrl = `/api/parks/${id}/logo/${filename}`;
-    const updatedPark = ParkModel.updateLogo(id, logoUrl);
+    const updatedPark = await ParkModel.updateLogo(id, logoUrl);
 
     res.json(updatedPark);
   } catch (error) {
@@ -232,7 +285,20 @@ router.post('/:id/logo', authenticate, logoUploadMiddleware, (req: MulterAuthReq
 router.get('/:id/logo/:filename', (req: Request, res: Response) => {
   try {
     const { filename } = req.params;
-    const filePath = path.join(logosDir, filename);
+
+    // Validate filename to prevent path traversal
+    if (!/^[a-zA-Z0-9_-]+\.(png|jpg|jpeg|gif|svg|webp)$/i.test(filename)) {
+      res.status(400).json({ error: 'Invalid filename' });
+      return;
+    }
+
+    const filePath = path.resolve(logosDir, filename);
+
+    // Ensure resolved path is within logosDir
+    if (!filePath.startsWith(path.resolve(logosDir))) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
 
     if (!fs.existsSync(filePath)) {
       res.status(404).json({ error: 'Logo not found' });
@@ -260,7 +326,7 @@ router.get('/:id/logo/:filename', (req: Request, res: Response) => {
 });
 
 // Delete park logo (super admin or park admin of that park)
-router.delete('/:id/logo', authenticate, (req: AuthRequest, res: Response) => {
+router.delete('/:id/logo', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -276,7 +342,7 @@ router.delete('/:id/logo', authenticate, (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const park = ParkModel.findById(id);
+    const park = await ParkModel.findById(id);
     if (!park) {
       res.status(404).json({ error: 'Park not found' });
       return;
@@ -291,7 +357,7 @@ router.delete('/:id/logo', authenticate, (req: AuthRequest, res: Response) => {
     }
 
     // Update park to remove logo URL
-    const updatedPark = ParkModel.updateLogo(id, null);
+    const updatedPark = await ParkModel.updateLogo(id, null);
     res.json(updatedPark);
   } catch (error) {
     console.error('Delete logo error:', error);

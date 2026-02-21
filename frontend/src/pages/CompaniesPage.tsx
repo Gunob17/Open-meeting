@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { Company } from '../types';
+import { Company, Settings, TwoFaLevelEnforcement } from '../types';
 
 export function CompaniesPage() {
+  const navigate = useNavigate();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -13,10 +15,22 @@ export function CompaniesPage() {
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [companyTwofaEnforcement, setCompanyTwofaEnforcement] = useState<TwoFaLevelEnforcement>('inherit');
 
   useEffect(() => {
     loadCompanies();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await api.getSettings();
+      setSettings(data);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    }
+  };
 
   const loadCompanies = async () => {
     setLoading(true);
@@ -37,12 +51,14 @@ export function CompaniesPage() {
         name: company.name,
         address: company.address
       });
+      setCompanyTwofaEnforcement(company.twofaEnforcement || 'inherit');
     } else {
       setEditingCompany(null);
       setFormData({
         name: '',
         address: ''
       });
+      setCompanyTwofaEnforcement('inherit');
     }
     setError('');
     setShowModal(true);
@@ -55,7 +71,7 @@ export function CompaniesPage() {
 
     try {
       if (editingCompany) {
-        await api.updateCompany(editingCompany.id, formData);
+        await api.updateCompany(editingCompany.id, { ...formData, twofaEnforcement: companyTwofaEnforcement });
       } else {
         await api.createCompany(formData);
       }
@@ -115,6 +131,18 @@ export function CompaniesPage() {
                       Edit
                     </button>
                     <button
+                      className="btn btn-small btn-secondary"
+                      onClick={() => navigate(`/admin/ldap/${company.id}`)}
+                    >
+                      LDAP
+                    </button>
+                    <button
+                      className="btn btn-small btn-secondary"
+                      onClick={() => navigate(`/admin/sso/${company.id}`)}
+                    >
+                      SSO
+                    </button>
+                    <button
                       className="btn btn-small btn-danger"
                       onClick={() => handleDelete(company.id)}
                     >
@@ -163,6 +191,22 @@ export function CompaniesPage() {
                     rows={3}
                   />
                 </div>
+
+                {editingCompany && settings?.twofaEnforcement === 'optional' && (
+                  <div className="form-group">
+                    <label htmlFor="companyTwofaEnforcement">Two-Factor Authentication</label>
+                    <select
+                      id="companyTwofaEnforcement"
+                      value={companyTwofaEnforcement}
+                      onChange={e => setCompanyTwofaEnforcement(e.target.value as TwoFaLevelEnforcement)}
+                    >
+                      <option value="inherit">Inherit from Park</option>
+                      <option value="optional">Optional - Users can enable 2FA</option>
+                      <option value="required">Required - All users in this company must use 2FA</option>
+                    </select>
+                    <small>Override park 2FA enforcement for this company</small>
+                  </div>
+                )}
               </div>
 
               <div className="modal-footer">

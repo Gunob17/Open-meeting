@@ -44,9 +44,10 @@ const uploadMiddleware = (req: MulterAuthRequest, res: Response, next: NextFunct
 };
 
 // Get all firmware versions (admin only)
-router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const firmware = FirmwareModel.findAll();
+    const deviceType = req.query.deviceType as string | undefined;
+    const firmware = await FirmwareModel.findAll(deviceType);
     res.json(firmware);
   } catch (error) {
     console.error('Get firmware list error:', error);
@@ -55,9 +56,10 @@ router.get('/', authenticate, requireAdmin, (req: AuthRequest, res: Response) =>
 });
 
 // Get latest firmware info (admin only)
-router.get('/latest', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.get('/latest', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const firmware = FirmwareModel.findLatest();
+    const deviceType = req.query.deviceType as string | undefined;
+    const firmware = await FirmwareModel.findLatest(deviceType);
     if (!firmware) {
       res.status(404).json({ error: 'No firmware available' });
       return;
@@ -70,18 +72,24 @@ router.get('/latest', authenticate, requireAdmin, (req: AuthRequest, res: Respon
 });
 
 // Upload new firmware (admin only)
-router.post('/', authenticate, requireAdmin, uploadMiddleware, (req: MulterAuthRequest, res: Response) => {
+router.post('/', authenticate, requireAdmin, uploadMiddleware, async (req: MulterAuthRequest, res: Response) => {
   try {
     console.log('Firmware upload request received');
     console.log('Body:', req.body);
     console.log('File:', req.file ? { name: req.file.originalname, size: req.file.size } : 'No file');
 
-    const { version, releaseNotes } = req.body;
+    const { version, deviceType, releaseNotes } = req.body;
     const file = req.file;
 
     if (!version) {
       console.log('Upload rejected: No version provided');
       res.status(400).json({ error: 'Version is required' });
+      return;
+    }
+
+    if (!deviceType) {
+      console.log('Upload rejected: No device type provided');
+      res.status(400).json({ error: 'Device type is required' });
       return;
     }
 
@@ -91,17 +99,17 @@ router.post('/', authenticate, requireAdmin, uploadMiddleware, (req: MulterAuthR
       return;
     }
 
-    // Check if version already exists
-    const existing = FirmwareModel.findByVersion(version);
-    if (existing) {
-      console.log('Upload rejected: Version already exists');
-      res.status(400).json({ error: 'Firmware version already exists' });
+    // Check if version already exists for this device type
+    const existing = await FirmwareModel.findByVersion(version);
+    if (existing && existing.deviceType === deviceType) {
+      console.log('Upload rejected: Version already exists for this device type');
+      res.status(400).json({ error: 'Firmware version already exists for this device type' });
       return;
     }
 
     console.log('Creating firmware entry...');
-    const firmware = FirmwareModel.create(
-      { version, releaseNotes },
+    const firmware = await FirmwareModel.create(
+      { version, deviceType, releaseNotes },
       file.buffer
     );
 
@@ -114,17 +122,17 @@ router.post('/', authenticate, requireAdmin, uploadMiddleware, (req: MulterAuthR
 });
 
 // Delete firmware (admin only)
-router.delete('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
-    const firmware = FirmwareModel.findById(id);
+    const firmware = await FirmwareModel.findById(id);
     if (!firmware) {
       res.status(404).json({ error: 'Firmware not found' });
       return;
     }
 
-    FirmwareModel.delete(id);
+    await FirmwareModel.delete(id);
     res.status(204).send();
   } catch (error) {
     console.error('Delete firmware error:', error);
@@ -133,18 +141,18 @@ router.delete('/:id', authenticate, requireAdmin, (req: AuthRequest, res: Respon
 });
 
 // Toggle firmware active status (admin only)
-router.patch('/:id/active', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+router.patch('/:id/active', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
 
-    const firmware = FirmwareModel.findById(id);
+    const firmware = await FirmwareModel.findById(id);
     if (!firmware) {
       res.status(404).json({ error: 'Firmware not found' });
       return;
     }
 
-    const updated = FirmwareModel.setActive(id, isActive);
+    const updated = await FirmwareModel.setActive(id, isActive);
     res.json(updated);
   } catch (error) {
     console.error('Update firmware status error:', error);

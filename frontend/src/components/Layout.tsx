@@ -9,7 +9,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { user, logout, isAdmin, isCompanyAdmin, isSuperAdmin } = useAuth();
+  const { user, logout, isAdmin, isCompanyAdmin, isSuperAdmin, isReceptionist } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [parks, setParks] = useState<Park[]>([]);
@@ -157,6 +157,12 @@ export function Layout({ children }: LayoutProps) {
                   <span className="link-text">My Bookings</span>
                 </Link>
               </li>
+              <li>
+                <Link to="/account/security" className={`sidebar-link ${isActive('/account/security') ? 'active' : ''}`}>
+                  <span className="link-icon">&#128274;</span>
+                  <span className="link-text">Security</span>
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -168,6 +174,36 @@ export function Layout({ children }: LayoutProps) {
                   <Link to="/users" className={`sidebar-link ${isActive('/users') ? 'active' : ''}`}>
                     <span className="link-icon">&#128101;</span>
                     <span className="link-text">Users</span>
+                  </Link>
+                </li>
+                {user?.companyId && !isAdmin && (
+                  <>
+                    <li>
+                      <Link to={`/admin/ldap/${user.companyId}`} className={`sidebar-link ${location.pathname.startsWith('/admin/ldap') ? 'active' : ''}`}>
+                        <span className="link-icon">&#128272;</span>
+                        <span className="link-text">LDAP Settings</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to={`/admin/sso/${user.companyId}`} className={`sidebar-link ${location.pathname.startsWith('/admin/sso') ? 'active' : ''}`}>
+                        <span className="link-icon">&#128273;</span>
+                        <span className="link-text">SSO Settings</span>
+                      </Link>
+                    </li>
+                  </>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {isReceptionist && (
+            <div className="sidebar-section">
+              <span className="sidebar-section-label">Reception</span>
+              <ul className="sidebar-menu">
+                <li>
+                  <Link to="/reception" className={`sidebar-link ${isActive('/reception') ? 'active' : ''}`}>
+                    <span className="link-icon">&#128717;</span>
+                    <span className="link-text">Guest Management</span>
                   </Link>
                 </li>
               </ul>
