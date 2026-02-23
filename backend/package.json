@@ -24,13 +24,13 @@
     "knex": "^3.1.0",
     "ldapts": "^8.1.6",
     "multer": "^2.0.2",
-    "mysql2": "^3.16.3",
+    "mysql2": "^3.17.4",
     "nodemailer": "^6.9.7",
     "openid-client": "^5.7.1",
     "otpauth": "^9.5.0",
     "pg": "^8.18.0",
     "qrcode": "^1.5.4",
-    "tedious": "^19.2.0",
+    "tedious": "^19.2.1",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
