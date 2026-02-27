@@ -107,6 +107,14 @@ export function UsersPage() {
     }
   };
 
+  const handleResendInvite = async (id: string) => {
+    try {
+      await api.resendInvite(id);
+    } catch (error) {
+      console.error('Failed to resend invite:', error);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
 
@@ -179,6 +187,14 @@ export function UsersPage() {
                 {isAdmin && <td>{getCompanyName(user.companyId)}</td>}
                 <td>
                   <div className="action-buttons">
+                    {user.isActive === false && user.inviteToken && (
+                      <button
+                        className="btn btn-small btn-secondary"
+                        onClick={() => handleResendInvite(user.id)}
+                      >
+                        Resend invite
+                      </button>
+                    )}
                     <button
                       className="btn btn-small btn-secondary"
                       onClick={() => handleOpenModal(user)}

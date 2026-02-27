@@ -354,6 +354,10 @@ class ApiService {
     await this.request(`/users/${id}`, { method: 'DELETE' });
   }
 
+  async resendInvite(id: string): Promise<void> {
+    await this.request(`/users/${id}/resend-invite`, { method: 'POST' });
+  }
+
   // Rooms
   async getRooms(includeInactive = false, parkId?: string): Promise<MeetingRoom[]> {
     const selectedPark = parkId || this.getSelectedParkId();

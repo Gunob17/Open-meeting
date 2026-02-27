@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { Response, Router } from 'express';
 import { authenticate, AuthRequest, requireAdmin, requireCompanyAdminOrAbove } from '../middleware/auth.middleware';
 import { UserModel } from '../models/user.model';
+import { getDb } from '../models/database';
 import { CompanyModel } from '../models/company.model';
 import { TrustedDeviceModel } from '../models/trusted-device.model';
 import { UserRole } from '../types';
@@ -209,6 +210,45 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
   } catch (error) {
     console.error('Create user error:', error);
     res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+// Resend invite email
+router.post('/:id/resend-invite', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await UserModel.findById(id);
+
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    if (user.isActive !== false || !user.inviteToken) {
+      res.status(400).json({ error: 'User has already completed account setup' });
+      return;
+    }
+
+    // Issue a fresh token with a new 48h window
+    const db = getDb();
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const inviteTokenExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+    await db('users').where('id', id).update({
+      invite_token: inviteToken,
+      invite_token_expiry: inviteTokenExpiry,
+      updated_at: new Date().toISOString(),
+    });
+
+    const frontendUrl = process.env.APP_URL || 'http://localhost';
+    const inviteLink = `${frontendUrl}/invite/${inviteToken}`;
+    sendUserInviteEmail(user.email, inviteLink).catch((err: unknown) =>
+      console.error('Failed to resend invite email:', err)
+    );
+
+    res.json({ message: 'Invite resent' });
+  } catch (error) {
+    console.error('Resend invite error:', error);
+    res.status(500).json({ error: 'Failed to resend invite' });
   }
 });
 
