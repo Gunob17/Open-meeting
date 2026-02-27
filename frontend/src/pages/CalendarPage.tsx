@@ -517,7 +517,7 @@ export function CalendarPage() {
               {selectedBooking.description && (
                 <p><strong>Description:</strong> {selectedBooking.description}</p>
               )}
-              {selectedBooking.attendees.length > 0 && (
+              {(isOwnBooking(selectedBooking) || isAdmin) && selectedBooking.attendees.length > 0 && (
                 <p><strong>Attendees:</strong> {selectedBooking.attendees.join(', ')}</p>
               )}
               <p><strong>Booked by:</strong> {selectedBooking.user?.name}</p>
