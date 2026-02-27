@@ -50,6 +50,8 @@ export interface User {
   ldapSyncedAt: string | null;
   ssoSubjectId: string | null;
   ssoProviderId: string | null;
+  inviteToken: string | null;
+  inviteTokenExpiry: string | null;
   createdAt: string;
   updatedAt: string;
 }

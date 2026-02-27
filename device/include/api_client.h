@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 
 // Booking structure
@@ -12,6 +13,7 @@ struct Booking {
     String startTime;
     String endTime;
     bool isValid;
+    bool isDeviceBooking;  // true only for quick bookings created from a device
 };
 
 // Room structure
@@ -41,6 +43,12 @@ struct QuickBookResult {
     bool success;
     String message;
     Booking booking;
+};
+
+// End meeting result
+struct EndMeetingResult {
+    bool success;
+    String message;
 };
 
 // Firmware update info
@@ -75,6 +83,7 @@ public:
     // API methods
     RoomStatus getRoomStatus();
     QuickBookResult quickBook(const String& title, int durationMinutes);
+    EndMeetingResult endMeeting();
     bool ping();
 
     // Firmware update methods

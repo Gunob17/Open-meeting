@@ -100,6 +100,6 @@
 
 // Firmware/OTA update settings
 #define FIRMWARE_CHECK_INTERVAL 300000   // 5 minutes - how often to check for updates
-#define FIRMWARE_VERSION "1.1.1"         // Current firmware version - update this with each release
+#define FIRMWARE_VERSION "1.1.4"         // Current firmware version - update this with each release
 
 #endif // CONFIG_H

@@ -20,10 +20,14 @@ import twofaRoutes from './routes/twofa.routes';
 import receptionistRoutes from './routes/receptionist.routes';
 import ldapRoutes from './routes/ldap.routes';
 import ssoRoutes from './routes/sso.routes';
+import devRoutes from './routes/dev.routes';
 import { ldapScheduler } from './services/ldap-scheduler.service';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Trust proxy (running behind HAProxy/Nginx)
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet());
@@ -59,6 +63,11 @@ app.use('/api/statistics', statisticsRoutes);
 app.use('/api/receptionist', receptionistRoutes);
 app.use('/api/ldap', ldapRoutes);
 app.use('/api/sso', ssoRoutes);
+
+// Dev-only routes (available when not in production OR when explicitly enabled via env var)
+if (process.env.NODE_ENV !== 'production' || process.env.DEV_IMPERSONATION_ENABLED === 'true') {
+  app.use('/api/dev', devRoutes);
+}
 
 // Health check
 app.get('/api/health', (req, res) => {

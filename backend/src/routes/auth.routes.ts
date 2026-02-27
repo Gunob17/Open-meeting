@@ -253,4 +253,50 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
   }
 });
 
+// Complete account setup from invite link (public — no auth required)
+router.post('/complete-invite', async (req, res: Response) => {
+  try {
+    const { token, name, password } = req.body;
+
+    if (!token || !name || !password) {
+      res.status(400).json({ error: 'Token, name, and password are required' });
+      return;
+    }
+
+    if (password.length < 8) {
+      res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return;
+    }
+
+    const user = await UserModel.findByInviteToken(token);
+    if (!user) {
+      res.status(404).json({ error: 'Invalid or already used invite link' });
+      return;
+    }
+
+    if (!user.inviteTokenExpiry || new Date() > new Date(user.inviteTokenExpiry)) {
+      res.status(400).json({ error: 'Invite link has expired' });
+      return;
+    }
+
+    await UserModel.completeInvite(user.id, name, password);
+
+    const jwt = generateToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+      companyId: user.companyId,
+      parkId: user.parkId,
+    });
+
+    res.json({
+      token: jwt,
+      user: sanitizeUser({ ...user, name }),
+    });
+  } catch (error) {
+    console.error('Complete invite error:', error);
+    res.status(500).json({ error: 'Failed to complete account setup' });
+  }
+});
+
 export default router;

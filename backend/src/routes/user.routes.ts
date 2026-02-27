@@ -1,9 +1,11 @@
+import crypto from 'crypto';
 import { Response, Router } from 'express';
 import { authenticate, AuthRequest, requireAdmin, requireCompanyAdminOrAbove } from '../middleware/auth.middleware';
 import { UserModel } from '../models/user.model';
 import { CompanyModel } from '../models/company.model';
 import { TrustedDeviceModel } from '../models/trusted-device.model';
 import { UserRole } from '../types';
+import { sendUserInviteEmail } from '../services/email.service';
 
 const router = Router();
 
@@ -50,7 +52,14 @@ router.get('/company/:companyId', authenticate, requireCompanyAdminOrAbove, asyn
       return;
     }
 
-    const users = await UserModel.findByCompany(companyId);
+    let users = await UserModel.findByCompany(companyId);
+
+    // Company admins must not see park-level privileged users (PARK_ADMIN, SUPER_ADMIN)
+    // even if those users happen to share the same companyId
+    if (req.user!.role === UserRole.COMPANY_ADMIN) {
+      users = users.filter(u => u.role !== UserRole.PARK_ADMIN && u.role !== UserRole.SUPER_ADMIN);
+    }
+
     res.json(users.map(u => ({
       id: u.id,
       email: u.email,
@@ -106,19 +115,14 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Create user
+// Create user (sends invite email — admin only provides email, role, companyId)
 router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
   try {
-    const { email, password, name, role, companyId, addonRoles } = req.body;
+    const { email, role, companyId, addonRoles } = req.body;
 
     // Validation
-    if (!email || !password || !name || !role || !companyId) {
-      res.status(400).json({ error: 'All fields are required' });
-      return;
-    }
-
-    if (password.length < 8) {
-      res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (!email || !role || !companyId) {
+      res.status(400).json({ error: 'Email, role, and company are required' });
       return;
     }
 
@@ -147,10 +151,16 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
       return;
     }
 
+    // Look up the company to validate it exists and to get its parkId for the new user
+    const company = await CompanyModel.findById(companyId);
+    if (!company) {
+      res.status(400).json({ error: 'Company not found' });
+      return;
+    }
+
     // Park admins can only create park admins within their own park
     if (role === UserRole.PARK_ADMIN && req.user!.role === UserRole.PARK_ADMIN) {
-      const company = await CompanyModel.findById(companyId);
-      if (!company || company.parkId !== req.user!.parkId) {
+      if (company.parkId !== req.user!.parkId) {
         res.status(403).json({ error: 'Park admins can only create park admins within their own park' });
         return;
       }
@@ -159,14 +169,33 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
     if (role === UserRole.SUPER_ADMIN && req.user!.role !== UserRole.SUPER_ADMIN) {
       res.status(403).json({ error: 'Only super admins can create super admin users' });
       return;
-
     }
 
     // Only park admins and above can set addon roles
     const effectiveAddonRoles = (req.user!.role === UserRole.PARK_ADMIN || req.user!.role === UserRole.SUPER_ADMIN)
       ? (addonRoles || []) : [];
 
-    const user = await UserModel.create({ email, password, name, role, companyId, addonRoles: effectiveAddonRoles });
+    // Generate invite token (48h expiry)
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const inviteTokenExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+    const user = await UserModel.createInvited({
+      email,
+      role,
+      companyId,
+      parkId: company.parkId,
+      addonRoles: effectiveAddonRoles,
+      inviteToken,
+      inviteTokenExpiry,
+    });
+
+    // Send invite email (best-effort — don't fail the request if email fails)
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const inviteLink = `${frontendUrl}/invite/${inviteToken}`;
+    sendUserInviteEmail(email, inviteLink).catch((err: unknown) =>
+      console.error('Failed to send invite email:', err)
+    );
+
     res.status(201).json({
       id: user.id,
       email: user.email,
@@ -174,6 +203,7 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
       role: user.role,
       companyId: user.companyId,
       addonRoles: user.addonRoles,
+      isActive: user.isActive,
       createdAt: user.createdAt
     });
   } catch (error) {

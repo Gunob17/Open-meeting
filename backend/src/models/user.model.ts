@@ -289,8 +289,64 @@ export class UserModel {
       ldapSyncedAt: row.ldap_synced_at || null,
       ssoSubjectId: row.sso_subject_id || null,
       ssoProviderId: row.sso_provider_id || null,
+      inviteToken: row.invite_token || null,
+      inviteTokenExpiry: row.invite_token_expiry || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  static async findByInviteToken(token: string): Promise<User | null> {
+    const db = getDb();
+    const row = await db('users').where('invite_token', token).first();
+    if (!row) return null;
+    return this.mapRowToUser(row);
+  }
+
+  static async createInvited(data: {
+    email: string;
+    role: UserRole;
+    companyId: string;
+    parkId?: string | null;
+    addonRoles?: string[];
+    inviteToken: string;
+    inviteTokenExpiry: string;
+  }): Promise<User> {
+    const db = getDb();
+    const id = uuidv4();
+    const now = new Date().toISOString();
+    const unusablePassword = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+
+    await db('users').insert({
+      id,
+      email: data.email,
+      password: unusablePassword,
+      name: '',
+      role: data.role,
+      company_id: data.companyId,
+      park_id: data.parkId || null,
+      addon_roles: JSON.stringify(data.addonRoles || []),
+      is_active: false,
+      auth_source: 'local',
+      invite_token: data.inviteToken,
+      invite_token_expiry: data.inviteTokenExpiry,
+      created_at: now,
+      updated_at: now,
+    });
+
+    return (await this.findById(id))!;
+  }
+
+  static async completeInvite(userId: string, name: string, password: string): Promise<void> {
+    const db = getDb();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await db('users').where('id', userId).update({
+      name,
+      password: hashedPassword,
+      is_active: true,
+      invite_token: null,
+      invite_token_expiry: null,
+      updated_at: new Date().toISOString(),
+    });
   }
 }

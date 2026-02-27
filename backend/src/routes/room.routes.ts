@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { RoomModel } from '../models/room.model';
 import { BookingModel } from '../models/booking.model';
+import { CompanyModel } from '../models/company.model';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
 import { UserRole } from '../types';
 
@@ -22,6 +23,11 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     } else {
       // Non-super admins always see their own park's rooms
       parkId = req.user?.parkId;
+      // Fallback: if parkId not set on user (legacy accounts), derive from their company
+      if (!parkId && req.user?.companyId) {
+        const company = await CompanyModel.findById(req.user.companyId);
+        parkId = company?.parkId;
+      }
     }
     let rooms = await RoomModel.findAll(includeInactive, parkId);
 

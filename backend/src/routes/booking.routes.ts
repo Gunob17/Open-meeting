@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { BookingModel } from '../models/booking.model';
 import { RoomModel } from '../models/room.model';
 import { UserModel } from '../models/user.model';
+import { CompanyModel } from '../models/company.model';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
 import { sendMeetingInvite, sendCancellationNotice, sendAdminDeleteNotice, sendAdminMoveNotice, sendReceptionNotification } from '../services/email.service';
 import { UserRole, MeetingRoom, ExternalGuest } from '../types';
@@ -62,7 +63,7 @@ async function validateBookingHours(
 
 const router = Router();
 
-// Get all bookings (with optional date range filter)
+// Get all bookings (with optional date range filter, scoped to user's park)
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
@@ -72,6 +73,19 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       bookings = await BookingModel.findAllByDateRange(startDate as string, endDate as string);
     } else {
       bookings = await BookingModel.findAll();
+    }
+
+    // Scope bookings to the user's park (super admins see everything)
+    if (req.user?.role !== UserRole.SUPER_ADMIN) {
+      let effectiveParkId = req.user?.parkId;
+      // Fallback: if parkId not set on user (legacy accounts), derive from their company
+      if (!effectiveParkId && req.user?.companyId) {
+        const company = await CompanyModel.findById(req.user.companyId);
+        effectiveParkId = company?.parkId;
+      }
+      if (effectiveParkId) {
+        bookings = bookings.filter(b => b.room?.parkId === effectiveParkId);
+      }
     }
 
     // Parse attendees and external guests JSON

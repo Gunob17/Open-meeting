@@ -886,12 +886,13 @@ body {
 }
 
 .time-slot-label {
-  padding: 0.5rem;
+  padding: 0.25rem 0.375rem;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #6b7280;
   text-align: right;
+  white-space: nowrap;
 }
 
 .time-slot {
@@ -981,7 +982,7 @@ body {
 }
 
 .booking-indicator {
-  background: #ef4444;
+  background: #3b82f6; /* fallback — overridden per-booking in JS */
   color: white;
   padding: 0.25rem 0.375rem;
   border-radius: 0.25rem;

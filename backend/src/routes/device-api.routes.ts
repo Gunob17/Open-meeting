@@ -106,10 +106,11 @@ router.get('/status', authenticateDevice, async (req: DeviceRequest, res: Respon
       room: { ...room, amenities: JSON.parse(room.amenities) }
     }));
 
-    const currentBookingWithDetails: BookingWithDetails | null = currentBooking ? {
+    const currentBookingWithDetails = currentBooking ? {
       ...currentBooking,
       attendees: JSON.parse(currentBooking.attendees),
-      room: { ...room, amenities: JSON.parse(room.amenities) }
+      room: { ...room, amenities: JSON.parse(room.amenities) },
+      isDeviceBooking: currentBooking.userId === 'device-booking-user',
     } : null;
 
     const status: DeviceRoomStatus = {
@@ -227,6 +228,52 @@ router.post('/quick-book', authenticateDevice, async (req: DeviceRequest, res: R
   } catch (error) {
     console.error('Quick book error:', error);
     res.status(500).json({ error: 'Failed to create booking' });
+  }
+});
+
+// End the current quick booking early (device only — only works for quick bookings)
+router.post('/end-meeting', authenticateDevice, async (req: DeviceRequest, res: Response) => {
+  try {
+    const device = req.device!;
+    const room = device.room;
+
+    if (!room) {
+      res.status(404).json({ error: 'Room not found' });
+      return;
+    }
+
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+
+    const bookings = await BookingModel.findByRoom(
+      room.id,
+      todayStart.toISOString(),
+      new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
+    );
+
+    const currentBooking = bookings.find(b => {
+      const start = parseBookingTime(b.startTime);
+      const end = parseBookingTime(b.endTime);
+      return now >= start && now < end;
+    });
+
+    if (!currentBooking) {
+      res.status(404).json({ error: 'No active booking found for this room' });
+      return;
+    }
+
+    if (currentBooking.userId !== 'device-booking-user') {
+      res.status(400).json({ error: 'Only quick bookings made from a device can be ended from the device' });
+      return;
+    }
+
+    await BookingModel.endEarly(currentBooking.id, now.toISOString());
+
+    res.json({ success: true, message: 'Meeting ended early' });
+  } catch (error) {
+    console.error('End meeting error:', error);
+    res.status(500).json({ error: 'Failed to end meeting' });
   }
 });
 

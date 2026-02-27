@@ -32,6 +32,9 @@ Open Meeting gives your organization a complete room booking system — from a v
 No more double-bookings or scheduling chaos. The visual weekly calendar shows every room's availability at a glance with color-coded time slots — green for available, red for booked, orange for partially available. Users click any open slot to book, and the system automatically prevents conflicts. Bookings can include internal attendees (who receive calendar invites) and external guests.
 
 - Visual 7-day calendar with all rooms side-by-side
+- Each booking displayed in a distinct color for at-a-glance identification
+- Multiple bookings within the same hour are all shown individually
+- Past bookings remain visible in the calendar for the full current week
 - Automatic conflict detection — overlapping bookings are impossible
 - Book partial time slots when rooms have gaps between meetings
 - Add attendees by email with automatic ICS calendar invitations
@@ -98,6 +101,7 @@ Mount affordable ESP32 touchscreen devices outside each meeting room for instant
 - 2.8" color touchscreen with live room status (available / occupied)
 - RGB LED indicator visible from a distance (green = free, red = busy)
 - One-tap quick booking with configurable durations
+- "End Meeting Early" option — only shown for meetings booked from the device
 - Shows current meeting and next 3 upcoming bookings
 - WiFi setup via captive portal — no programming required after initial flash
 - Automatic screen timeout for power savings

@@ -21,11 +21,17 @@ String ApiClient::makeRequest(const String& endpoint, const String& method, cons
     }
 
     HTTPClient http;
+    WiFiClientSecure secureClient;
     String url = _apiUrl + "/api/device" + endpoint;
 
     Serial.println("API Request: " + method + " " + url);
 
-    http.begin(url);
+    if (url.startsWith("https")) {
+        secureClient.setInsecure(); // Skip cert verification for self-signed/proxy setups
+        http.begin(secureClient, url);
+    } else {
+        http.begin(url);
+    }
     http.setTimeout(API_TIMEOUT);
     http.addHeader("Content-Type", "application/json");
     http.addHeader("X-Device-Token", _deviceToken);
@@ -65,6 +71,7 @@ Booking ApiClient::parseBooking(JsonObject& obj) {
     booking.title = obj["title"].as<String>();
     booking.startTime = obj["startTime"].as<String>();
     booking.endTime = obj["endTime"].as<String>();
+    booking.isDeviceBooking = obj["isDeviceBooking"] | false;
     booking.isValid = booking.id.length() > 0;
 
     return booking;
@@ -202,6 +209,34 @@ QuickBookResult ApiClient::quickBook(const String& title, int durationMinutes) {
     result.booking.endTime = responseDoc["endTime"].as<String>();
     result.booking.isValid = true;
 
+    return result;
+}
+
+EndMeetingResult ApiClient::endMeeting() {
+    EndMeetingResult result;
+    result.success = false;
+
+    String response = makeRequest("/end-meeting", "POST", "{}");
+    if (response.length() == 0) {
+        result.message = "Failed to connect to server";
+        return result;
+    }
+
+    JsonDocument responseDoc;
+    DeserializationError error = deserializeJson(responseDoc, response);
+
+    if (error) {
+        result.message = "Invalid response from server";
+        return result;
+    }
+
+    if (!responseDoc["error"].isNull()) {
+        result.message = responseDoc["error"].as<String>();
+        return result;
+    }
+
+    result.success = true;
+    result.message = "Meeting ended";
     return result;
 }
 

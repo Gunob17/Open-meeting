@@ -335,6 +335,16 @@ void UIManager::showRoomStatus(const RoomStatus& status) {
             _tft.drawString("Until " + endTime, SCREEN_WIDTH/2, statusY + 50, 2);
         }
         statusY += 80;
+
+        // "End Meeting" button — only shown for quick bookings created from a device
+        if (status.currentBooking.isDeviceBooking) {
+            _tft.fillRoundRect(12, statusY, SCREEN_WIDTH - 24, 36, 6, COLOR_DANGER);
+            _tft.setTextColor(COLOR_TEXT);
+            _tft.setTextDatum(MC_DATUM);
+            _tft.drawString("End Meeting Early", SCREEN_WIDTH/2, statusY + 18, 2);
+            addButton(12, statusY, SCREEN_WIDTH - 24, 36, "EndMeeting");
+            statusY += 46;
+        }
     }
 
     // Upcoming bookings
@@ -450,6 +460,29 @@ void UIManager::showBookingConfirm(int duration) {
     addButton(163, btnY, 145, 45, "Confirm");
 }
 
+void UIManager::showEndMeetingConfirm() {
+    _currentState = UI_END_MEETING_CONFIRM;
+    clearButtons();
+
+    _tft.fillScreen(COLOR_BG);
+
+    drawHeader("End Meeting", COLOR_DANGER);
+
+    _tft.setTextColor(COLOR_TEXT);
+    _tft.setTextDatum(MC_DATUM);
+    _tft.drawString("End meeting early?", SCREEN_WIDTH/2, 110, 4);
+    _tft.setTextColor(COLOR_TEXT_MUTED);
+    _tft.drawString("The room will be freed", SCREEN_WIDTH/2, 150, 2);
+    _tft.drawString("immediately for others.", SCREEN_WIDTH/2, 170, 2);
+
+    int btnY = SCREEN_HEIGHT - 55;
+    drawButton(12, btnY, 145, 45, "Cancel", COLOR_CARD_BG, COLOR_TEXT);
+    addButton(12, btnY, 145, 45, "Cancel");
+
+    drawButton(163, btnY, 145, 45, "End Meeting", COLOR_DANGER, COLOR_TEXT);
+    addButton(163, btnY, 145, 45, "End Meeting");
+}
+
 void UIManager::showBookingResult(bool success, const String& message) {
     clearButtons();
 
@@ -491,7 +524,7 @@ void UIManager::showBookingResult(bool success, const String& message) {
     addButton(SCREEN_WIDTH/2 - 60, SCREEN_HEIGHT - 50, 120, 40, "OK");
 }
 
-void UIManager::showError(const String& message) {
+void UIManager::showError(const String& message, const String& buttonLabel) {
     _currentState = UI_ERROR;
     clearButtons();
 
@@ -528,8 +561,8 @@ void UIManager::showError(const String& message) {
         y += 20;
     }
 
-    drawButton(SCREEN_WIDTH/2 - 60, SCREEN_HEIGHT - 50, 120, 40, "Retry", COLOR_PRIMARY, COLOR_TEXT);
-    addButton(SCREEN_WIDTH/2 - 60, SCREEN_HEIGHT - 50, 120, 40, "Retry");
+    drawButton(SCREEN_WIDTH/2 - 60, SCREEN_HEIGHT - 50, 120, 40, buttonLabel, COLOR_PRIMARY, COLOR_TEXT);
+    addButton(SCREEN_WIDTH/2 - 60, SCREEN_HEIGHT - 50, 120, 40, buttonLabel);
 }
 
 void UIManager::showLoading(const String& message) {

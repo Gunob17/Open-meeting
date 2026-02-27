@@ -4,6 +4,8 @@ const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 class ApiService {
   private token: string | null = null;
+  // Impersonation token (dev mode only) — overrides real token for API requests, not persisted
+  private _impersonationToken: string | null = null;
 
   constructor() {
     this.token = localStorage.getItem('token');
@@ -22,6 +24,46 @@ class ApiService {
     return this.token;
   }
 
+  setImpersonationToken(token: string | null) {
+    this._impersonationToken = token;
+  }
+
+  getImpersonationToken(): string | null {
+    return this._impersonationToken;
+  }
+
+  // Returns all users without any park filter — for dev widget only, uses real token
+  async devGetAllUsers(): Promise<User[]> {
+    const realToken = this.token;
+    const response = await fetch(`${API_BASE}/users`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(realToken ? { Authorization: `Bearer ${realToken}` } : {}),
+      },
+    });
+    if (!response.ok) throw new Error('Failed to load users');
+    return response.json();
+  }
+
+  // Returns a JWT for any user — only works when backend is in dev mode
+  async devImpersonate(userId: string): Promise<{ token: string; user: User }> {
+    // Always use the real token for this request (to prove we're authenticated as ourselves)
+    const realToken = this.token;
+    const response = await fetch(`${API_BASE}/dev/impersonate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(realToken ? { Authorization: `Bearer ${realToken}` } : {}),
+      },
+      body: JSON.stringify({ userId }),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ error: 'Impersonation failed' }));
+      throw new Error(err.error || 'Impersonation failed');
+    }
+    return response.json();
+  }
+
   getSelectedParkId(): string | null {
     return localStorage.getItem('selectedParkId');
   }
@@ -35,8 +77,9 @@ class ApiService {
       ...options.headers
     };
 
-    if (this.token) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${this.token}`;
+    const activeToken = this._impersonationToken || this.token;
+    if (activeToken) {
+      (headers as Record<string, string>)['Authorization'] = `Bearer ${activeToken}`;
     }
 
     const controller = new AbortController();
@@ -152,6 +195,7 @@ class ApiService {
   }
 
   logout() {
+    this._impersonationToken = null;
     this.setToken(null);
     this.setKeepLoggedIn(false);
     localStorage.removeItem('lastActivity');
@@ -275,8 +319,6 @@ class ApiService {
 
   async createUser(data: {
     email: string;
-    password: string;
-    name: string;
     role: UserRole;
     companyId: string;
     addonRoles?: string[];
@@ -284,6 +326,13 @@ class ApiService {
     return this.request<User>('/users', {
       method: 'POST',
       body: JSON.stringify(data)
+    });
+  }
+
+  async completeInvite(token: string, name: string, password: string): Promise<{ token: string; user: User }> {
+    return this.request<{ token: string; user: User }>('/auth/complete-invite', {
+      method: 'POST',
+      body: JSON.stringify({ token, name, password })
     });
   }
 
@@ -512,7 +561,7 @@ class ApiService {
     const response = await fetch(`${API_BASE}/parks/${parkId}/logo`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.token}`
+        'Authorization': `Bearer ${this._impersonationToken || this.token}`
       },
       body: formData
     });
@@ -561,7 +610,7 @@ class ApiService {
     const response = await fetch(`${API_BASE}/firmware`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.token}`
+        'Authorization': `Bearer ${this._impersonationToken || this.token}`
       },
       body: formData
     });

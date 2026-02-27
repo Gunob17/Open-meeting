@@ -14,6 +14,7 @@ enum UIState {
     UI_ROOM_STATUS,
     UI_QUICK_BOOK,
     UI_BOOKING_CONFIRM,
+    UI_END_MEETING_CONFIRM,
     UI_ERROR,
     UI_LOADING
 };
@@ -42,12 +43,13 @@ public:
     void showRoomStatus(const RoomStatus& status);
     void showQuickBookMenu(const RoomStatus& status);
     void showBookingConfirm(int duration);
+    void showEndMeetingConfirm();
 
     // Get current quick book durations (for button handling)
     int getQuickBookDuration(int index) const { return _quickBookDurations[index]; }
     int getQuickBookDurationCount() const { return _quickBookDurationCount; }
     void showBookingResult(bool success, const String& message);
-    void showError(const String& message);
+    void showError(const String& message, const String& buttonLabel = "Retry");
     void showLoading(const String& message);
     void showConnecting();
 
@@ -57,6 +59,10 @@ public:
 
     // Button handling
     int checkButtonPress(int touchX, int touchY);
+    String getButtonLabel(int index) const {
+        if (index >= 0 && index < _buttonCount) return _buttons[index].label;
+        return "";
+    }
 
     // Get current state
     UIState getState() const { return _currentState; }

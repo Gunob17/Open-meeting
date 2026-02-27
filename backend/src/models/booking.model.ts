@@ -195,6 +195,14 @@ export class BookingModel {
     return count > 0;
   }
 
+  static async endEarly(id: string, newEndTime: string): Promise<void> {
+    const db = getDb();
+    await db('bookings').where('id', id).update({
+      end_time: newEndTime,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
   private static mapRowToBooking(row: any): Booking {
     return {
       id: row.id,

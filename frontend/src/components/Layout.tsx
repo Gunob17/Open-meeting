@@ -3,13 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Park } from '../types';
+import { DevRoleWidget } from './DevRoleWidget';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { user, logout, isAdmin, isCompanyAdmin, isSuperAdmin, isReceptionist } = useAuth();
+  const { user, logout, isAdmin, isCompanyAdmin, isSuperAdmin, isReceptionist, impersonatedUser, viewAsRole, viewAsReceptionist } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [parks, setParks] = useState<Park[]>([]);
@@ -289,10 +290,43 @@ export function Layout({ children }: LayoutProps) {
           <span className="top-bar-title">Open Meeting</span>
         </header>
 
+        {/* Dev mode: impersonation / view-as banner */}
+        {process.env.NODE_ENV === 'development' && impersonatedUser && (
+          <div style={{
+            background: '#d97706',
+            color: '#fff',
+            textAlign: 'center',
+            padding: '4px 12px',
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            letterSpacing: '0.03em',
+          }}>
+            DEV: Impersonating {impersonatedUser.name || impersonatedUser.email} ({impersonatedUser.role.replace(/_/g, ' ')}) — API data is scoped to this user
+          </div>
+        )}
+        {process.env.NODE_ENV === 'development' && !impersonatedUser && (viewAsRole !== null || viewAsReceptionist) && (
+          <div style={{
+            background: '#d97706',
+            color: '#fff',
+            textAlign: 'center',
+            padding: '4px 12px',
+            fontSize: '12px',
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            letterSpacing: '0.03em',
+          }}>
+            DEV: Viewing as {viewAsRole ? viewAsRole.replace(/_/g, ' ') : user?.role?.replace(/_/g, ' ')}
+            {viewAsReceptionist ? ' + receptionist' : ''} — affects UI only, not API data
+          </div>
+        )}
+
         <main className="main-content">
           {children}
         </main>
       </div>
+
+      <DevRoleWidget />
     </div>
   );
 }

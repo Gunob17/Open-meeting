@@ -19,6 +19,7 @@ import { ReceptionistPage } from './pages/ReceptionistPage';
 import { LdapConfigPage } from './pages/LdapConfigPage';
 import { SsoCallbackPage } from './pages/SsoCallbackPage';
 import { SsoConfigPage } from './pages/SsoConfigPage';
+import { CompleteInvitePage } from './pages/CompleteInvitePage';
 import { api } from './services/api';
 import './styles.css';
 
@@ -186,6 +187,10 @@ function AppRoutes() {
       <Route
         path="/sso/callback"
         element={<SsoCallbackPage />}
+      />
+      <Route
+        path="/invite/:token"
+        element={<CompleteInvitePage />}
       />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

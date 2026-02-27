@@ -31,6 +31,7 @@ services:
       - DB_USER=${DB_USER:-}
       - DB_PASSWORD=${DB_PASSWORD:-}
       - APP_URL=${APP_URL:-http://localhost}
+      - DEV_IMPERSONATION_ENABLED=true
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
@@ -58,18 +59,7 @@ services:
       retries: 3
       start_period: 5s
 
-  # Keycloak for SSO testing (optional — start with: docker compose -f docker-compose.dev.yml up keycloak)
-  keycloak:
-    image: quay.io/keycloak/keycloak:24.0
-    command: start-dev
-    environment:
-      - KEYCLOAK_ADMIN=admin
-      - KEYCLOAK_ADMIN_PASSWORD=admin
-    ports:
-      - "8080:8080"
-    profiles:
-      - sso-test
-    restart: unless-stopped
+
 
 volumes:
   backend-data:

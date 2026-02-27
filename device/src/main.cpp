@@ -65,6 +65,7 @@ void checkWiFi();
 void updateRoomStatus();
 void handleTouch();
 void performQuickBook(int duration);
+void performEndMeeting();
 void setupRgbLed();
 void setLedColor(bool available);
 void setLedOff();
@@ -167,7 +168,7 @@ void setup() {
         Serial.println("SAFE MODE - skipping API init, only web server active");
         Serial.print("Configure at: http://");
         Serial.println(WiFi.localIP());
-        ui.showError("Safe mode (boot loop detected)\n\nConfigure at:\nhttp://" + WiFi.localIP().toString());
+        ui.showError("Safe mode (boot loop detected)\n\nConfigure at:\nhttp://" + WiFi.localIP().toString(), "Restart");
         return;
     }
 
@@ -180,14 +181,10 @@ void setup() {
         Serial.println("Reporting firmware version: " + String(FIRMWARE_VERSION));
         apiClient.reportFirmwareVersion(FIRMWARE_VERSION);
 
-        // Initial firmware check on startup
-        lastFirmwareCheck = millis();
-        checkForFirmwareUpdate();
+        // Delay first firmware check to 60s after boot (avoid heavy OTA during startup)
+        lastFirmwareCheck = millis() - FIRMWARE_CHECK_INTERVAL + 60000;
 
         updateRoomStatus();
-
-        // Device booted successfully - clear boot loop counter
-        clearBootCount();
     } else {
         // Show setup instructions with IP address
         Serial.println("Device not configured - showing setup screen");
@@ -201,6 +198,14 @@ void loop() {
     // Handle web server requests
     if (webServerRunning) {
         server.handleClient();
+    }
+
+    // Clear boot counter after device runs stably for BOOT_LOOP_WINDOW seconds
+    static bool bootCountCleared = false;
+    if (!bootCountCleared && !safeMode && millis() > BOOT_LOOP_WINDOW * 1000UL) {
+        clearBootCount();
+        bootCountCleared = true;
+        Serial.println("Device stable for 30s - boot counter cleared");
     }
 
     // Check WiFi connection
@@ -242,8 +247,18 @@ void loop() {
         }
     }
 
-    // In safe mode, only handle web server
+    // In safe mode, only handle web server and restart button
     if (safeMode) {
+        int touchX, touchY;
+        if (ui.getTouchPoint(touchX, touchY)) {
+            if (millis() - lastTouchTime > 300) {
+                lastTouchTime = millis();
+                if (ui.checkButtonPress(touchX, touchY) >= 0) {
+                    Serial.println("Safe mode restart requested by user");
+                    ESP.restart();
+                }
+            }
+        }
         delay(100);
         return;
     }
@@ -896,15 +911,27 @@ void handleTouch() {
     UIState currentState = ui.getState();
 
     switch (currentState) {
-        case UI_ROOM_STATUS:
-            if (buttonIndex == 0 && currentStatus.isAvailable) {
-                // Book Now button
+        case UI_ROOM_STATUS: {
+            String label = ui.getButtonLabel(buttonIndex);
+            if (label == "Book") {
                 ui.showQuickBookMenu(currentStatus);
-            } else if (buttonIndex == 1 || (buttonIndex == 0 && !currentStatus.isAvailable)) {
-                // Refresh button
+            } else if (label == "EndMeeting") {
+                ui.showEndMeetingConfirm();
+            } else if (label == "Refresh") {
                 ui.showLoading("Refreshing...");
-                forceRedraw = true;  // Force redraw after manual refresh
+                forceRedraw = true;
                 updateRoomStatus();
+            }
+            break;
+        }
+
+        case UI_END_MEETING_CONFIRM:
+            if (buttonIndex == 0) {
+                // Cancel — go back to status
+                ui.showRoomStatus(currentStatus);
+            } else if (buttonIndex == 1) {
+                // Confirm end meeting
+                performEndMeeting();
             }
             break;
 
@@ -967,6 +994,19 @@ void performQuickBook(int duration) {
     // Auto-return to status after 3 seconds
     delay(3000);
     forceRedraw = true;  // Force redraw after booking result
+    updateRoomStatus();
+}
+
+void performEndMeeting() {
+    ui.showLoading("Ending meeting...");
+
+    EndMeetingResult result = apiClient.endMeeting();
+
+    ui.showBookingResult(result.success, result.message);
+
+    // Auto-return to status after 3 seconds
+    delay(3000);
+    forceRedraw = true;
     updateRoomStatus();
 }
 

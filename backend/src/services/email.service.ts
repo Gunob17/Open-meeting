@@ -578,3 +578,50 @@ export async function sendReceptionNotification(params: ReceptionNotificationPar
     // Don't throw - email failure shouldn't fail the booking
   }
 }
+
+export async function sendUserInviteEmail(toEmail: string, inviteLink: string): Promise<void> {
+  if (!isValidEmail(toEmail)) {
+    console.error('Invalid email address for invite:', toEmail);
+    return;
+  }
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #6366f1; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+    .btn { display: inline-block; background: #6366f1; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; margin: 20px 0; }
+    .footer { margin-top: 20px; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin:0;">You've been invited to Open Meeting</h1>
+    </div>
+    <div class="content">
+      <p>An administrator has created an account for you on Open Meeting, a room booking system.</p>
+      <p>Click the button below to set up your name and password and activate your account:</p>
+      <a href="${inviteLink}" class="btn">Complete Account Setup</a>
+      <p>This invitation link expires in <strong>48 hours</strong>.</p>
+      <p>If you did not expect this invitation, you can safely ignore this email.</p>
+      <p class="footer">This email was sent automatically from Open Meeting. Do not reply to this email.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || '"Open Meeting" <noreply@openmeeting.com>',
+    to: toEmail,
+    subject: "You've been invited to Open Meeting",
+    html: htmlContent,
+  });
+
+  console.log(`Invite email sent to: ${toEmail}`);
+}

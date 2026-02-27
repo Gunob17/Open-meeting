@@ -93,8 +93,6 @@ export function UsersPage() {
       } else {
         await api.createUser({
           email: formData.email,
-          password: formData.password,
-          name: formData.name,
           role: formData.role,
           companyId: formData.companyId,
           addonRoles: formData.isReceptionist ? ['receptionist'] : []
@@ -153,8 +151,11 @@ export function UsersPage() {
             {users.map(user => (
               <tr key={user.id} style={user.isActive === false ? { opacity: 0.5 } : undefined}>
                 <td>
-                  {user.name}
-                  {user.isActive === false && (
+                  {user.name || <em style={{ color: 'var(--text-muted)' }}>Not set up</em>}
+                  {user.isActive === false && user.inviteToken && (
+                    <span className="role-badge" style={{ marginLeft: '0.25rem', background: '#d97706', color: '#fff' }}>invite pending</span>
+                  )}
+                  {user.isActive === false && !user.inviteToken && (
                     <span className="role-badge" style={{ marginLeft: '0.25rem', background: 'var(--danger)', color: '#fff' }}>disabled</span>
                   )}
                 </td>
@@ -212,16 +213,24 @@ export function UsersPage() {
               <div className="modal-body">
                 {error && <div className="alert alert-error">{error}</div>}
 
-                <div className="form-group">
-                  <label htmlFor="name">Name *</label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </div>
+                {!editingUser && (
+                  <div className="alert" style={{ background: 'var(--bg-secondary)', borderLeft: '3px solid var(--primary)', marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: '4px', fontSize: '0.9rem' }}>
+                    An invitation email will be sent to this address. The user will set their own name and password.
+                  </div>
+                )}
+
+                {editingUser && (
+                  <div className="form-group">
+                    <label htmlFor="name">Name *</label>
+                    <input
+                      type="text"
+                      id="name"
+                      value={formData.name}
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label htmlFor="email">Email *</label>
@@ -231,30 +240,30 @@ export function UsersPage() {
                     value={formData.email}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
                     required
+                    readOnly={!!editingUser}
                   />
                 </div>
 
-                {editingUser?.authSource && editingUser.authSource !== 'local' ? (
-                  <div className="form-group">
-                    <label>Password</label>
-                    <small style={{ color: 'var(--text-muted)' }}>
-                      Managed by {editingUser.authSource === 'ldap' ? 'LDAP directory' : 'SSO identity provider'}
-                    </small>
-                  </div>
-                ) : (
-                  <div className="form-group">
-                    <label htmlFor="password">
-                      Password {editingUser ? '(leave blank to keep current)' : '*'}
-                    </label>
-                    <input
-                      type="password"
-                      id="password"
-                      value={formData.password}
-                      onChange={e => setFormData({ ...formData, password: e.target.value })}
-                      required={!editingUser}
-                      minLength={6}
-                    />
-                  </div>
+                {editingUser && (
+                  editingUser.authSource && editingUser.authSource !== 'local' ? (
+                    <div className="form-group">
+                      <label>Password</label>
+                      <small style={{ color: 'var(--text-muted)' }}>
+                        Managed by {editingUser.authSource === 'ldap' ? 'LDAP directory' : 'SSO identity provider'}
+                      </small>
+                    </div>
+                  ) : (
+                    <div className="form-group">
+                      <label htmlFor="password">Password (leave blank to keep current)</label>
+                      <input
+                        type="password"
+                        id="password"
+                        value={formData.password}
+                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                        minLength={6}
+                      />
+                    </div>
+                  )
                 )}
 
                 {isAdmin && (
@@ -309,7 +318,7 @@ export function UsersPage() {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save'}
+                  {saving ? (editingUser ? 'Saving...' : 'Sending...') : (editingUser ? 'Save' : 'Send Invite')}
                 </button>
               </div>
             </form>

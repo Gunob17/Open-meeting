@@ -16,6 +16,12 @@ backend/data/
 .env.development.local
 .env.test.local
 .env.production.local
+.env.deploy
+
+# Production deploy
+backups/
+Deploy/
+docker-compose.prod.yml
 
 # Logs
 npm-debug.log*
