@@ -190,7 +190,7 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
     });
 
     // Send invite email (best-effort — don't fail the request if email fails)
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.APP_URL || 'http://localhost';
     const inviteLink = `${frontendUrl}/invite/${inviteToken}`;
     sendUserInviteEmail(email, inviteLink).catch((err: unknown) =>
       console.error('Failed to send invite email:', err)

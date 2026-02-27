@@ -46,8 +46,8 @@ export function CompleteInvitePage() {
 
   if (done) {
     return (
-      <div className="login-page">
-        <div className="login-container">
+      <div className="login-container">
+        <div className="login-card">
           <div className="login-header">
             <h1>Account ready!</h1>
             <p>Redirecting you to the app...</p>
@@ -58,18 +58,18 @@ export function CompleteInvitePage() {
   }
 
   return (
-    <div className="login-page">
-      <div className="login-container">
+    <div className="login-container">
+      <div className="login-card">
         <div className="login-header">
           <h1>Welcome to Open Meeting</h1>
           <p>Set up your account to get started</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {error && <div className="alert alert-error">{error}</div>}
+        {error && <div className="alert alert-error">{error}</div>}
 
+        <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label htmlFor="name">Your name *</label>
+            <label htmlFor="name">Your name</label>
             <input
               type="text"
               id="name"
@@ -82,7 +82,7 @@ export function CompleteInvitePage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password *</label>
+            <label htmlFor="password">Password</label>
             <input
               type="password"
               id="password"
@@ -95,7 +95,7 @@ export function CompleteInvitePage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm password *</label>
+            <label htmlFor="confirmPassword">Confirm password</label>
             <input
               type="password"
               id="confirmPassword"
@@ -107,7 +107,7 @@ export function CompleteInvitePage() {
             />
           </div>
 
-          <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
+          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
             {loading ? 'Setting up...' : 'Complete setup'}
           </button>
         </form>
