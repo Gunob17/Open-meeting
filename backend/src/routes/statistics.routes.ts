@@ -52,8 +52,6 @@ interface AmenityStats {
 
 interface TopBooker {
   userId: string;
-  userName: string;
-  userEmail: string;
   companyName: string;
   bookingCount: number;
   totalHoursBooked: number;
@@ -391,8 +389,6 @@ router.get('/top-bookers', authenticate, requireAdmin, async (req: AuthRequest, 
       .join('meeting_rooms as r', 'b.room_id', 'r.id')
       .select(
         'u.id as user_id',
-        'u.name as user_name',
-        'u.email as user_email',
         'c.name as company_name',
         'b.start_time',
         'b.end_time'
@@ -410,8 +406,6 @@ router.get('/top-bookers', authenticate, requireAdmin, async (req: AuthRequest, 
     // Aggregate in JavaScript (portable replacement for SQL GROUP BY + julianday)
     const userMap = new Map<string, {
       userId: string;
-      userName: string;
-      userEmail: string;
       companyName: string;
       bookingCount: number;
       totalHours: number;
@@ -426,8 +420,6 @@ router.get('/top-bookers', authenticate, requireAdmin, async (req: AuthRequest, 
       } else {
         userMap.set(b.user_id, {
           userId: b.user_id,
-          userName: b.user_name,
-          userEmail: b.user_email,
           companyName: b.company_name,
           bookingCount: 1,
           totalHours: hours,
@@ -440,8 +432,6 @@ router.get('/top-bookers', authenticate, requireAdmin, async (req: AuthRequest, 
       .slice(0, resultLimit)
       .map(b => ({
         userId: b.userId,
-        userName: b.userName,
-        userEmail: b.userEmail,
         companyName: b.companyName,
         bookingCount: b.bookingCount,
         totalHoursBooked: Math.round(b.totalHours * 10) / 10

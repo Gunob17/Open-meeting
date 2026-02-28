@@ -26,8 +26,13 @@ router.get('/status', async (req, res: Response) => {
   }
 });
 
-// Initialize with demo data
+// Initialize with demo data — development/staging only, never production
 router.post('/demo', async (req, res: Response) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+
   try {
     // Check if already set up (exclude system users)
     const db = getDb();

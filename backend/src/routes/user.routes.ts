@@ -5,8 +5,10 @@ import { UserModel } from '../models/user.model';
 import { getDb } from '../models/database';
 import { CompanyModel } from '../models/company.model';
 import { TrustedDeviceModel } from '../models/trusted-device.model';
+import { BookingModel } from '../models/booking.model';
 import { UserRole } from '../types';
 import { sendUserInviteEmail } from '../services/email.service';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -177,7 +179,9 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
       ? (addonRoles || []) : [];
 
     // Generate invite token (48h expiry)
-    const inviteToken = crypto.randomBytes(32).toString('hex');
+    // Store SHA-256 hash of token in DB; send raw token in email link only
+    const rawInviteToken = crypto.randomBytes(32).toString('hex');
+    const inviteToken = crypto.createHash('sha256').update(rawInviteToken).digest('hex');
     const inviteTokenExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
 
     const user = await UserModel.createInvited({
@@ -192,10 +196,13 @@ router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthReque
 
     // Send invite email (best-effort — don't fail the request if email fails)
     const frontendUrl = process.env.APP_URL || 'http://localhost';
-    const inviteLink = `${frontendUrl}/invite/${inviteToken}`;
+    const inviteLink = `${frontendUrl}/invite/${rawInviteToken}`;
     sendUserInviteEmail(email, inviteLink).catch((err: unknown) =>
       console.error('Failed to send invite email:', err)
     );
+
+    auditLog({ userId: req.user!.userId, action: AuditAction.USER_CREATE, resourceType: 'user', resourceId: user.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success', metadata: { role, companyId } });
+    auditLog({ userId: req.user!.userId, action: AuditAction.USER_INVITE_SEND, resourceType: 'user', resourceId: user.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
 
     res.status(201).json({
       id: user.id,
@@ -230,21 +237,24 @@ router.post('/:id/resend-invite', authenticate, requireCompanyAdminOrAbove, asyn
     }
 
     // Issue a fresh token with a new 48h window
+    // Store SHA-256 hash of token in DB; send raw token in email link only
     const db = getDb();
-    const inviteToken = crypto.randomBytes(32).toString('hex');
+    const rawInviteToken = crypto.randomBytes(32).toString('hex');
+    const hashedInviteToken = crypto.createHash('sha256').update(rawInviteToken).digest('hex');
     const inviteTokenExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
     await db('users').where('id', id).update({
-      invite_token: inviteToken,
+      invite_token: hashedInviteToken,
       invite_token_expiry: inviteTokenExpiry,
       updated_at: new Date().toISOString(),
     });
 
     const frontendUrl = process.env.APP_URL || 'http://localhost';
-    const inviteLink = `${frontendUrl}/invite/${inviteToken}`;
+    const inviteLink = `${frontendUrl}/invite/${rawInviteToken}`;
     sendUserInviteEmail(user.email, inviteLink).catch((err: unknown) =>
       console.error('Failed to resend invite email:', err)
     );
 
+    auditLog({ userId: req.user!.userId, action: AuditAction.USER_INVITE_RESEND, resourceType: 'user', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
     res.json({ message: 'Invite resent' });
   } catch (error) {
     console.error('Resend invite error:', error);
@@ -362,6 +372,75 @@ router.post('/:id/reset-2fa', authenticate, requireAdmin, async (req: AuthReques
   }
 });
 
+// Export personal data — GDPR Article 15 (Right of Access)
+// Users can only export their own data; admins can export any user in their scope.
+router.get('/:id/export', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const requesterId = req.user!.userId;
+    const requesterRole = req.user!.role;
+
+    const isSelf = id === requesterId;
+    const isAdmin = requesterRole === UserRole.SUPER_ADMIN || requesterRole === UserRole.PARK_ADMIN || requesterRole === UserRole.COMPANY_ADMIN;
+
+    if (!isSelf && !isAdmin) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const user = await UserModel.findById(id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Company admins may only export users in their own company
+    if (requesterRole === UserRole.COMPANY_ADMIN && user.companyId !== req.user!.companyId) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+
+    const bookings = await BookingModel.findByUser(id);
+    const devices = await TrustedDeviceModel.findByUser(id);
+
+    auditLog({ userId: requesterId, action: AuditAction.USER_DATA_EXPORT, resourceType: 'user', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
+
+    res.json({
+      exportedAt: new Date().toISOString(),
+      profile: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        authSource: user.authSource,
+        twofaEnabled: user.twofaEnabled,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+      bookings: bookings.map(b => ({
+        id: b.id,
+        title: b.title,
+        description: b.description,
+        roomId: b.roomId,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        status: b.status,
+        attendees: JSON.parse(b.attendees),
+        externalGuests: JSON.parse(b.externalGuests),
+        createdAt: b.createdAt,
+      })),
+      trustedDevices: devices.map(d => ({
+        id: d.id,
+        createdAt: d.createdAt,
+        expiresAt: d.expiresAt,
+      })),
+    });
+  } catch (error) {
+    console.error('Export user data error:', error);
+    res.status(500).json({ error: 'Failed to export user data' });
+  }
+});
+
 // Delete user
 router.delete('/:id', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
   try {
@@ -404,7 +483,9 @@ router.delete('/:id', authenticate, requireCompanyAdminOrAbove, async (req: Auth
       return;
     }
 
-    await UserModel.delete(id);
+    const { reason } = req.body;
+    await UserModel.delete(id, reason);
+    auditLog({ userId: req.user!.userId, action: AuditAction.USER_DELETE, resourceType: 'user', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success', metadata: { reason } });
     res.status(204).send();
   } catch (error) {
     console.error('Delete user error:', error);

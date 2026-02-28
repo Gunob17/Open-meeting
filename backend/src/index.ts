@@ -29,8 +29,22 @@ const PORT = process.env.PORT || 3001;
 // Trust proxy (running behind HAProxy/Nginx)
 app.set('trust proxy', 1);
 
-// Security middleware
-app.use(helmet());
+// Security middleware with explicit Content Security Policy
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  hsts: { maxAge: 31536000, includeSubDomains: true },
+}));
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
@@ -64,8 +78,8 @@ app.use('/api/receptionist', receptionistRoutes);
 app.use('/api/ldap', ldapRoutes);
 app.use('/api/sso', ssoRoutes);
 
-// Dev-only routes (available when not in production OR when explicitly enabled via env var)
-if (process.env.NODE_ENV !== 'production' || process.env.DEV_IMPERSONATION_ENABLED === 'true') {
+// Dev-only routes — never available in production
+if (process.env.NODE_ENV !== 'production') {
   app.use('/api/dev', devRoutes);
 }
 

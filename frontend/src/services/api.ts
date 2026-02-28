@@ -756,8 +756,6 @@ class ApiService {
     dateRange: { start: string; end: string };
     topBookers: Array<{
       userId: string;
-      userName: string;
-      userEmail: string;
       companyName: string;
       bookingCount: number;
       totalHoursBooked: number;

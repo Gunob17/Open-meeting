@@ -8,6 +8,7 @@ import { sendMeetingInvite, sendCancellationNotice, sendAdminDeleteNotice, sendA
 import { UserRole, MeetingRoom, ExternalGuest } from '../types';
 import { SettingsModel } from '../models/settings.model';
 import { ParkModel } from '../models/park.model';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 // Helper to get global settings
 async function getGlobalSettings(): Promise<{ openingHour: number; closingHour: number }> {
@@ -75,7 +76,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       bookings = await BookingModel.findAll();
     }
 
-    // Scope bookings to the user's park (super admins see everything)
+    // Scope bookings to the rooms the user can access (super admins see everything)
     if (req.user?.role !== UserRole.SUPER_ADMIN) {
       let effectiveParkId = req.user?.parkId;
       // Fallback: if parkId not set on user (legacy accounts), derive from their company
@@ -84,18 +85,35 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
         effectiveParkId = company?.parkId;
       }
       if (effectiveParkId) {
-        bookings = bookings.filter(b => b.room?.parkId === effectiveParkId);
+        // Build the exact same accessible-room set that the rooms endpoint returns,
+        // so the calendar bookings and calendar rooms are always consistent.
+        let accessibleRooms = await RoomModel.findAll(true, effectiveParkId);
+
+        // Park admins see all rooms in their park regardless of company lock.
+        // Company admins / regular users must not see rooms locked to other companies.
+        const isParkAdmin = req.user!.role === UserRole.PARK_ADMIN;
+        if (!isParkAdmin && req.user!.companyId) {
+          accessibleRooms = accessibleRooms.filter(room => {
+            if (!room.lockedToCompanyIds || room.lockedToCompanyIds.length === 0) return true;
+            return room.lockedToCompanyIds.includes(req.user!.companyId);
+          });
+        }
+
+        const accessibleRoomIds = new Set(accessibleRooms.map(r => r.id));
+        bookings = bookings.filter(b => accessibleRoomIds.has(b.roomId));
       }
     }
 
-    // Parse attendees and external guests JSON
+    // Strip attendee emails and external guest data from list response
+    // (privacy: full details only available on the individual booking endpoint after auth check)
+    // Return empty arrays rather than undefined to satisfy the Booking type contract.
     const bookingsWithParsedData = bookings.map(b => ({
       ...b,
-      attendees: JSON.parse(b.attendees),
-      externalGuests: JSON.parse(b.externalGuests),
+      attendees: [] as string[],
+      externalGuests: [] as ExternalGuest[],
       room: b.room ? {
         ...b.room,
-        amenities: JSON.parse(b.room.amenities)
+        amenities: (() => { try { return JSON.parse(b.room!.amenities as unknown as string); } catch { return []; } })()
       } : undefined
     }));
 
@@ -139,6 +157,16 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     if (!booking) {
       res.status(404).json({ error: 'Booking not found' });
+      return;
+    }
+
+    // Authorization: owner, or an admin whose park contains the booking's room
+    const isOwner = booking.userId === req.user!.userId;
+    const isAdmin = req.user!.role === UserRole.SUPER_ADMIN || req.user!.role === UserRole.PARK_ADMIN;
+    const isSamePark = booking.room?.parkId === req.user!.parkId;
+
+    if (!isOwner && !(isAdmin && (req.user!.role === UserRole.SUPER_ADMIN || isSamePark))) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
 
@@ -300,6 +328,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
+    auditLog({ userId: req.user!.userId, action: AuditAction.BOOKING_CREATE, resourceType: 'booking', resourceId: booking.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
     res.status(201).json({
       ...booking,
       attendees: JSON.parse(booking.attendees),
@@ -448,6 +477,7 @@ router.post('/:id/cancel', authenticate, async (req: AuthRequest, res: Response)
       });
     }
 
+    auditLog({ userId: req.user!.userId, action: AuditAction.BOOKING_CANCEL, resourceType: 'booking', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
     res.json({ message: 'Booking cancelled successfully' });
   } catch (error) {
     console.error('Cancel booking error:', error);
@@ -482,6 +512,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     const admin = await UserModel.findById(req.user!.userId);
 
     await BookingModel.delete(id);
+    auditLog({ userId: req.user!.userId, action: AuditAction.BOOKING_DELETE, resourceType: 'booking', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success', metadata: { isAdmin, isOwner } });
 
     // If admin deleted someone else's booking, send notification
     if (isAdmin && !isOwner && room && bookingOwner && admin) {

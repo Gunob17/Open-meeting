@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Router, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { UserModel } from '../models/user.model';
@@ -7,6 +8,7 @@ import { LdapConfigModel } from '../models/ldap-config.model';
 import { LdapService } from '../services/ldap.service';
 import { generateToken, generatePartialToken, authenticate, AuthRequest } from '../middleware/auth.middleware';
 import { getEffectiveTwoFaEnforcement } from '../utils/twofa-enforcement';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -44,12 +46,14 @@ router.post('/login', loginLimiter, async (req, res: Response) => {
 
     const user = await UserModel.findByEmail(email);
     if (!user) {
+      auditLog({ action: AuditAction.AUTH_LOGIN_FAILURE, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'failure', metadata: { reason: 'user_not_found' } });
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
 
     // Check if user is active (soft-disabled by LDAP sync)
     if (!user.isActive) {
+      auditLog({ userId: user.id, action: AuditAction.AUTH_LOGIN_FAILURE, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'failure', metadata: { reason: 'account_disabled' } });
       res.status(401).json({ error: 'Account is disabled' });
       return;
     }
@@ -60,6 +64,7 @@ router.post('/login', loginLimiter, async (req, res: Response) => {
       if (ldapConfig && ldapConfig.isEnabled) {
         const ldapResult = await LdapService.authenticateUser(email, password, user.companyId);
         if (!ldapResult) {
+          auditLog({ userId: user.id, action: AuditAction.AUTH_LOGIN_FAILURE, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'failure', metadata: { reason: 'ldap_invalid_credentials' } });
           res.status(401).json({ error: 'Invalid credentials' });
           return;
         }
@@ -70,6 +75,7 @@ router.post('/login', loginLimiter, async (req, res: Response) => {
     } else {
       const isValid = await UserModel.validatePassword(user, password);
       if (!isValid) {
+        auditLog({ userId: user.id, action: AuditAction.AUTH_LOGIN_FAILURE, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'failure', metadata: { reason: 'invalid_password' } });
         res.status(401).json({ error: 'Invalid credentials' });
         return;
       }
@@ -94,6 +100,7 @@ router.post('/login', loginLimiter, async (req, res: Response) => {
             companyId: user.companyId,
             parkId: user.parkId,
           }, !!keepLoggedIn);
+          auditLog({ userId: user.id, action: AuditAction.AUTH_LOGIN_SUCCESS, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success', metadata: { method: 'trusted_device' } });
           res.json({ token, user: sanitizeUser(user) });
           return;
         }
@@ -146,6 +153,7 @@ router.post('/login', loginLimiter, async (req, res: Response) => {
       parkId: user.parkId,
     }, !!keepLoggedIn);
 
+    auditLog({ userId: user.id, action: AuditAction.AUTH_LOGIN_SUCCESS, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success', metadata: { method: user.authSource } });
     res.json({ token, user: sanitizeUser(user) });
   } catch (error) {
     console.error('Login error:', error);
@@ -246,6 +254,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
     }
 
     await UserModel.update(user.id, { password: newPassword } as any);
+    auditLog({ userId: user.id, action: AuditAction.AUTH_PASSWORD_CHANGE, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
     console.error('Change password error:', error);
@@ -268,7 +277,9 @@ router.post('/complete-invite', async (req, res: Response) => {
       return;
     }
 
-    const user = await UserModel.findByInviteToken(token);
+    // Hash incoming token before DB lookup (tokens are stored hashed)
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const user = await UserModel.findByInviteToken(hashedToken);
     if (!user) {
       res.status(404).json({ error: 'Invalid or already used invite link' });
       return;
@@ -280,6 +291,7 @@ router.post('/complete-invite', async (req, res: Response) => {
     }
 
     await UserModel.completeInvite(user.id, name, password);
+    auditLog({ userId: user.id, action: AuditAction.USER_INVITE_COMPLETE, resourceType: 'user', resourceId: user.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
 
     const jwt = generateToken({
       userId: user.id,

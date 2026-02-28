@@ -36,8 +36,6 @@ interface AmenityStat {
 
 interface TopBooker {
   userId: string;
-  userName: string;
-  userEmail: string;
   companyName: string;
   bookingCount: number;
   totalHoursBooked: number;
@@ -296,7 +294,7 @@ export function StatisticsPage() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>User</th>
+                    <th>User ID</th>
                     <th>Company</th>
                     <th>Bookings</th>
                     <th>Hours</th>
@@ -306,8 +304,7 @@ export function StatisticsPage() {
                   {topBookers.map(booker => (
                     <tr key={booker.userId}>
                       <td>
-                        <div className="user-name">{booker.userName}</div>
-                        <div className="user-email">{booker.userEmail}</div>
+                        <div className="user-name">{booker.userId.substring(0, 8)}…</div>
                       </td>
                       <td>{booker.companyName}</td>
                       <td>{booker.bookingCount}</td>

@@ -29,27 +29,27 @@ export class UserModel {
 
   static async findById(id: string): Promise<User | null> {
     const db = getDb();
-    const row = await db('users').where('id', id).first();
+    const row = await db('users').where('id', id).whereNull('deleted_at').first();
     if (!row) return null;
     return this.mapRowToUser(row);
   }
 
   static async findByEmail(email: string): Promise<User | null> {
     const db = getDb();
-    const row = await db('users').where('email', email).first();
+    const row = await db('users').where('email', email).whereNull('deleted_at').first();
     if (!row) return null;
     return this.mapRowToUser(row);
   }
 
   static async findByCompany(companyId: string): Promise<User[]> {
     const db = getDb();
-    const rows = await db('users').where('company_id', companyId).orderBy('name');
+    const rows = await db('users').where('company_id', companyId).whereNull('deleted_at').orderBy('name');
     return rows.map(this.mapRowToUser);
   }
 
   static async findAll(parkId?: string | null): Promise<User[]> {
     const db = getDb();
-    let query = db('users').whereNot('company_id', 'system');
+    let query = db('users').whereNot('company_id', 'system').whereNull('deleted_at');
 
     if (parkId) {
       query = query.andWhere('park_id', parkId);
@@ -94,9 +94,25 @@ export class UserModel {
     return this.findById(id);
   }
 
-  static async delete(id: string): Promise<boolean> {
+  static async delete(id: string, reason?: string): Promise<boolean> {
     const db = getDb();
-    const count = await db('users').where('id', id).del();
+    const now = new Date().toISOString();
+    // Soft-delete: anonymize PII fields, preserve the row for audit trail integrity
+    const count = await db('users').where('id', id).update({
+      email: `deleted-${crypto.createHash('sha256').update(id).digest('hex').substring(0, 16)}@deleted.invalid`,
+      name: 'Deleted User',
+      password: '',
+      invite_token: null,
+      invite_token_expiry: null,
+      twofa_secret: null,
+      twofa_backup_codes: null,
+      ldap_dn: null,
+      sso_subject_id: null,
+      is_active: false,
+      deleted_at: now,
+      deletion_reason: reason ?? null,
+      updated_at: now,
+    });
     return count > 0;
   }
 
@@ -298,7 +314,7 @@ export class UserModel {
 
   static async findByInviteToken(token: string): Promise<User | null> {
     const db = getDb();
-    const row = await db('users').where('invite_token', token).first();
+    const row = await db('users').where('invite_token', token).whereNull('deleted_at').first();
     if (!row) return null;
     return this.mapRowToUser(row);
   }

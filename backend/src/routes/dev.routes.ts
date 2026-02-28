@@ -1,12 +1,14 @@
 import { Router, Response } from 'express';
 import { UserModel } from '../models/user.model';
-import { generateToken, authenticate, AuthRequest } from '../middleware/auth.middleware';
+import { generateToken, authenticate, requireSuperAdmin, AuthRequest } from '../middleware/auth.middleware';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
 // POST /api/dev/impersonate
-// Returns a real JWT for any user — dev mode only, never available in production.
-router.post('/impersonate', authenticate, async (req: AuthRequest, res: Response) => {
+// Returns a real JWT for any user — development only (never mounted in production).
+// Restricted to SUPER_ADMIN to prevent privilege escalation if accidentally exposed.
+router.post('/impersonate', authenticate, requireSuperAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.body;
     if (!userId) {
@@ -28,6 +30,7 @@ router.post('/impersonate', authenticate, async (req: AuthRequest, res: Response
       parkId: target.parkId,
     });
 
+    auditLog({ userId: req.user!.userId, action: AuditAction.DEV_IMPERSONATE, resourceType: 'user', resourceId: target.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
     res.json({
       token,
       user: {

@@ -60,15 +60,21 @@ Not every room should be available to everyone. Lock specific rooms to certain c
 - Configurable quick-booking durations per room (15 min, 30 min, 1 hour, etc.)
 - Admins can move bookings between rooms or remove bookings with reason notifications
 
-### Enterprise Security
+### Enterprise Security & Compliance
 
-Meet your organization's security and compliance requirements with built-in two-factor authentication. Enforcement is hierarchical — set it system-wide, per site, or per company. Users can set up 2FA with any TOTP authenticator app, save backup codes for recovery, and trust their devices to skip verification on recognized browsers.
+Meet your organization's security and compliance requirements. Open Meeting is built with GDPR (EU Regulation 2016/679) and NIS2 (Directive 2022/2555) compliance in mind — with structured audit logging, data minimization, and user data rights built into the platform.
 
 - TOTP-based 2FA with QR code setup (Google Authenticator, Authy, etc.)
 - Backup codes for account recovery
 - Trusted device management — skip 2FA on recognized browsers
-- Hierarchical enforcement: system-wide, per site, or per company (disabled / optional / required)
+- Hierarchical 2FA enforcement: system-wide, per site, or per company (disabled / optional / required)
 - Two modes: require on every login, or trust verified devices for a configurable period
+- **Structured audit log** — every security event (login, 2FA, password change, booking actions, user management, data exports) is recorded with timestamp, user, IP, and outcome
+- **GDPR data export** — users can download all their personal data (profile, bookings) via a self-service endpoint (Art. 15 right of access)
+- **GDPR soft-delete** — user deletion anonymizes PII and records a deletion audit trail rather than hard-deleting records (Art. 17 right to erasure)
+- **Data minimization** — booking list endpoints return only the fields required for display; full attendee details are restricted to booking owners and admins
+- Content Security Policy (CSP) headers via Helmet prevent cross-site scripting escalation
+- All LDAP/SSO credentials encrypted at rest using a dedicated `ENCRYPTION_KEY` (AES-256-GCM), separate from the JWT signing secret
 
 ### Identity Provider Integration
 
@@ -177,7 +183,7 @@ docker-compose -f docker-compose.dev.yml up -d
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `JWT_SECRET` | Secret key for JWT tokens | **(change in production!)** |
-| `LDAP_ENCRYPTION_KEY` | Encryption key for stored LDAP/SSO secrets | Falls back to `JWT_SECRET` |
+| `ENCRYPTION_KEY` | Encryption key for stored LDAP/SSO credentials (AES-256-GCM) | **(required in production — must not share with JWT_SECRET)** |
 | `DB_TYPE` | Database engine (`sqlite`, `pg`, `mysql`, `mssql`) | `sqlite` |
 | `DB_HOST` | Database host | `localhost` |
 | `DB_PORT` | Database port | — |

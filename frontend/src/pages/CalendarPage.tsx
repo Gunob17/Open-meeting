@@ -217,9 +217,16 @@ export function CalendarPage() {
     setSelectedSlot({ room, date, hour });
   };
 
-  const handleBookingClick = (e: React.MouseEvent, booking: Booking) => {
+  const handleBookingClick = async (e: React.MouseEvent, booking: Booking) => {
     e.stopPropagation(); // Prevent slot click from firing
-    setSelectedBooking(booking);
+    setSelectedBooking(booking); // show basic info immediately
+    try {
+      // Fetch full details (attendees, externalGuests) — succeeds for owner or admin
+      const full = await api.getBooking(booking.id);
+      setSelectedBooking(full);
+    } catch {
+      // Non-owner/non-admin: 403 expected — basic info is sufficient
+    }
   };
 
   const handleBookingCreated = () => {
@@ -517,8 +524,8 @@ export function CalendarPage() {
               {selectedBooking.description && (
                 <p><strong>Description:</strong> {selectedBooking.description}</p>
               )}
-              {(isOwnBooking(selectedBooking) || isAdmin) && selectedBooking.attendees.length > 0 && (
-                <p><strong>Attendees:</strong> {selectedBooking.attendees.join(', ')}</p>
+              {(isOwnBooking(selectedBooking) || isAdmin) && (selectedBooking.attendees?.length ?? 0) > 0 && (
+                <p><strong>Attendees:</strong> {selectedBooking.attendees!.join(', ')}</p>
               )}
               <p><strong>Booked by:</strong> {selectedBooking.user?.name}</p>
             </div>
