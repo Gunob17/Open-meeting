@@ -98,11 +98,12 @@ jobs:
 
       - name: Push to GHCR
         run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
           docker load < /tmp/open-meeting.tar
-          docker tag open-meeting:${{ steps.version.outputs.VERSION }} ghcr.io/${{ github.repository_owner }}/open-meeting:${{ steps.version.outputs.VERSION }}
-          docker tag open-meeting:${{ steps.version.outputs.VERSION }} ghcr.io/${{ github.repository_owner }}/open-meeting:latest
-          docker push ghcr.io/${{ github.repository_owner }}/open-meeting:${{ steps.version.outputs.VERSION }}
-          docker push ghcr.io/${{ github.repository_owner }}/open-meeting:latest
+          docker tag open-meeting:${{ steps.version.outputs.VERSION }} ghcr.io/${OWNER}/open-meeting:${{ steps.version.outputs.VERSION }}
+          docker tag open-meeting:${{ steps.version.outputs.VERSION }} ghcr.io/${OWNER}/open-meeting:latest
+          docker push ghcr.io/${OWNER}/open-meeting:${{ steps.version.outputs.VERSION }}
+          docker push ghcr.io/${OWNER}/open-meeting:latest
 
       - name: Compress Docker image
         run: gzip /tmp/open-meeting.tar
@@ -180,7 +181,7 @@ jobs:
           echo "  -e ENCRYPTION_KEY=change-me-to-a-32-char-secret-key \\" >> CHANGELOG.md
           echo "  -v ./data:/app/backend/data \\" >> CHANGELOG.md
           echo "  --name open-meeting --restart unless-stopped \\" >> CHANGELOG.md
-          echo "  ghcr.io/gunob17/open-meeting:latest" >> CHANGELOG.md
+          echo "  ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/open-meeting:latest" >> CHANGELOG.md
           echo '```' >> CHANGELOG.md
           echo "" >> CHANGELOG.md
           echo "### Option 2 — Offline install (tar.gz)" >> CHANGELOG.md
