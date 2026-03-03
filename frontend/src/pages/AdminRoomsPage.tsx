@@ -63,7 +63,7 @@ export function AdminRoomsPage() {
     // Refresh IMAP statuses every 30 seconds
     const interval = setInterval(loadImapStatuses, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadData = async () => {
     setLoading(true);
