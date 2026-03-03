@@ -16,6 +16,7 @@ export function SettingsPage() {
   // Global settings form
   const [openingHour, setOpeningHour] = useState(8);
   const [closingHour, setClosingHour] = useState(18);
+  const [timezone, setTimezone] = useState('UTC');
 
   // 2FA settings (super admin only)
   const [twofaEnforcement, setTwofaEnforcement] = useState<TwoFaEnforcement>('disabled');
@@ -44,6 +45,7 @@ export function SettingsPage() {
       setSettings(settingsData);
       setOpeningHour(settingsData.openingHour);
       setClosingHour(settingsData.closingHour);
+      setTimezone(settingsData.timezone || 'UTC');
       setTwofaEnforcement((settingsData.twofaEnforcement as TwoFaEnforcement) || 'disabled');
       setTwofaMode((settingsData.twofaMode as TwoFaMode) || 'trusted_device');
       setTwofaTrustedDeviceDays(settingsData.twofaTrustedDeviceDays ?? 30);
@@ -70,7 +72,7 @@ export function SettingsPage() {
         return;
       }
 
-      const updated = await api.updateSettings({ openingHour, closingHour });
+      const updated = await api.updateSettings({ openingHour, closingHour, timezone });
       setSettings(updated);
       setSuccess('Global settings saved successfully');
     } catch (err) {
@@ -200,6 +202,56 @@ export function SettingsPage() {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="timezone">Timezone</label>
+            <select
+              id="timezone"
+              value={timezone}
+              onChange={e => setTimezone(e.target.value)}
+            >
+              <optgroup label="UTC">
+                <option value="UTC">UTC</option>
+              </optgroup>
+              <optgroup label="Europe">
+                <option value="Europe/London">Europe/London (GMT/BST)</option>
+                <option value="Europe/Lisbon">Europe/Lisbon (WET/WEST)</option>
+                <option value="Europe/Amsterdam">Europe/Amsterdam (CET/CEST)</option>
+                <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                <option value="Europe/Copenhagen">Europe/Copenhagen (CET/CEST)</option>
+                <option value="Europe/Madrid">Europe/Madrid (CET/CEST)</option>
+                <option value="Europe/Oslo">Europe/Oslo (CET/CEST)</option>
+                <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                <option value="Europe/Rome">Europe/Rome (CET/CEST)</option>
+                <option value="Europe/Stockholm">Europe/Stockholm (CET/CEST)</option>
+                <option value="Europe/Zurich">Europe/Zurich (CET/CEST)</option>
+                <option value="Europe/Athens">Europe/Athens (EET/EEST)</option>
+                <option value="Europe/Bucharest">Europe/Bucharest (EET/EEST)</option>
+                <option value="Europe/Helsinki">Europe/Helsinki (EET/EEST)</option>
+                <option value="Europe/Warsaw">Europe/Warsaw (CET/CEST)</option>
+                <option value="Europe/Moscow">Europe/Moscow (MSK)</option>
+              </optgroup>
+              <optgroup label="Americas">
+                <option value="America/New_York">America/New_York (ET)</option>
+                <option value="America/Chicago">America/Chicago (CT)</option>
+                <option value="America/Denver">America/Denver (MT)</option>
+                <option value="America/Los_Angeles">America/Los_Angeles (PT)</option>
+                <option value="America/Toronto">America/Toronto (ET)</option>
+                <option value="America/Vancouver">America/Vancouver (PT)</option>
+                <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
+              </optgroup>
+              <optgroup label="Asia / Pacific">
+                <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+                <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                <option value="Pacific/Auckland">Pacific/Auckland (NZST/NZDT)</option>
+              </optgroup>
+            </select>
+            <small>Used to enforce opening/closing hours for room display devices</small>
           </div>
 
           <button type="submit" className="btn btn-primary" disabled={saving}>

@@ -40,6 +40,16 @@ export const AuditAction = {
   BOOKING_CANCEL: 'booking.cancel',
   BOOKING_DELETE: 'booking.delete',
   BOOKING_MOVE: 'booking.move',
+  BOOKING_EMAIL_CREATE: 'booking.email.create',         // booking created via iMIP email invite
+  BOOKING_EMAIL_UPDATE: 'booking.email.update',         // existing booking updated via iMIP email
+  BOOKING_EMAIL_DECLINED: 'booking.email.declined',     // booking request declined (room conflict)
+  BOOKING_EMAIL_REJECTED_SIZE: 'booking.email.rejected.size',
+  BOOKING_EMAIL_REJECTED_DKIM: 'booking.email.rejected.dkim',
+  BOOKING_EMAIL_REJECTED_DEDUP: 'booking.email.rejected.dedup',
+  BOOKING_EMAIL_REJECTED_ICAL: 'booking.email.rejected.ical',
+  BOOKING_EMAIL_REJECTED_ROOM: 'booking.email.rejected.room',
+  BOOKING_EMAIL_REJECTED_USER: 'booking.email.rejected.user',
+  BOOKING_EMAIL_REJECTED_RATELIMIT: 'booking.email.rejected.ratelimit',
   // Dev
   DEV_IMPERSONATE: 'dev.impersonate',
 } as const;

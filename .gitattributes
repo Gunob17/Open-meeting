@@ -1,0 +1,5 @@
+# Ensure shell scripts always have Unix line endings (LF) on all platforms
+*.sh text eol=lf
+
+# Default: auto-normalize line endings
+* text=auto

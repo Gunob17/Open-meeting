@@ -3,7 +3,8 @@ import { RoomModel } from '../models/room.model';
 import { BookingModel } from '../models/booking.model';
 import { CompanyModel } from '../models/company.model';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
-import { UserRole } from '../types';
+import { MeetingRoom, UserRole } from '../types';
+import { imapManager } from '../services/imap.service';
 
 const router = Router();
 
@@ -43,17 +44,22 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Parse amenities JSON for response
-    const roomsWithParsedAmenities = rooms.map(room => ({
-      ...room,
-      amenities: JSON.parse(room.amenities)
-    }));
+    // Parse amenities JSON and strip IMAP password for response
+    const roomsWithParsedAmenities = rooms.map(room =>
+      sanitizeRoomForClient({ ...room, amenities: JSON.parse(room.amenities) })
+    );
 
     res.json(roomsWithParsedAmenities);
   } catch (error) {
     console.error('Get rooms error:', error);
     res.status(500).json({ error: 'Failed to get rooms' });
   }
+});
+
+// Get IMAP worker connection status for all rooms (admin only)
+// Must be declared before /:id to prevent Express treating 'imap-status' as a room ID
+router.get('/imap-status', authenticate, requireAdmin, (req: AuthRequest, res: Response) => {
+  res.json(imapManager.getStatuses());
 });
 
 // Get single room with availability
@@ -67,10 +73,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    res.json({
-      ...room,
-      amenities: JSON.parse(room.amenities)
-    });
+    res.json(sanitizeRoomForClient({ ...room, amenities: JSON.parse(room.amenities) }));
   } catch (error) {
     console.error('Get room error:', error);
     res.status(500).json({ error: 'Failed to get room' });
@@ -97,10 +100,7 @@ router.get('/:id/availability', authenticate, async (req: AuthRequest, res: Resp
     const bookings = await BookingModel.findByRoom(id, startDate as string, endDate as string);
 
     res.json({
-      room: {
-        ...room,
-        amenities: JSON.parse(room.amenities)
-      },
+      room: sanitizeRoomForClient({ ...room, amenities: JSON.parse(room.amenities) }),
       bookings: bookings.map(b => ({
         id: b.id,
         title: b.title,
@@ -114,10 +114,29 @@ router.get('/:id/availability', authenticate, async (req: AuthRequest, res: Resp
   }
 });
 
+/** Strip the IMAP password and expose hasImapPassword boolean instead. */
+function sanitizeRoomForClient(room: MeetingRoom & { amenities: any }) {
+  const { imapPass, ...rest } = room;
+  return { ...rest, hasImapPassword: !!imapPass };
+}
+
+const BOOKING_EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+/** Returns the normalized email, null (to clear), or 'INVALID' */
+function validateBookingEmail(email: unknown): string | null | 'INVALID' {
+  if (email === null || email === undefined || email === '') return null;
+  if (typeof email !== 'string') return 'INVALID';
+  const trimmed = email.trim().toLowerCase();
+  if (trimmed.length > 254 || !BOOKING_EMAIL_REGEX.test(trimmed) || trimmed.includes('\n') || trimmed.includes('\r')) {
+    return 'INVALID';
+  }
+  return trimmed;
+}
+
 // Create room (park admin or above)
 router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyIds, quickBookDurations, parkId } = req.body;
+    const { name, capacity, amenities, floor, address, description, openingHour, closingHour, lockedToCompanyIds, quickBookDurations, parkId, bookingEmail, imapHost, imapPort, imapUser, imapPass, imapMailbox, smtpHost, smtpPort, smtpSecure } = req.body;
 
     if (!name || !capacity || !floor || !address) {
       res.status(400).json({ error: 'Name, capacity, floor, and address are required' });
@@ -126,6 +145,18 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
 
     if (name.length > 255 || floor.length > 100 || address.length > 500 || (description && description.length > 2000)) {
       res.status(400).json({ error: 'Field length exceeded: name (255), floor (100), address (500), description (2000)' });
+      return;
+    }
+
+    const normalizedBookingEmail = validateBookingEmail(bookingEmail);
+    if (normalizedBookingEmail === 'INVALID') {
+      res.status(400).json({ error: 'Invalid booking email address' });
+      return;
+    }
+
+    // Validate IMAP fields: if host or user is set, all three core fields are required
+    if ((imapHost || imapUser) && !(imapHost && imapUser && imapPass)) {
+      res.status(400).json({ error: 'IMAP host, username, and password are all required when configuring IMAP' });
       return;
     }
 
@@ -177,13 +208,26 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
       openingHour: openingHour ?? null,
       closingHour: closingHour ?? null,
       lockedToCompanyIds: lockedToCompanyIds ?? [],
-      quickBookDurations: quickBookDurations ?? [30, 60, 90, 120]
+      quickBookDurations: quickBookDurations ?? [30, 60, 90, 120],
+      bookingEmail: normalizedBookingEmail,
+      imapHost: imapHost ?? null,
+      imapPort: imapPort ?? null,
+      imapUser: imapUser ?? null,
+      imapPass: imapPass ?? null,
+      imapMailbox: imapMailbox ?? null,
+      smtpHost: smtpHost ?? null,
+      smtpPort: smtpPort ?? null,
+      smtpSecure: smtpSecure ?? null,
     });
 
-    res.status(201).json({
-      ...room,
-      amenities: JSON.parse(room.amenities)
-    });
+    // Start IMAP worker for the new room if credentials were provided
+    if (room.imapHost && room.imapUser && room.imapPass) {
+      imapManager.restartRoom(room.id).catch(err =>
+        console.error('[imap] Failed to start worker for new room:', err)
+      );
+    }
+
+    res.status(201).json(sanitizeRoomForClient({ ...room, amenities: JSON.parse(room.amenities) }));
   } catch (error) {
     console.error('Create room error:', error);
     res.status(500).json({ error: 'Failed to create room' });
@@ -194,7 +238,28 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
 router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyIds, quickBookDurations } = req.body;
+    const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyIds, quickBookDurations, bookingEmail, imapHost, imapPort, imapUser, imapPass, imapMailbox, smtpHost, smtpPort, smtpSecure } = req.body;
+
+    // Validate booking email if provided in this update
+    let normalizedBookingEmail: string | null | undefined;
+    if ('bookingEmail' in req.body) {
+      const result = validateBookingEmail(bookingEmail);
+      if (result === 'INVALID') {
+        res.status(400).json({ error: 'Invalid booking email address' });
+        return;
+      }
+      normalizedBookingEmail = result;
+    }
+
+    // Determine IMAP password update: only update if a non-empty value is explicitly sent
+    let imapPassUpdate: string | null | undefined;
+    if ('imapHost' in req.body && !imapHost) {
+      // Host is being cleared — clear all IMAP credentials including password
+      imapPassUpdate = null;
+    } else if ('imapPass' in req.body && imapPass && String(imapPass).trim()) {
+      imapPassUpdate = String(imapPass).trim();
+    }
+    // If imapPass not in body or empty (and host not cleared), keep existing password
 
     // Validate room-specific hours if provided
     if (openingHour !== undefined && openingHour !== null) {
@@ -225,7 +290,16 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Res
       openingHour,
       closingHour,
       lockedToCompanyIds,
-      quickBookDurations
+      quickBookDurations,
+      bookingEmail: normalizedBookingEmail,
+      imapHost: 'imapHost' in req.body ? (imapHost ?? null) : undefined,
+      imapPort: 'imapPort' in req.body ? (imapPort ?? null) : undefined,
+      imapUser: 'imapUser' in req.body ? (imapUser ?? null) : undefined,
+      imapPass: imapPassUpdate,
+      imapMailbox: 'imapMailbox' in req.body ? (imapMailbox ?? null) : undefined,
+      smtpHost: 'smtpHost' in req.body ? (smtpHost ?? null) : undefined,
+      smtpPort: 'smtpPort' in req.body ? (smtpPort ?? null) : undefined,
+      smtpSecure: 'smtpSecure' in req.body ? (smtpSecure ?? null) : undefined,
     });
 
     if (!room) {
@@ -233,10 +307,12 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Res
       return;
     }
 
-    res.json({
-      ...room,
-      amenities: JSON.parse(room.amenities)
-    });
+    // Restart IMAP worker so new credentials take effect immediately (fire-and-forget)
+    imapManager.restartRoom(id).catch(err =>
+      console.error('[imap] Failed to restart worker after room update:', err)
+    );
+
+    res.json(sanitizeRoomForClient({ ...room, amenities: JSON.parse(room.amenities) }));
   } catch (error) {
     console.error('Update room error:', error);
     res.status(500).json({ error: 'Failed to update room' });
@@ -264,6 +340,9 @@ router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: 
         return;
       }
     }
+
+    // Stop IMAP worker for the deleted/deactivated room
+    imapManager.stopRoom(id);
 
     res.status(204).send();
   } catch (error) {

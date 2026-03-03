@@ -17,8 +17,22 @@ interface DeviceRequest extends Request {
 }
 
 // Helper to get global settings
-async function getGlobalSettings(): Promise<{ openingHour: number; closingHour: number }> {
+async function getGlobalSettings(): Promise<{ openingHour: number; closingHour: number; timezone: string }> {
   return SettingsModel.getGlobal();
+}
+
+// Return the hour and minute of a Date in the given IANA timezone
+function getLocalTime(date: Date, timezone: string): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(date);
+  return {
+    hour: parseInt(parts.find(p => p.type === 'hour')?.value ?? '0', 10),
+    minute: parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10),
+  };
 }
 
 // Middleware to authenticate device by token
@@ -172,14 +186,18 @@ router.post('/quick-book', authenticateDevice, async (req: DeviceRequest, res: R
     const globalSettings = await getGlobalSettings();
     const openingHour = room.openingHour ?? globalSettings.openingHour;
     const closingHour = room.closingHour ?? globalSettings.closingHour;
+    const timezone = globalSettings.timezone;
 
-    // Check if booking is within allowed hours
-    if (startTime.getHours() < openingHour) {
+    // Check if booking is within allowed hours (compare in the configured local timezone)
+    const localStart = getLocalTime(startTime, timezone);
+    const localEnd = getLocalTime(endTime, timezone);
+
+    if (localStart.hour < openingHour) {
       res.status(400).json({ error: `Room is not available before ${openingHour}:00` });
       return;
     }
 
-    if (endTime.getHours() > closingHour || (endTime.getHours() === closingHour && endTime.getMinutes() > 0)) {
+    if (localEnd.hour > closingHour || (localEnd.hour === closingHour && localEnd.minute > 0)) {
       res.status(400).json({ error: `Room is not available after ${closingHour}:00` });
       return;
     }

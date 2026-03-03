@@ -30,8 +30,19 @@ export function AdminRoomsPage() {
     address: '',
     description: '',
     quickBookDurations: [30, 60, 90, 120] as number[],
-    lockedToCompanyIds: [] as string[]
+    lockedToCompanyIds: [] as string[],
+    bookingEmail: '' as string,
+    imapHost: '' as string,
+    imapPort: 993 as number,
+    imapUser: '' as string,
+    imapPass: '' as string,
+    imapMailbox: '' as string,
+    smtpHost: '' as string,
+    smtpPort: 587 as number,
+    smtpSecure: false as boolean,
   });
+  // Track whether the user typed a new IMAP password (empty = keep existing)
+  const [imapPassChanged, setImapPassChanged] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -45,9 +56,13 @@ export function AdminRoomsPage() {
   const [deviceError, setDeviceError] = useState('');
   const [savingDevice, setSavingDevice] = useState(false);
   const [copiedTokenId, setCopiedTokenId] = useState<string | null>(null);
+  const [imapStatuses, setImapStatuses] = useState<Record<string, { status: 'ok' | 'error' | 'unknown'; lastChecked: string | null; lastError: string | null }>>({});
 
   useEffect(() => {
     loadData();
+    // Refresh IMAP statuses every 30 seconds
+    const interval = setInterval(loadImapStatuses, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadData = async () => {
@@ -63,6 +78,17 @@ export function AdminRoomsPage() {
       console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
+    }
+    // Load IMAP statuses after rooms are loaded (non-blocking)
+    loadImapStatuses();
+  };
+
+  const loadImapStatuses = async () => {
+    try {
+      const statuses = await api.getRoomImapStatuses();
+      setImapStatuses(statuses);
+    } catch {
+      // Non-critical — silently ignore
     }
   };
 
@@ -86,7 +112,16 @@ export function AdminRoomsPage() {
         address: room.address,
         description: room.description,
         quickBookDurations: room.quickBookDurations || [30, 60, 90, 120],
-        lockedToCompanyIds: room.lockedToCompanyIds || []
+        lockedToCompanyIds: room.lockedToCompanyIds || [],
+        bookingEmail: room.bookingEmail || '',
+        imapHost: room.imapHost || '',
+        imapPort: room.imapPort || 993,
+        imapUser: room.imapUser || '',
+        imapPass: '',  // Never pre-fill — user must type to change
+        imapMailbox: room.imapMailbox || '',
+        smtpHost: room.smtpHost || '',
+        smtpPort: room.smtpPort || 587,
+        smtpSecure: room.smtpSecure ?? false,
       });
     } else {
       setEditingRoom(null);
@@ -98,9 +133,19 @@ export function AdminRoomsPage() {
         address: '',
         description: '',
         quickBookDurations: [30, 60, 90, 120],
-        lockedToCompanyIds: []
+        lockedToCompanyIds: [],
+        bookingEmail: '',
+        imapHost: '',
+        imapPort: 993,
+        imapUser: '',
+        imapPass: '',
+        imapMailbox: '',
+        smtpHost: '',
+        smtpPort: 587,
+        smtpSecure: false,
       });
     }
+    setImapPassChanged(false);
     setError('');
     setShowModal(true);
   };
@@ -129,10 +174,26 @@ export function AdminRoomsPage() {
     setSaving(true);
 
     try {
-      const roomData = {
+      const imapConfigured = formData.imapHost.trim() && formData.imapUser.trim();
+      const roomData: any = {
         ...formData,
-        lockedToCompanyIds: formData.lockedToCompanyIds.length > 0 ? formData.lockedToCompanyIds : []
+        lockedToCompanyIds: formData.lockedToCompanyIds.length > 0 ? formData.lockedToCompanyIds : [],
+        bookingEmail: formData.bookingEmail.trim() || null,
+        imapHost: formData.imapHost.trim() || null,
+        imapPort: formData.imapPort || 993,
+        imapUser: formData.imapUser.trim() || null,
+        imapMailbox: formData.imapMailbox.trim() || null,
+        smtpHost: formData.smtpHost.trim() || null,
+        smtpPort: formData.smtpPort || 587,
+        smtpSecure: formData.smtpSecure,
       };
+      // Only include imapPass if user typed a new one
+      if (imapPassChanged && formData.imapPass) {
+        roomData.imapPass = formData.imapPass;
+      } else if (!editingRoom && imapConfigured) {
+        // Creating a new room with IMAP — password is required
+        roomData.imapPass = formData.imapPass || null;
+      }
       if (editingRoom) {
         await api.updateRoom(editingRoom.id, roomData);
       } else {
@@ -300,7 +361,26 @@ export function AdminRoomsPage() {
           <tbody>
             {rooms.map(room => (
               <tr key={room.id} className={!room.isActive ? 'inactive' : ''}>
-                <td>{room.name}</td>
+                <td>
+                  <div>{room.name}</div>
+                  {room.bookingEmail && (
+                    <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {room.imapHost && (() => {
+                        const s = imapStatuses[room.id];
+                        if (!s || s.status === 'unknown') return (
+                          <span title="IMAP: waiting for first poll…" style={{ color: '#9ca3af', fontSize: '0.7rem' }}>●</span>
+                        );
+                        if (s.status === 'ok') return (
+                          <span title={`IMAP connected — last checked ${s.lastChecked ? new Date(s.lastChecked).toLocaleTimeString() : '?'}`} style={{ color: '#10b981' }}>✓</span>
+                        );
+                        return (
+                          <span title={`IMAP error: ${s.lastError ?? 'unknown'}`} style={{ color: '#ef4444', cursor: 'help' }}>✗</span>
+                        );
+                      })()}
+                      {room.bookingEmail}
+                    </div>
+                  )}
+                </td>
                 <td>{room.capacity}</td>
                 <td>{room.floor}</td>
                 <td>
@@ -446,6 +526,145 @@ export function AdminRoomsPage() {
                     rows={2}
                   />
                 </div>
+
+                <div className="form-group">
+                  <label htmlFor="bookingEmail">Booking Email Address</label>
+                  <input
+                    type="email"
+                    id="bookingEmail"
+                    value={formData.bookingEmail}
+                    onChange={e => setFormData({ ...formData, bookingEmail: e.target.value })}
+                    placeholder="e.g., boardroom@rooms.yourdomain.com"
+                    maxLength={254}
+                  />
+                  <small style={{ color: '#6b7280', marginTop: '0.25rem', display: 'block' }}>
+                    The email address users send calendar invites to. Also used as the reply address for iMIP responses.
+                  </small>
+                </div>
+
+                <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '1rem', marginBottom: '0.5rem' }}>
+                  <legend style={{ padding: '0 0.5rem', fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>
+                    IMAP Inbox (for receiving booking requests)
+                  </legend>
+                  <small style={{ color: '#6b7280', display: 'block', marginBottom: '0.75rem' }}>
+                    Connect this room's mailbox so incoming calendar invites are processed automatically.
+                    Leave all fields empty to disable email-based booking for this room.
+                  </small>
+
+                  <div className="form-row">
+                    <div className="form-group" style={{ flex: 3 }}>
+                      <label htmlFor="imapHost">IMAP Host</label>
+                      <input
+                        type="text"
+                        id="imapHost"
+                        value={formData.imapHost}
+                        onChange={e => setFormData({ ...formData, imapHost: e.target.value })}
+                        placeholder="e.g., imap.gmail.com"
+                        maxLength={253}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label htmlFor="imapPort">Port</label>
+                      <input
+                        type="number"
+                        id="imapPort"
+                        value={formData.imapPort}
+                        onChange={e => setFormData({ ...formData, imapPort: parseInt(e.target.value) || 993 })}
+                        min={1}
+                        max={65535}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="imapUser">IMAP Username</label>
+                    <input
+                      type="text"
+                      id="imapUser"
+                      value={formData.imapUser}
+                      onChange={e => setFormData({ ...formData, imapUser: e.target.value })}
+                      placeholder="e.g., boardroom@rooms.yourdomain.com"
+                      maxLength={254}
+                      autoComplete="off"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="imapPass">IMAP Password</label>
+                    <input
+                      type="password"
+                      id="imapPass"
+                      value={formData.imapPass}
+                      onChange={e => {
+                        setFormData({ ...formData, imapPass: e.target.value });
+                        setImapPassChanged(true);
+                      }}
+                      placeholder={editingRoom?.hasImapPassword ? '(password saved — type to change)' : 'Enter password'}
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="imapMailbox">Mailbox / Folder</label>
+                    <input
+                      type="text"
+                      id="imapMailbox"
+                      value={formData.imapMailbox}
+                      onChange={e => setFormData({ ...formData, imapMailbox: e.target.value })}
+                      placeholder="INBOX"
+                      maxLength={255}
+                    />
+                    <small style={{ color: '#6b7280', marginTop: '0.25rem', display: 'block' }}>
+                      Leave blank to use INBOX. Use TLS port 993 (recommended).
+                    </small>
+                  </div>
+                </fieldset>
+
+                <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '1rem', marginBottom: '0.5rem' }}>
+                  <legend style={{ padding: '0 0.5rem', fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>
+                    SMTP Outbox (for sending booking replies)
+                  </legend>
+                  <small style={{ color: '#6b7280', display: 'block', marginBottom: '0.75rem' }}>
+                    Used to send ACCEPT / DECLINE replies from the room's own address. Uses the same username and password as IMAP.
+                    On most providers (including Hetzner) the SMTP host is the same as the IMAP host — leave the host blank to reuse it.
+                  </small>
+
+                  <div className="form-row">
+                    <div className="form-group" style={{ flex: 3 }}>
+                      <label htmlFor="smtpHost">SMTP Host (optional)</label>
+                      <input
+                        type="text"
+                        id="smtpHost"
+                        value={formData.smtpHost}
+                        onChange={e => setFormData({ ...formData, smtpHost: e.target.value })}
+                        placeholder={formData.imapHost || 'Same as IMAP host'}
+                        maxLength={253}
+                      />
+                    </div>
+                    <div className="form-group" style={{ flex: 1 }}>
+                      <label htmlFor="smtpPort">Port</label>
+                      <input
+                        type="number"
+                        id="smtpPort"
+                        value={formData.smtpPort}
+                        onChange={e => setFormData({ ...formData, smtpPort: parseInt(e.target.value) || 587 })}
+                        min={1}
+                        max={65535}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.smtpSecure}
+                        onChange={e => setFormData({ ...formData, smtpSecure: e.target.checked })}
+                      />
+                      Use SSL/TLS (port 465) — leave unchecked for STARTTLS (port 587)
+                    </label>
+                  </div>
+                </fieldset>
 
                 <div className="form-group">
                   <label>Quick Book Durations (for device screen)</label>

@@ -80,6 +80,18 @@ export interface MeetingRoom {
   closingHour: number | null;  // Room-specific closing hour (null = use global)
   lockedToCompanyIds: string[]; // If set, only these companies can book (empty array = open to all)
   quickBookDurations: number[]; // Available quick booking durations in minutes (e.g., [30, 60, 90, 120])
+  bookingEmail: string | null; // Optional email address for booking-by-email (iMIP)
+  // Per-room IMAP credentials for receiving booking requests
+  imapHost?: string | null;
+  imapPort?: number | null;
+  imapUser?: string | null;
+  imapPass?: string | null;    // Internal only — never returned to API clients
+  imapMailbox?: string | null;
+  hasImapPassword?: boolean;   // Exposed to API clients instead of the raw password
+  // Per-room SMTP config for sending iMIP replies (uses IMAP user/pass for auth)
+  smtpHost?: string | null;    // Defaults to imapHost if null
+  smtpPort?: number | null;    // Default 587 (STARTTLS); use 465 for SSL
+  smtpSecure?: boolean | null; // false = STARTTLS (587), true = SSL (465)
   createdAt: string;
   updatedAt: string;
 }
@@ -88,6 +100,7 @@ export interface Settings {
   id: string;
   openingHour: number;
   closingHour: number;
+  timezone: string;
   twofaEnforcement: TwoFaEnforcement;
   twofaMode: TwoFaMode;
   twofaTrustedDeviceDays: number;
@@ -170,6 +183,17 @@ export interface CreateRoomRequest {
   closingHour?: number | null;
   lockedToCompanyIds?: string[]; // Companies that can access this room (empty = open to all)
   quickBookDurations?: number[]; // Quick booking durations in minutes
+  bookingEmail?: string | null; // Optional email address for booking-by-email (iMIP)
+  // Per-room IMAP credentials
+  imapHost?: string | null;
+  imapPort?: number | null;
+  imapUser?: string | null;
+  imapPass?: string | null;
+  imapMailbox?: string | null;
+  // Per-room SMTP config (reuses IMAP user/pass for auth)
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpSecure?: boolean | null;
 }
 
 export interface CreateCompanyRequest {

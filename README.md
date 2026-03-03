@@ -72,9 +72,11 @@ Meet your organization's security and compliance requirements. Open Meeting is b
 - **Structured audit log** — every security event (login, 2FA, password change, booking actions, user management, data exports) is recorded with timestamp, user, IP, and outcome
 - **GDPR data export** — users can download all their personal data (profile, bookings) via a self-service endpoint (Art. 15 right of access)
 - **GDPR soft-delete** — user deletion anonymizes PII and records a deletion audit trail rather than hard-deleting records (Art. 17 right to erasure)
-- **Data minimization** — booking list endpoints return only the fields required for display; full attendee details are restricted to booking owners and admins
+- **Data minimization** — booking list endpoints return only the fields required for display; full attendee details are restricted to booking owners and admins; organizer emails in iMIP audit events are stored as one-way hashes
 - Content Security Policy (CSP) headers via Helmet prevent cross-site scripting escalation
-- All LDAP/SSO credentials encrypted at rest using a dedicated `ENCRYPTION_KEY` (AES-256-GCM), separate from the JWT signing secret
+- All LDAP/SSO/IMAP credentials encrypted at rest using a dedicated `ENCRYPTION_KEY` (AES-256-GCM), separate from the JWT signing secret
+- **Global API rate limiting** — 300 requests per 15 minutes per IP globally; 20 requests per 15 minutes on authentication endpoints to slow brute-force attacks
+- HTML email content is fully escaped before sending — booking titles, room names, guest data, and admin reasons cannot inject HTML into email clients
 
 ### Identity Provider Integration
 
@@ -146,6 +148,19 @@ Everyone stays in the loop without lifting a finger. Booking confirmations, canc
 - Reception alerts when external guests are expected
 - Works with any SMTP email provider
 
+### Email-Based Room Booking (iMIP)
+
+Rooms can accept meeting invitations directly from your calendar client — no web portal required. Assign each room a dedicated email address and IMAP inbox; Open Meeting polls the inbox, validates the invite, and automatically accepts or declines it based on availability. A standard iCal REPLY is sent back to the organizer so the event lands in their calendar.
+
+- Invite a room by adding its booking address as an attendee in Outlook, Google Calendar, etc.
+- Full iMIP (RFC 6047) support — ACCEPTED and DECLINED replies with ICS attachments
+- DKIM signature verification — only cryptographically signed emails are processed
+- Per-sender rate limiting — prevents booking floods from a single address
+- iCal SEQUENCE tracking — follow-up updates to the same event update the existing booking
+- Message-ID deduplication — replay attacks silently discarded
+- Per-room SMTP credentials for sending replies from the room's own address
+- Processed emails are deleted from the inbox to keep it clean
+
 ---
 
 ## Get Running in Minutes
@@ -198,6 +213,9 @@ docker-compose -f docker-compose.dev.yml up -d
 | `SMTP_FROM` | Sender address for emails | `Open Meeting <noreply@openmeeting.com>` |
 | `ALLOWED_ORIGINS` | CORS allowed origins (comma-separated) | `http://localhost` |
 | `APP_URL` | Public URL of the application | `http://localhost` |
+| `IMAP_POLL_INTERVAL` | How often to poll room inboxes for new booking emails (seconds) | `120` |
+| `IMAP_RATE_LIMIT_MAX` | Max email booking attempts allowed per sender per window | `10` |
+| `IMAP_RATE_LIMIT_WINDOW_HOURS` | Rolling window for per-sender rate limiting (hours) | `1` |
 
 ### Persistent Data
 

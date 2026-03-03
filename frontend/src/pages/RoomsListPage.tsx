@@ -140,6 +140,12 @@ export function RoomsListPage() {
                   <p className="room-description">{room.description}</p>
                 )}
 
+                {room.bookingEmail && (
+                  <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.5rem' }}>
+                    <strong>Book by email:</strong> <a href={`mailto:${room.bookingEmail}`}>{room.bookingEmail}</a>
+                  </p>
+                )}
+
                 {currentBooking && (
                   <div className="current-booking">
                     <strong>Current Meeting:</strong>

@@ -10,6 +10,7 @@ export class SettingsModel {
         id: 'global',
         openingHour: 8,
         closingHour: 18,
+        timezone: 'UTC',
         twofaEnforcement: 'disabled',
         twofaMode: 'trusted_device',
         twofaTrustedDeviceDays: 30,
@@ -20,6 +21,7 @@ export class SettingsModel {
       id: row.id,
       openingHour: row.opening_hour,
       closingHour: row.closing_hour,
+      timezone: row.timezone || 'UTC',
       twofaEnforcement: row.twofa_enforcement || 'disabled',
       twofaMode: row.twofa_mode || 'trusted_device',
       twofaTrustedDeviceDays: row.twofa_trusted_device_days ?? 30,
@@ -27,11 +29,12 @@ export class SettingsModel {
     };
   }
 
-  static async update(openingHour: number, closingHour: number): Promise<Settings> {
+  static async update(openingHour: number, closingHour: number, timezone: string): Promise<Settings> {
     const db = getDb();
     await db('settings').where('id', 'global').update({
       opening_hour: openingHour,
       closing_hour: closingHour,
+      timezone,
       updated_at: new Date().toISOString(),
     });
     return this.getGlobal();

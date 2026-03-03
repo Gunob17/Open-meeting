@@ -266,6 +266,7 @@ export class DeviceModel {
       closingHour: row.room_closing_hour,
       lockedToCompanyIds,
       quickBookDurations,
+      bookingEmail: row.room_booking_email ?? null,
       createdAt: row.room_created_at,
       updatedAt: row.room_updated_at,
     } : undefined;

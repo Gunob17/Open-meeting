@@ -1,6 +1,18 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from './database';
 import { MeetingRoom, CreateRoomRequest } from '../types';
+import { encrypt, decrypt } from '../utils/encryption';
+
+/** Decrypt an IMAP password from the DB. Falls back to plaintext for legacy
+ *  rows stored before encryption was introduced. Encrypted values always have
+ *  the form "<32hex>:<32hex>:<hex...>" produced by encrypt(). */
+function decryptImapPass(stored: string): string {
+  const parts = stored.split(':');
+  if (parts.length === 3 && /^[0-9a-f]{32}$/i.test(parts[0])) {
+    return decrypt(stored);
+  }
+  return stored; // legacy plaintext
+}
 
 export class RoomModel {
   static async create(data: CreateRoomRequest): Promise<MeetingRoom> {
@@ -27,6 +39,15 @@ export class RoomModel {
       closing_hour: data.closingHour ?? null,
       locked_to_company_id: lockedCompanyIds,
       quick_book_durations: JSON.stringify(data.quickBookDurations ?? defaultDurations),
+      booking_email: data.bookingEmail ?? null,
+      imap_host: data.imapHost ?? null,
+      imap_port: data.imapPort ?? null,
+      imap_user: data.imapUser ? data.imapUser.toLowerCase() : null,
+      imap_pass: data.imapPass ? encrypt(data.imapPass) : null,
+      imap_mailbox: data.imapMailbox ?? null,
+      smtp_host: data.smtpHost ?? null,
+      smtp_port: data.smtpPort ?? null,
+      smtp_secure: data.smtpSecure ?? null,
       created_at: now,
       updated_at: now,
     });
@@ -105,6 +126,17 @@ export class RoomModel {
       closing_hour: closingHour,
       locked_to_company_id: lockedCompanyIds,
       quick_book_durations: quickBookDurations,
+      booking_email: data.bookingEmail !== undefined ? (data.bookingEmail ?? null) : existing.bookingEmail,
+      imap_host: data.imapHost !== undefined ? (data.imapHost ?? null) : existing.imapHost,
+      imap_port: data.imapPort !== undefined ? (data.imapPort ?? null) : existing.imapPort,
+      imap_user: data.imapUser !== undefined ? (data.imapUser ? data.imapUser.toLowerCase() : null) : existing.imapUser,
+      imap_pass: data.imapPass !== undefined
+        ? (data.imapPass ? encrypt(data.imapPass) : null)
+        : (existing.imapPass ? encrypt(existing.imapPass) : null),
+      imap_mailbox: data.imapMailbox !== undefined ? (data.imapMailbox ?? null) : existing.imapMailbox,
+      smtp_host: data.smtpHost !== undefined ? (data.smtpHost ?? null) : existing.smtpHost,
+      smtp_port: data.smtpPort !== undefined ? (data.smtpPort ?? null) : existing.smtpPort,
+      smtp_secure: data.smtpSecure !== undefined ? (data.smtpSecure ?? null) : existing.smtpSecure,
       updated_at: now,
     });
 
@@ -163,8 +195,48 @@ export class RoomModel {
       closingHour: row.closing_hour,
       lockedToCompanyIds,
       quickBookDurations,
+      bookingEmail: row.booking_email ?? null,
+      imapHost: row.imap_host ?? null,
+      imapPort: row.imap_port ?? null,
+      imapUser: row.imap_user ?? null,
+      imapPass: row.imap_pass ? decryptImapPass(row.imap_pass) : null,
+      imapMailbox: row.imap_mailbox ?? null,
+      smtpHost: row.smtp_host ?? null,
+      smtpPort: row.smtp_port ?? null,
+      smtpSecure: row.smtp_secure != null ? !!row.smtp_secure : null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  /** Find the active room that has this booking email address assigned. */
+  static async findByBookingEmail(email: string): Promise<import('../types').MeetingRoom | null> {
+    const db = getDb();
+    const row = await db('meeting_rooms')
+      .where('booking_email', email.toLowerCase())
+      .andWhere('is_active', true)
+      .first();
+    if (!row) return null;
+    return this.mapRowToRoom(row);
+  }
+
+  /** Return all active rooms that have a booking email configured. */
+  static async findAllWithBookingEmail(): Promise<import('../types').MeetingRoom[]> {
+    const db = getDb();
+    const rows = await db('meeting_rooms')
+      .whereNotNull('booking_email')
+      .andWhere('is_active', true);
+    return rows.map(this.mapRowToRoom);
+  }
+
+  /** Return all active rooms that have full IMAP credentials configured. */
+  static async findAllWithImapConfig(): Promise<import('../types').MeetingRoom[]> {
+    const db = getDb();
+    const rows = await db('meeting_rooms')
+      .whereNotNull('imap_host')
+      .whereNotNull('imap_user')
+      .whereNotNull('imap_pass')
+      .andWhere('is_active', true);
+    return rows.map(this.mapRowToRoom);
   }
 }

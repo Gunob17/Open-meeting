@@ -117,7 +117,7 @@ class ApiService {
     return this.request<Settings>('/settings');
   }
 
-  async updateSettings(data: { openingHour: number; closingHour: number }): Promise<Settings> {
+  async updateSettings(data: { openingHour: number; closingHour: number; timezone: string }): Promise<Settings> {
     return this.request<Settings>('/settings', {
       method: 'PUT',
       body: JSON.stringify(data)
@@ -389,6 +389,17 @@ class ApiService {
     openingHour?: number | null;
     closingHour?: number | null;
     lockedToCompanyIds?: string[];
+    quickBookDurations?: number[];
+    parkId?: string;
+    bookingEmail?: string | null;
+    imapHost?: string | null;
+    imapPort?: number | null;
+    imapUser?: string | null;
+    imapPass?: string | null;
+    imapMailbox?: string | null;
+    smtpHost?: string | null;
+    smtpPort?: number | null;
+    smtpSecure?: boolean | null;
   }): Promise<MeetingRoom> {
     return this.request<MeetingRoom>('/rooms', {
       method: 'POST',
@@ -407,11 +418,25 @@ class ApiService {
     openingHour?: number | null;
     closingHour?: number | null;
     lockedToCompanyIds?: string[];
+    quickBookDurations?: number[];
+    bookingEmail?: string | null;
+    imapHost?: string | null;
+    imapPort?: number | null;
+    imapUser?: string | null;
+    imapPass?: string | null;
+    imapMailbox?: string | null;
+    smtpHost?: string | null;
+    smtpPort?: number | null;
+    smtpSecure?: boolean | null;
   }): Promise<MeetingRoom> {
     return this.request<MeetingRoom>(`/rooms/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     });
+  }
+
+  async getRoomImapStatuses(): Promise<Record<string, { status: 'ok' | 'error' | 'unknown'; lastChecked: string | null; lastError: string | null }>> {
+    return this.request('/rooms/imap-status');
   }
 
   async deleteRoom(id: string, soft = true): Promise<void> {

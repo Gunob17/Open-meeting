@@ -19,7 +19,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 // Update global settings (admin only)
 router.put('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { openingHour, closingHour } = req.body;
+    const { openingHour, closingHour, timezone } = req.body;
 
     // Validate hours
     if (typeof openingHour !== 'number' || openingHour < 0 || openingHour > 23) {
@@ -31,8 +31,16 @@ router.put('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respon
     if (openingHour >= closingHour) {
       return res.status(400).json({ error: 'Opening hour must be before closing hour' });
     }
+    if (typeof timezone !== 'string' || !timezone.trim()) {
+      return res.status(400).json({ error: 'Timezone is required' });
+    }
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: timezone });
+    } catch {
+      return res.status(400).json({ error: `Invalid timezone: ${timezone}` });
+    }
 
-    const settings = await SettingsModel.update(openingHour, closingHour);
+    const settings = await SettingsModel.update(openingHour, closingHour, timezone.trim());
     res.json(settings);
   } catch (error) {
     console.error('Error updating settings:', error);

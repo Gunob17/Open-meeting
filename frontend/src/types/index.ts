@@ -72,6 +72,17 @@ export interface MeetingRoom {
   lockedToCompanyIds?: string[]; // Companies that can book this room (empty = open to all)
   lockedToCompanies?: Company[];
   quickBookDurations?: number[]; // Available quick booking durations in minutes for device
+  bookingEmail?: string | null; // Optional email address for booking-by-email (iMIP)
+  // Per-room IMAP credentials (password never returned — use hasImapPassword instead)
+  imapHost?: string | null;
+  imapPort?: number | null;
+  imapUser?: string | null;
+  imapMailbox?: string | null;
+  hasImapPassword?: boolean; // true if an IMAP password is stored on the server
+  // Per-room SMTP for sending iMIP replies (reuses IMAP user/pass for auth)
+  smtpHost?: string | null;    // Defaults to imapHost if null
+  smtpPort?: number | null;    // 587 = STARTTLS (default), 465 = SSL
+  smtpSecure?: boolean | null; // false = STARTTLS, true = SSL
   createdAt?: string;
   updatedAt?: string;
 }
@@ -80,6 +91,7 @@ export interface Settings {
   id: string;
   openingHour: number;
   closingHour: number;
+  timezone: string;
   twofaEnforcement?: TwoFaEnforcement;
   twofaMode?: TwoFaMode;
   twofaTrustedDeviceDays?: number;
