@@ -2803,7 +2803,6 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 100%;
 }
 
 .hour-bar {
@@ -2833,7 +2832,6 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 100%;
 }
 
 .day-bar {
