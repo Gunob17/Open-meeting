@@ -92,6 +92,7 @@ export interface Settings {
   openingHour: number;
   closingHour: number;
   timezone: string;
+  timeFormat: '12h' | '24h';
   twofaEnforcement?: TwoFaEnforcement;
   twofaMode?: TwoFaMode;
   twofaTrustedDeviceDays?: number;

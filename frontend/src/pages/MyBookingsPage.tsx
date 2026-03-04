@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { format, parseISO, isPast } from 'date-fns';
 import { api } from '../services/api';
 import { Booking } from '../types';
+import { useSettings } from '../context/SettingsContext';
+import { formatTime } from '../utils/time';
 
 export function MyBookingsPage() {
+  const { timeFormat } = useSettings();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
@@ -73,7 +76,7 @@ export function MyBookingsPage() {
                 <div className="booking-card-body">
                   <p><strong>Room:</strong> {booking.room?.name}</p>
                   <p><strong>Date:</strong> {format(parseISO(booking.startTime), 'EEEE, MMMM d, yyyy')}</p>
-                  <p><strong>Time:</strong> {format(parseISO(booking.startTime), 'h:mm a')} - {format(parseISO(booking.endTime), 'h:mm a')}</p>
+                  <p><strong>Time:</strong> {formatTime(booking.startTime, timeFormat)} - {formatTime(booking.endTime, timeFormat)}</p>
                   {booking.room && (
                     <p><strong>Location:</strong> {booking.room.floor}, {booking.room.address}</p>
                   )}
@@ -114,7 +117,7 @@ export function MyBookingsPage() {
                 <div className="booking-card-body">
                   <p><strong>Room:</strong> {booking.room?.name}</p>
                   <p><strong>Date:</strong> {format(parseISO(booking.startTime), 'EEEE, MMMM d, yyyy')}</p>
-                  <p><strong>Time:</strong> {format(parseISO(booking.startTime), 'h:mm a')} - {format(parseISO(booking.endTime), 'h:mm a')}</p>
+                  <p><strong>Time:</strong> {formatTime(booking.startTime, timeFormat)} - {formatTime(booking.endTime, timeFormat)}</p>
                 </div>
               </div>
             ))}
@@ -135,7 +138,7 @@ export function MyBookingsPage() {
                 <div className="booking-card-body">
                   <p><strong>Room:</strong> {booking.room?.name}</p>
                   <p><strong>Date:</strong> {format(parseISO(booking.startTime), 'EEEE, MMMM d, yyyy')}</p>
-                  <p><strong>Time:</strong> {format(parseISO(booking.startTime), 'h:mm a')} - {format(parseISO(booking.endTime), 'h:mm a')}</p>
+                  <p><strong>Time:</strong> {formatTime(booking.startTime, timeFormat)} - {formatTime(booking.endTime, timeFormat)}</p>
                 </div>
               </div>
             ))}

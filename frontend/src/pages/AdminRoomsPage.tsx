@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { MeetingRoom, Device, Company } from '../types';
+import { MeetingRoom, Device, Company, Settings } from '../types';
+import { useSettings } from '../context/SettingsContext';
+import { formatHour } from '../utils/time';
 
 const COMMON_AMENITIES = [
   'Projector',
@@ -17,8 +19,10 @@ const COMMON_AMENITIES = [
 ];
 
 export function AdminRoomsPage() {
+  const { timeFormat } = useSettings();
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [settings, setSettings] = useState<Settings | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<MeetingRoom | null>(null);
@@ -31,6 +35,8 @@ export function AdminRoomsPage() {
     description: '',
     quickBookDurations: [30, 60, 90, 120] as number[],
     lockedToCompanyIds: [] as string[],
+    openingHour: null as number | null,
+    closingHour: null as number | null,
     bookingEmail: '' as string,
     imapHost: '' as string,
     imapPort: 993 as number,
@@ -68,12 +74,14 @@ export function AdminRoomsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [roomsData, companiesData] = await Promise.all([
+      const [roomsData, companiesData, settingsData] = await Promise.all([
         api.getRooms(true),
-        api.getCompanies()
+        api.getCompanies(),
+        api.getSettings()
       ]);
       setRooms(roomsData);
       setCompanies(companiesData);
+      setSettings(settingsData);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -113,6 +121,8 @@ export function AdminRoomsPage() {
         description: room.description,
         quickBookDurations: room.quickBookDurations || [30, 60, 90, 120],
         lockedToCompanyIds: room.lockedToCompanyIds || [],
+        openingHour: room.openingHour ?? null,
+        closingHour: room.closingHour ?? null,
         bookingEmail: room.bookingEmail || '',
         imapHost: room.imapHost || '',
         imapPort: room.imapPort || 993,
@@ -134,6 +144,8 @@ export function AdminRoomsPage() {
         description: '',
         quickBookDurations: [30, 60, 90, 120],
         lockedToCompanyIds: [],
+        openingHour: null,
+        closingHour: null,
         bookingEmail: '',
         imapHost: '',
         imapPort: 993,
@@ -707,6 +719,43 @@ export function AdminRoomsPage() {
                     ))}
                   </div>
                 </div>
+
+                <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '1rem', marginBottom: '0.5rem' }}>
+                  <legend style={{ padding: '0 0.5rem', fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>
+                    Booking Hours
+                  </legend>
+                  <small style={{ color: '#6b7280', display: 'block', marginBottom: '0.75rem' }}>
+                    Override the global booking hours for this room. Leave empty to use the global setting.
+                  </small>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="roomOpeningHour">Opening Hour</label>
+                      <select
+                        id="roomOpeningHour"
+                        value={formData.openingHour ?? ''}
+                        onChange={e => setFormData({ ...formData, openingHour: e.target.value === '' ? null : Number(e.target.value) })}
+                      >
+                        <option value="">Use Global{settings ? ` (${formatHour(settings.openingHour, timeFormat)})` : ''}</option>
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i}>{formatHour(i, timeFormat)}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor="roomClosingHour">Closing Hour</label>
+                      <select
+                        id="roomClosingHour"
+                        value={formData.closingHour ?? ''}
+                        onChange={e => setFormData({ ...formData, closingHour: e.target.value === '' ? null : Number(e.target.value) })}
+                      >
+                        <option value="">Use Global{settings ? ` (${formatHour(settings.closingHour, timeFormat)})` : ''}</option>
+                        {Array.from({ length: 24 }, (_, i) => (
+                          <option key={i} value={i}>{formatHour(i, timeFormat)}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </fieldset>
 
                 <div className="form-group">
                   <label>Restrict Access to Companies</label>

@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { MeetingRoom, Booking } from '../types';
 import { BookingModal } from '../components/BookingModal';
-import { format, parseISO, isAfter, isBefore } from 'date-fns';
+import { parseISO, isAfter, isBefore } from 'date-fns';
+import { useSettings } from '../context/SettingsContext';
+import { formatTime } from '../utils/time';
 
 export function RoomsListPage() {
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
@@ -63,6 +65,8 @@ export function RoomsListPage() {
       return isBefore(start, now) && isAfter(end, now);
     }) || null;
   };
+
+  const { timeFormat } = useSettings();
 
   const allAmenities = [...new Set(rooms.flatMap(r => r.amenities))].sort();
 
@@ -151,7 +155,7 @@ export function RoomsListPage() {
                     <strong>Current Meeting:</strong>
                     <p>{currentBooking.title}</p>
                     <p className="booking-time">
-                      Until {format(parseISO(currentBooking.endTime), 'h:mm a')}
+                      Until {formatTime(currentBooking.endTime, timeFormat)}
                     </p>
                   </div>
                 )}
@@ -161,7 +165,7 @@ export function RoomsListPage() {
                     <strong>Next Booking:</strong>
                     <p>{nextBooking.title}</p>
                     <p className="booking-time">
-                      {format(parseISO(nextBooking.startTime), 'h:mm a')} - {format(parseISO(nextBooking.endTime), 'h:mm a')}
+                      {formatTime(nextBooking.startTime, timeFormat)} - {formatTime(nextBooking.endTime, timeFormat)}
                     </p>
                   </div>
                 )}

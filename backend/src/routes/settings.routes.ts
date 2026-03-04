@@ -19,7 +19,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
 // Update global settings (admin only)
 router.put('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { openingHour, closingHour, timezone } = req.body;
+    const { openingHour, closingHour, timezone, timeFormat } = req.body;
 
     // Validate hours
     if (typeof openingHour !== 'number' || openingHour < 0 || openingHour > 23) {
@@ -39,8 +39,11 @@ router.put('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respon
     } catch {
       return res.status(400).json({ error: `Invalid timezone: ${timezone}` });
     }
+    if (timeFormat !== '12h' && timeFormat !== '24h') {
+      return res.status(400).json({ error: 'Time format must be 12h or 24h' });
+    }
 
-    const settings = await SettingsModel.update(openingHour, closingHour, timezone.trim());
+    const settings = await SettingsModel.update(openingHour, closingHour, timezone.trim(), timeFormat);
     res.json(settings);
   } catch (error) {
     console.error('Error updating settings:', error);

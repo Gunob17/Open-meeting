@@ -4,6 +4,8 @@ import { api } from '../services/api';
 import { Booking, MeetingRoom, Settings } from '../types';
 import { BookingModal } from '../components/BookingModal';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
+import { formatTime, formatDateTime, formatHour } from '../utils/time';
 
 // Consistent color per booking derived from its ID
 const BOOKING_COLORS = [
@@ -24,6 +26,7 @@ const getBookingColor = (id: string): string => {
 
 export function CalendarPage() {
   const { user, isAdmin } = useAuth();
+  const { timeFormat } = useSettings();
   const [startDate, setStartDate] = useState(new Date());
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -399,7 +402,7 @@ export function CalendarPage() {
               {hours.map(hour => (
                 <React.Fragment key={`${day.toISOString()}-${hour}`}>
                   <div className="time-slot-label">
-                    {format(new Date().setHours(hour, 0), 'h:mm a')}
+                    {formatHour(hour, timeFormat)}
                   </div>
                   {displayRooms.map(room => {
                     const booking = getBookingForSlot(room.id, day, hour);
@@ -434,7 +437,7 @@ export function CalendarPage() {
                       title = 'This room is reserved for another company';
                     } else {
                       slotClass += ' available';
-                      title = `Book ${room.name} at ${format(new Date().setHours(hour, 0), 'h:mm a')}`;
+                      title = `Book ${room.name} at ${formatHour(hour, timeFormat)}`;
                     }
 
                     return (
@@ -460,7 +463,7 @@ export function CalendarPage() {
                             >
                               <span className="booking-title">{b.title}</span>
                               <span className="booking-time">
-                                {format(parseISO(b.startTime), 'h:mm a')} - {format(parseISO(b.endTime), 'h:mm a')}
+                                {formatTime(b.startTime, timeFormat)} - {formatTime(b.endTime, timeFormat)}
                               </span>
                             </div>
                           );
@@ -520,7 +523,7 @@ export function CalendarPage() {
             </div>
             <div className="modal-body">
               <p><strong>Room:</strong> {selectedBooking.room?.name}</p>
-              <p><strong>Time:</strong> {format(parseISO(selectedBooking.startTime), 'MMM d, yyyy h:mm a')} - {format(parseISO(selectedBooking.endTime), 'h:mm a')}</p>
+              <p><strong>Time:</strong> {formatDateTime(selectedBooking.startTime, timeFormat)} - {formatTime(selectedBooking.endTime, timeFormat)}</p>
               {selectedBooking.description && (
                 <p><strong>Description:</strong> {selectedBooking.description}</p>
               )}
@@ -574,7 +577,7 @@ export function CalendarPage() {
             <div className="modal-body">
               <p><strong>Meeting:</strong> {selectedBooking.title}</p>
               <p><strong>Current Room:</strong> {selectedBooking.room?.name}</p>
-              <p><strong>Time:</strong> {format(parseISO(selectedBooking.startTime), 'MMM d, yyyy h:mm a')} - {format(parseISO(selectedBooking.endTime), 'h:mm a')}</p>
+              <p><strong>Time:</strong> {formatDateTime(selectedBooking.startTime, timeFormat)} - {formatTime(selectedBooking.endTime, timeFormat)}</p>
 
               <div className="form-group mt-4">
                 <label htmlFor="targetRoom"><strong>Move to Room:</strong></label>

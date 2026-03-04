@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { format, subDays } from 'date-fns';
+import { useSettings } from '../context/SettingsContext';
+import { formatHour } from '../utils/time';
 
 interface RoomStat {
   roomId: string;
@@ -49,6 +51,7 @@ interface Summary {
 }
 
 export function StatisticsPage() {
+  const { timeFormat } = useSettings();
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
     start: format(subDays(new Date(), 30), 'yyyy-MM-dd'),
@@ -95,12 +98,6 @@ export function StatisticsPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const formatHour = (hour: number): string => {
-    const suffix = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}${suffix}`;
-  };
 
   const getUtilizationColor = (rate: number): string => {
     if (rate >= 70) return '#059669'; // green
@@ -180,7 +177,7 @@ export function StatisticsPage() {
           <div className="stats-section">
             <h2>Booking Times Distribution</h2>
             <p className="stats-subtitle">
-              Peak hour: <strong>{formatHour(peakHour.hour)}</strong> ({peakHour.bookings} bookings)
+              Peak hour: <strong>{formatHour(peakHour.hour, timeFormat)}</strong> ({peakHour.bookings} bookings)
             </p>
             <div className="hourly-chart">
               {hourlyStats.filter(h => h.hour >= 6 && h.hour <= 20).map(stat => (
@@ -192,7 +189,7 @@ export function StatisticsPage() {
                       minHeight: stat.bookingCount > 0 ? '4px' : '0',
                       backgroundColor: stat.hour === peakHour.hour ? '#4f46e5' : '#94a3b8'
                     }}
-                    title={`${formatHour(stat.hour)}: ${stat.bookingCount} bookings`}
+                    title={`${formatHour(stat.hour, timeFormat)}: ${stat.bookingCount} bookings`}
                   />
                   <span className="hour-label">{stat.hour}</span>
                 </div>

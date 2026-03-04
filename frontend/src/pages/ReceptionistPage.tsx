@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { GuestVisit } from '../types';
+import { useSettings } from '../context/SettingsContext';
+import { formatTime as sharedFormatTime } from '../utils/time';
 
 export function ReceptionistPage() {
+  const { timeFormat } = useSettings();
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(() => {
     const now = new Date();
@@ -78,8 +81,7 @@ export function ReceptionistPage() {
 
   const formatTime = (isoString: string | null) => {
     if (!isoString) return '-';
-    const d = new Date(isoString);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return sharedFormatTime(isoString, timeFormat);
   };
 
   const getRowClass = (guest: GuestVisit) => {

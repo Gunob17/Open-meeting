@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SettingsProvider } from './context/SettingsContext';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { CalendarPage } from './pages/CalendarPage';
@@ -225,7 +226,9 @@ function AppWithSetup() {
 
   return (
     <AuthProvider>
-      <AppRoutes />
+      <SettingsProvider>
+        <AppRoutes />
+      </SettingsProvider>
     </AuthProvider>
   );
 }

@@ -117,7 +117,7 @@ class ApiService {
     return this.request<Settings>('/settings');
   }
 
-  async updateSettings(data: { openingHour: number; closingHour: number; timezone: string }): Promise<Settings> {
+  async updateSettings(data: { openingHour: number; closingHour: number; timezone: string; timeFormat: '12h' | '24h' }): Promise<Settings> {
     return this.request<Settings>('/settings', {
       method: 'PUT',
       body: JSON.stringify(data)
