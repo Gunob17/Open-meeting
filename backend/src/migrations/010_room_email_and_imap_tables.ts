@@ -11,7 +11,7 @@ export async function up(knex: Knex): Promise<void> {
   // Deduplication table: track processed email Message-IDs to prevent replay attacks
   if (!(await knex.schema.hasTable('email_dedup'))) {
     await knex.schema.createTable('email_dedup', (table) => {
-      table.string('message_id', 1024).primary();
+      table.string('message_id', 500).primary(); // 500 chars × 4 bytes (utf8mb4) = 2000 bytes < MySQL 3072-byte key limit
       table.string('processed_at').notNullable();
     });
   }

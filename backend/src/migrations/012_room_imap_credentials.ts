@@ -33,7 +33,7 @@ export async function up(knex: Knex): Promise<void> {
   // rather than creating a duplicate.
   if (!(await knex.schema.hasTable('email_uid_map'))) {
     await knex.schema.createTable('email_uid_map', (table) => {
-      table.string('ical_uid', 1024).primary();
+      table.string('ical_uid', 500).primary(); // 500 chars × 4 bytes (utf8mb4) = 2000 bytes < MySQL 3072-byte key limit
       table.uuid('booking_id').notNullable();
       table.integer('sequence').notNullable().defaultTo(0);
       table.uuid('room_id').notNullable();
