@@ -35,6 +35,7 @@ router.get('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respon
       parkId: u.parkId,
       addonRoles: u.addonRoles,
       isActive: u.isActive,
+      inviteToken: !!u.inviteToken,
       authSource: u.authSource,
       createdAt: u.createdAt
     })));
@@ -71,6 +72,7 @@ router.get('/company/:companyId', authenticate, requireCompanyAdminOrAbove, asyn
       companyId: u.companyId,
       addonRoles: u.addonRoles,
       isActive: u.isActive,
+      inviteToken: !!u.inviteToken,
       authSource: u.authSource,
       createdAt: u.createdAt
     })));

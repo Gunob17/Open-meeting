@@ -43,7 +43,7 @@ export interface User {
   addonRoles?: string[];
   isActive?: boolean;
   authSource?: AuthSource;
-  inviteToken?: string | null;
+  inviteToken?: boolean | string | null;
   createdAt?: string;
 }
 
