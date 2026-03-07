@@ -16,7 +16,6 @@ const icalLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req: Request) => req.ip ?? 'unknown',
   message: { error: 'Too many requests, please try again later.' },
 });
 
