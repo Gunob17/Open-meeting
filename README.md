@@ -306,7 +306,7 @@ Demo data includes 3 sites, 7 companies, 12 users, and 10 meeting rooms with var
 
 ## For Developers
 
-Open Meeting is built with Node.js/Express (backend), React 18 (frontend), and PlatformIO/Arduino (ESP32 firmware), all in TypeScript.
+Open Meeting is built with Node.js/Express (backend) and React 18 (frontend) in TypeScript, plus PlatformIO/Arduino C++ for the ESP32 firmware.
 
 - [API Reference](docs/API.md) — Complete REST API documentation with all 92+ endpoints
 - [Development Guide](docs/DEVELOPMENT.md) — Local setup, project structure, tech stack, and email configuration

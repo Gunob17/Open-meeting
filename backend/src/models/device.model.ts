@@ -267,6 +267,7 @@ export class DeviceModel {
       lockedToCompanyIds,
       quickBookDurations,
       bookingEmail: row.room_booking_email ?? null,
+      calendarFeedEnabled: row.room_calendar_feed_enabled !== undefined ? !!row.room_calendar_feed_enabled : true,
       createdAt: row.room_created_at,
       updatedAt: row.room_updated_at,
     } : undefined;
