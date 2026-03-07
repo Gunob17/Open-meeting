@@ -22,6 +22,8 @@ export function Layout({ children }: LayoutProps) {
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const [parkDropdownOpen, setParkDropdownOpen] = useState(false);
+  const parkDropdownRef = useRef<HTMLDivElement>(null);
 
   // Sidebar state - open by default on desktop
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -130,6 +132,17 @@ export function Layout({ children }: LayoutProps) {
     return () => document.removeEventListener('mousedown', handler);
   }, [userMenuOpen]);
 
+  useEffect(() => {
+    if (!parkDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (parkDropdownRef.current && !parkDropdownRef.current.contains(e.target as Node)) {
+        setParkDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [parkDropdownOpen]);
+
   const loadParks = async () => {
     try {
       const data = await api.getParks();
@@ -174,9 +187,11 @@ export function Layout({ children }: LayoutProps) {
               {currentPark?.logoUrl ? (
                 <img src={currentPark.logoUrl} alt={currentPark.name} className="logo-image" />
               ) : (
-                <span className="logo-icon">OM</span>
+                <>
+                  <span className="logo-icon">OM</span>
+                  <span className="logo-text">Open Meeting</span>
+                </>
               )}
-              <span className="logo-text">{currentPark?.name || 'Open Meeting'}</span>
             </Link>
             <button className="sidebar-toggle" onClick={toggleSidebar} aria-label="Toggle sidebar">
               <span className="toggle-icon">{sidebarOpen ? '\u2039' : '\u203A'}</span>
@@ -184,22 +199,42 @@ export function Layout({ children }: LayoutProps) {
           </div>
 
           <nav className="sidebar-nav">
+            {!isSuperAdmin && (currentPark?.name || parks[0]?.name) && (
+              <div className="sidebar-park-display" title={currentPark?.name || parks[0]?.name}>
+                <span className="sidebar-park-display-name">{currentPark?.name || parks[0]?.name}</span>
+              </div>
+            )}
+
             {isSuperAdmin && parks.length > 0 && (
               <div className="sidebar-section">
                 <span className="sidebar-section-label">Park</span>
-                <select
-                  className="park-select"
-                  value={selectedParkId}
-                  onChange={(e) => handleParkChange(e.target.value)}
-                  title="Select Park"
-                  data-tour="park-select"
-                >
-                  {parks.map(park => (
-                    <option key={park.id} value={park.id}>
-                      {park.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="park-select-wrapper" ref={parkDropdownRef} data-tour="park-select">
+                  <button
+                    className="park-select-btn"
+                    onClick={() => setParkDropdownOpen(o => !o)}
+                    title={parks.find(p => p.id === selectedParkId)?.name ?? 'Select Park'}
+                  >
+                    <span className="park-select-name">
+                      {parks.find(p => p.id === selectedParkId)?.name ?? 'Select Park'}
+                    </span>
+                    <span className="park-select-chevron">{parkDropdownOpen ? '▴' : '▾'}</span>
+                  </button>
+                  {parkDropdownOpen && (
+                    <ul className="park-dropdown-list">
+                      {parks.map(park => (
+                        <li key={park.id}>
+                          <button
+                            className={`park-dropdown-item${park.id === selectedParkId ? ' active' : ''}`}
+                            onClick={() => { setParkDropdownOpen(false); handleParkChange(park.id); }}
+                            title={park.name}
+                          >
+                            {park.name}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
             )}
 

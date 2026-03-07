@@ -172,6 +172,8 @@ body {
   font-weight: 600;
   font-size: 1.125rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: opacity 0.2s;
 }
 
@@ -213,6 +215,28 @@ body {
   width: 28px;
   height: 28px;
   border-radius: 50%;
+}
+
+/* Sidebar park name display (non-super-admins) */
+.sidebar-park-display {
+  padding: 0.5rem 1rem 0.25rem;
+  border-bottom: 1px solid #334155;
+}
+
+.sidebar-park-display-name {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.sidebar.closed .sidebar-park-display {
+  display: none;
 }
 
 /* Sidebar Navigation */
@@ -298,8 +322,14 @@ body {
   width: 0;
 }
 
-/* Park select */
-.park-select {
+/* Park selector custom dropdown */
+.park-select-wrapper {
+  position: relative;
+}
+
+.park-select-btn {
+  display: flex;
+  align-items: center;
   width: 100%;
   background: #334155;
   border: 1px solid #475569;
@@ -308,18 +338,70 @@ body {
   border-radius: 0.375rem;
   font-size: 0.875rem;
   cursor: pointer;
+  text-align: left;
+  gap: 0.4rem;
 }
 
-.park-select:hover {
+.park-select-btn:hover {
   border-color: #64748b;
 }
 
-.park-select:focus {
-  outline: none;
-  border-color: #4f46e5;
+.park-select-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
-.sidebar.closed .park-select {
+.park-select-chevron {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.park-dropdown-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 0.375rem;
+  list-style: none;
+  padding: 0.25rem 0;
+  margin: 0;
+  z-index: 200;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.park-dropdown-item {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  color: #e2e8f0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.park-dropdown-item:hover {
+  background: #334155;
+}
+
+.park-dropdown-item.active {
+  color: #818cf8;
+  font-weight: 500;
+}
+
+.sidebar.closed .park-select-wrapper {
   display: none;
 }
 
@@ -558,7 +640,7 @@ body {
     margin-bottom: 0.5rem;
   }
 
-  .sidebar.closed .park-select {
+  .sidebar.closed .park-select-wrapper {
     display: block;
   }
 
