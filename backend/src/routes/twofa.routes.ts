@@ -14,6 +14,7 @@ import { SettingsModel } from '../models/settings.model';
 import { TrustedDeviceModel } from '../models/trusted-device.model';
 import { UserModel } from '../models/user.model';
 import { getEffectiveTwoFaEnforcement } from '../utils/twofa-enforcement';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -68,6 +69,7 @@ router.post('/setup', authenticatePartial, async (req: AuthRequest, res: Respons
     // Store the secret temporarily (not yet enabled)
     await UserModel.setTwofaSecret(user.id, secret.base32);
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.AUTH_2FA_SETUP, resourceType: 'user', resourceId: req.user!.userId, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { step: 'initiate' } });
     res.json({
       secret: secret.base32,
       qrCodeUrl,
@@ -113,6 +115,7 @@ router.post('/setup/confirm', authenticatePartial, async (req: AuthRequest, res:
 
     const delta = totp.validate({ token: code, window: 1 });
     if (delta === null) {
+      auditLog({ userId: req.user?.userId ?? null, action: AuditAction.AUTH_2FA_SETUP, resourceType: 'user', resourceId: req.user!.userId, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'failure', metadata: { step: 'confirm' } });
       res.status(400).json({ error: 'Invalid verification code' });
       return;
     }
@@ -142,6 +145,7 @@ router.post('/setup/confirm', authenticatePartial, async (req: AuthRequest, res:
       }, !!keepLoggedIn);
     }
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.AUTH_2FA_SETUP, resourceType: 'user', resourceId: req.user!.userId, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { step: 'confirm', outcome: 'success' } });
     res.json({
       message: '2FA enabled successfully',
       backupCodes,
@@ -200,6 +204,7 @@ router.post('/verify', twofaVerifyLimiter, authenticatePartial, async (req: Auth
     }
 
     if (!isValid) {
+      auditLog({ userId: req.user?.userId ?? null, action: AuditAction.AUTH_2FA_VERIFY_FAILURE, resourceType: 'user', resourceId: req.user!.userId, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'failure' });
       res.status(401).json({ error: 'Invalid verification code' });
       return;
     }
@@ -231,6 +236,7 @@ router.post('/verify', twofaVerifyLimiter, authenticatePartial, async (req: Auth
       deviceToken = trustedDevice.deviceToken;
     }
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.AUTH_2FA_VERIFY_SUCCESS, resourceType: 'user', resourceId: req.user!.userId, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json({
       token,
       user: sanitizeUser(user),
@@ -270,6 +276,8 @@ router.post('/disable', authenticate, async (req: AuthRequest, res: Response) =>
 
     await UserModel.disableTwoFa(user.id);
     await TrustedDeviceModel.deleteAllForUser(user.id);
+
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.AUTH_2FA_DISABLE, resourceType: 'user', resourceId: req.user!.userId, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
 
     res.json({ message: '2FA disabled successfully' });
   } catch (error) {
@@ -329,6 +337,7 @@ router.delete('/trusted-devices/:id', authenticate, async (req: AuthRequest, res
       return;
     }
     await TrustedDeviceModel.deleteById(req.params.id);
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.AUTH_2FA_DISABLE, resourceType: 'trusted_device', resourceId: req.params.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { action: 'revoke_trusted_device' } });
     res.status(204).send();
   } catch (error) {
     console.error('Revoke trusted device error:', error);

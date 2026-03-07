@@ -7,12 +7,13 @@
 - **Language**: TypeScript
 - **Database**: SQLite (better-sqlite3) — also supports PostgreSQL, MySQL, MariaDB, MSSQL via Knex.js
 - **Authentication**: JWT with bcrypt password hashing
-- **Email**: Nodemailer with ICS calendar attachments
+- **Password strength**: zxcvbn (minimum score 2/4 enforced at registration and password change)
+- **Email**: Nodemailer with ICS calendar attachments; iMIP (RFC 6047) room booking via IMAP
 - **LDAP**: ldapts library
 - **SSO**: openid-client (OIDC), @node-saml/node-saml (SAML 2.0)
 - **2FA**: otpauth (TOTP), qrcode (QR generation)
 - **File Uploads**: multer (firmware binaries, park logos)
-- **Encryption**: AES-256-GCM for stored secrets (LDAP passwords, SSO client secrets)
+- **Encryption**: AES-256-GCM for stored secrets (LDAP/SSO/IMAP credentials)
 - **Security**: Helmet headers, express-rate-limit, CORS
 
 ### Frontend
@@ -20,6 +21,8 @@
 - **Language**: TypeScript
 - **Routing**: React Router v6
 - **Date Handling**: date-fns
+- **Password strength**: zxcvbn (strength meter UI in invite completion and password change forms)
+- **Guided tour**: react-joyride (spotlight onboarding tour, role-tailored step sets)
 - **Styling**: CSS with custom properties (no CSS framework)
 - **Build**: Create React App (react-scripts)
 
@@ -95,7 +98,7 @@ open-meeting/
 │   ├── src/
 │   │   ├── config/          # Database configuration (Knex)
 │   │   ├── middleware/       # Auth middleware (JWT, roles, 2FA)
-│   │   ├── migrations/      # 6 database schema migrations
+│   │   ├── migrations/      # 17 database schema migrations
 │   │   ├── models/          # Database models
 │   │   │   ├── user.model.ts
 │   │   │   ├── park.model.ts
@@ -109,6 +112,7 @@ open-meeting/
 │   │   │   ├── guest-visit.model.ts
 │   │   │   ├── ldap-config.model.ts
 │   │   │   ├── sso-config.model.ts
+│   │   │   ├── calendar-token.model.ts
 │   │   │   └── database.ts
 │   │   ├── routes/          # API route handlers
 │   │   │   ├── auth.routes.ts
@@ -126,13 +130,19 @@ open-meeting/
 │   │   │   ├── statistics.routes.ts
 │   │   │   ├── receptionist.routes.ts
 │   │   │   ├── ldap.routes.ts
-│   │   │   └── sso.routes.ts
+│   │   │   ├── sso.routes.ts
+│   │   │   ├── calendar-token.routes.ts
+│   │   │   └── ical.routes.ts
 │   │   ├── seeds/           # Demo data seeding
 │   │   ├── services/        # Business logic services
 │   │   │   ├── email.service.ts
 │   │   │   ├── ldap.service.ts
 │   │   │   ├── ldap-scheduler.service.ts
-│   │   │   └── sso.service.ts
+│   │   │   ├── sso.service.ts
+│   │   │   ├── imap.service.ts
+│   │   │   ├── ical-parser.service.ts
+│   │   │   ├── ical-feed.service.ts
+│   │   │   └── audit.service.ts
 │   │   ├── types/           # TypeScript type definitions
 │   │   ├── utils/           # Encryption, 2FA enforcement helpers
 │   │   ├── index.ts         # Express server entry point
@@ -140,9 +150,10 @@ open-meeting/
 │   └── package.json
 ├── frontend/
 │   ├── src/
-│   │   ├── components/      # BookingModal, Layout
-│   │   ├── context/         # AuthContext
-│   │   ├── pages/           # 17 page components
+│   │   ├── components/      # BookingModal, Layout, TourGuide, DevRoleWidget
+│   │   ├── context/         # AuthContext, TourContext, SettingsContext
+│   │   ├── pages/           # 18 page components
+│   │   ├── tour/            # Role-specific guided tour step definitions
 │   │   ├── services/        # API client (api.ts)
 │   │   ├── types/           # TypeScript types
 │   │   ├── App.tsx          # Router and app shell
@@ -195,7 +206,7 @@ The production image uses a 3-stage build: backend compilation, frontend build, 
 
 ## Database Migrations
 
-Migrations are in `backend/src/migrations/` and run automatically on startup:
+Migrations are in `backend/src/migrations/` and run automatically on startup. Currently 19 migrations:
 
 1. `001_initial_schema` — Core tables (users, parks, companies, rooms, bookings, devices, firmware)
 2. `002_two_factor_auth` — 2FA fields and trusted devices table
@@ -203,3 +214,18 @@ Migrations are in `backend/src/migrations/` and run automatically on startup:
 4. `004_receptionist_guest_visits` — Guest visit tracking table
 5. `005_ldap_integration` — LDAP configuration table
 6. `006_sso_integration` — SSO configuration table
+7. `007_user_invite_tokens` — User invitation token system
+8. `008_audit_logs` — Structured audit log table
+9. `009_soft_delete_users` — Soft-delete / PII anonymization for deleted users
+10. `010_room_email_and_imap_tables` — Per-room booking email address and IMAP tables
+11. `011_settings_timezone` — Global settings with timezone support
+12. `012_room_imap_credentials` — Per-room IMAP credentials for email-based booking (AES-256-GCM encrypted)
+13. `013_room_smtp_fields` — Per-room SMTP override fields for sending iMIP replies
+14. `014_security_indexes` — Security-focused database indexes
+15. `015_settings_time_format` — Time format setting (12h/24h)
+16. `016_calendar_tokens` — Calendar token table for personal iCal feed subscriptions; `calendar_feed_enabled` flags on parks and rooms
+17. `017_add_missing_indexes` — FK indexes on `email_uid_map.booking_id`, `email_uid_map.room_id`, and `calendar_tokens.room_id`
+18. `018_system_banner` — System banner fields on `settings` table (`banner_enabled`, `banner_message`, `banner_level`, `banner_starts_at`, `banner_ends_at`)
+19. `019_user_tour` — `has_seen_tour` boolean on `users` table (defaults `true` for existing users; `false` for new invites so the tour auto-starts on first login)
+
+Each migration uses `hasTable`/`hasColumn` guards and is safe to run on an existing database.

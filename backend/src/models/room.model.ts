@@ -88,7 +88,7 @@ export class RoomModel {
     return rows.map(this.mapRowToRoom);
   }
 
-  static async update(id: string, data: Partial<CreateRoomRequest & { isActive?: boolean }>): Promise<MeetingRoom | null> {
+  static async update(id: string, data: Partial<CreateRoomRequest & { isActive?: boolean; calendarFeedEnabled?: boolean }>): Promise<MeetingRoom | null> {
     const existing = await this.findById(id);
     if (!existing) return null;
 
@@ -132,11 +132,12 @@ export class RoomModel {
       imap_user: data.imapUser !== undefined ? (data.imapUser ? data.imapUser.toLowerCase() : null) : existing.imapUser,
       imap_pass: data.imapPass !== undefined
         ? (data.imapPass ? encrypt(data.imapPass) : null)
-        : (existing.imapPass ? encrypt(existing.imapPass) : null),
+        : existing.imapPass,
       imap_mailbox: data.imapMailbox !== undefined ? (data.imapMailbox ?? null) : existing.imapMailbox,
       smtp_host: data.smtpHost !== undefined ? (data.smtpHost ?? null) : existing.smtpHost,
       smtp_port: data.smtpPort !== undefined ? (data.smtpPort ?? null) : existing.smtpPort,
       smtp_secure: data.smtpSecure !== undefined ? (data.smtpSecure ?? null) : existing.smtpSecure,
+      calendar_feed_enabled: data.calendarFeedEnabled !== undefined ? data.calendarFeedEnabled : existing.calendarFeedEnabled,
       updated_at: now,
     });
 
@@ -204,6 +205,7 @@ export class RoomModel {
       smtpHost: row.smtp_host ?? null,
       smtpPort: row.smtp_port ?? null,
       smtpSecure: row.smtp_secure != null ? !!row.smtp_secure : null,
+      calendarFeedEnabled: row.calendar_feed_enabled !== undefined ? !!row.calendar_feed_enabled : true,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

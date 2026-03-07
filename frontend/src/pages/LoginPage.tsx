@@ -34,7 +34,15 @@ export function LoginPage() {
   useEffect(() => {
     const ssoError = searchParams.get('error');
     if (ssoError) {
-      setError(ssoError);
+      // Only display known error codes to prevent URL-based message injection
+      const SSO_ERROR_MESSAGES: Record<string, string> = {
+        sso_failed: 'SSO sign-in failed. Please try again.',
+        email_not_found: 'No account found for this SSO identity.',
+        disabled: 'Your account has been disabled. Please contact your administrator.',
+        domain_not_allowed: 'Your email domain is not permitted.',
+        config_not_found: 'SSO configuration not found.',
+      };
+      setError(SSO_ERROR_MESSAGES[ssoError] ?? 'SSO sign-in failed. Please try again.');
     }
   }, [searchParams]);
 

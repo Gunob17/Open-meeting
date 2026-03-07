@@ -195,6 +195,16 @@ export class BookingModel {
     return count > 0;
   }
 
+  /** Returns all bookings for a room regardless of status (CONFIRMED + CANCELLED).
+   *  Used by the ICS calendar feed so cancelled events propagate to calendar clients. */
+  static async findByRoomAllStatuses(roomId: string): Promise<Booking[]> {
+    const db = getDb();
+    const rows = await db('bookings')
+      .where('room_id', roomId)
+      .orderBy('start_time');
+    return rows.map(this.mapRowToBooking);
+  }
+
   static async endEarly(id: string, newEndTime: string): Promise<void> {
     const db = getDb();
     await db('bookings').where('id', id).update({

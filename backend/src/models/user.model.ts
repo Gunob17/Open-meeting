@@ -286,6 +286,22 @@ export class UserModel {
     });
   }
 
+  static async markTourSeen(userId: string): Promise<void> {
+    const db = getDb();
+    await db('users').where('id', userId).update({
+      has_seen_tour: true,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  static async resetTour(userId: string): Promise<void> {
+    const db = getDb();
+    await db('users').where('id', userId).update({
+      has_seen_tour: false,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
   private static mapRowToUser(row: any): User {
     return {
       id: row.id,
@@ -307,6 +323,7 @@ export class UserModel {
       ssoProviderId: row.sso_provider_id || null,
       inviteToken: row.invite_token || null,
       inviteTokenExpiry: row.invite_token_expiry || null,
+      hasSeenTour: row.has_seen_tour !== undefined ? !!row.has_seen_tour : true,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -346,6 +363,7 @@ export class UserModel {
       auth_source: 'local',
       invite_token: data.inviteToken,
       invite_token_expiry: data.inviteTokenExpiry,
+      has_seen_tour: false,
       created_at: now,
       updated_at: now,
     });

@@ -4,6 +4,7 @@ import { LdapConfigModel } from '../models/ldap-config.model';
 import { LdapService } from '../services/ldap.service';
 import { ldapScheduler } from '../services/ldap-scheduler.service';
 import { UserRole } from '../types';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -70,6 +71,16 @@ router.post('/config', authenticate, requireCompanyAdminOrAbove, async (req: Aut
       ...rest,
     });
 
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.LDAP_CREATE,
+      resourceType: 'ldap_config',
+      resourceId: config.id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.status(201).json(config);
   } catch (error) {
     console.error('Create LDAP config error:', error);
@@ -100,6 +111,7 @@ router.put('/config/:id', authenticate, requireCompanyAdminOrAbove, async (req: 
       ldapScheduler.scheduleCompany(existing.companyId, req.body.syncIntervalHours);
     }
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.LDAP_UPDATE, resourceType: 'ldap_config', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json(config);
   } catch (error) {
     console.error('Update LDAP config error:', error);
@@ -126,6 +138,7 @@ router.delete('/config/:id', authenticate, requireCompanyAdminOrAbove, async (re
     ldapScheduler.unscheduleCompany(existing.companyId);
     await LdapConfigModel.delete(id);
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.LDAP_DELETE, resourceType: 'ldap_config', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.status(204).send();
   } catch (error) {
     console.error('Delete LDAP config error:', error);
@@ -154,6 +167,7 @@ router.post('/config/:id/enable', authenticate, requireCompanyAdminOrAbove, asyn
       ldapScheduler.scheduleCompany(existing.companyId, existing.syncIntervalHours);
     }
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.LDAP_ENABLE, resourceType: 'ldap_config', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json(config);
   } catch (error) {
     console.error('Enable LDAP error:', error);
@@ -180,6 +194,7 @@ router.post('/config/:id/disable', authenticate, requireCompanyAdminOrAbove, asy
     const config = await LdapConfigModel.update(id, { isEnabled: false });
     ldapScheduler.unscheduleCompany(existing.companyId);
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.LDAP_DISABLE, resourceType: 'ldap_config', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json(config);
   } catch (error) {
     console.error('Disable LDAP error:', error);
@@ -233,6 +248,7 @@ router.post('/config/:id/sync', authenticate, requireCompanyAdminOrAbove, async 
     }
 
     const result = await LdapService.syncCompanyUsers(existing.companyId);
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.LDAP_SYNC, resourceType: 'ldap_config', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json(result);
   } catch (error) {
     console.error('LDAP sync error:', error);

@@ -1,4 +1,4 @@
-import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park, Firmware, TwoFaSetupResponse, TwoFaStatusResponse, TrustedDeviceInfo, ExternalGuest, GuestVisit, LdapConfig, LdapSyncResult, SsoConfig, SsoDiscoveryResult } from '../types';
+import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park, Firmware, TwoFaSetupResponse, TwoFaStatusResponse, TrustedDeviceInfo, ExternalGuest, GuestVisit, LdapConfig, LdapSyncResult, SsoConfig, SsoDiscoveryResult, CalendarToken, CalendarTokenCreated } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
@@ -119,6 +119,19 @@ class ApiService {
 
   async updateSettings(data: { openingHour: number; closingHour: number; timezone: string; timeFormat: '12h' | '24h' }): Promise<Settings> {
     return this.request<Settings>('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async updateBannerSettings(data: {
+    bannerEnabled: boolean;
+    bannerMessage: string | null;
+    bannerLevel: 'info' | 'warning' | 'critical';
+    bannerStartsAt: string | null;
+    bannerEndsAt: string | null;
+  }): Promise<Settings> {
+    return this.request<Settings>('/settings/banner', {
       method: 'PUT',
       body: JSON.stringify(data)
     });
@@ -295,6 +308,13 @@ class ApiService {
     return this.request<Company>(`/companies/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
+    });
+  }
+
+  async updateCompanyTwofa(id: string, twofaEnforcement: string): Promise<Company> {
+    return this.request<Company>(`/companies/${id}/twofa`, {
+      method: 'PUT',
+      body: JSON.stringify({ twofaEnforcement })
     });
   }
 
@@ -571,10 +591,17 @@ class ApiService {
     });
   }
 
-  async updatePark(id: string, data: { name?: string; address?: string; description?: string; isActive?: boolean; twofaEnforcement?: string; receptionEmail?: string | null; receptionGuestFields?: string[] }): Promise<Park> {
+  async updatePark(id: string, data: { name?: string; address?: string; description?: string; isActive?: boolean; twofaEnforcement?: string; receptionEmail?: string | null; receptionGuestFields?: string[]; calendarFeedEnabled?: boolean }): Promise<Park> {
     return this.request<Park>(`/parks/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
+    });
+  }
+
+  async updateParkTwofa(id: string, twofaEnforcement: string): Promise<Park> {
+    return this.request<Park>(`/parks/${id}/twofa`, {
+      method: 'PUT',
+      body: JSON.stringify({ twofaEnforcement })
     });
   }
 
@@ -940,6 +967,36 @@ class ApiService {
 
   async disableSso(configId: string): Promise<SsoConfig> {
     return this.request<SsoConfig>(`/sso/config/${configId}/disable`, { method: 'POST' });
+  }
+
+  // Tour
+  async tourComplete(): Promise<void> {
+    await this.request('/auth/tour-complete', { method: 'POST' });
+  }
+
+  async tourReset(): Promise<void> {
+    await this.request('/auth/tour-reset', { method: 'POST' });
+  }
+
+  // Calendar feed tokens
+  async createCalendarToken(params: {
+    scope: 'my_bookings' | 'room' | 'park_rooms';
+    roomId?: string;
+    label?: string;
+    expiresAt?: string;
+  }): Promise<CalendarTokenCreated> {
+    return this.request<CalendarTokenCreated>('/calendar-tokens', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async getCalendarTokens(): Promise<CalendarToken[]> {
+    return this.request<CalendarToken[]>('/calendar-tokens');
+  }
+
+  async revokeCalendarToken(id: string): Promise<void> {
+    await this.request<void>(`/calendar-tokens/${id}`, { method: 'DELETE' });
   }
 }
 

@@ -25,6 +25,7 @@ export interface Park {
   twofaEnforcement?: TwoFaLevelEnforcement;
   receptionEmail?: string | null;
   receptionGuestFields?: string[];
+  calendarFeedEnabled?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -44,6 +45,7 @@ export interface User {
   isActive?: boolean;
   authSource?: AuthSource;
   inviteToken?: boolean | string | null;
+  hasSeenTour?: boolean;
   createdAt?: string;
 }
 
@@ -83,6 +85,7 @@ export interface MeetingRoom {
   smtpHost?: string | null;    // Defaults to imapHost if null
   smtpPort?: number | null;    // 587 = STARTTLS (default), 465 = SSL
   smtpSecure?: boolean | null; // false = STARTTLS, true = SSL
+  calendarFeedEnabled?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -97,6 +100,12 @@ export interface Settings {
   twofaMode?: TwoFaMode;
   twofaTrustedDeviceDays?: number;
   updatedAt?: string;
+  // System banner
+  bannerEnabled?: boolean;
+  bannerMessage?: string | null;
+  bannerLevel?: 'info' | 'warning' | 'critical';
+  bannerStartsAt?: string | null;
+  bannerEndsAt?: string | null;
 }
 
 export interface Booking {
@@ -267,4 +276,22 @@ export interface SsoDiscoveryResult {
   configId?: string;
   protocol?: SsoProtocol;
   displayName?: string;
+}
+
+// Calendar feed token types
+export type CalendarTokenScope = 'my_bookings' | 'room' | 'park_rooms';
+
+export interface CalendarToken {
+  id: string;
+  scope: CalendarTokenScope;
+  roomId: string | null;
+  label: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface CalendarTokenCreated extends CalendarToken {
+  rawToken: string; // Only present immediately after creation
+  feedUrl: string;  // Complete subscription URL
 }

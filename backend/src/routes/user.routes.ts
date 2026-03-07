@@ -332,6 +332,7 @@ router.put('/:id', authenticate, requireCompanyAdminOrAbove, async (req: AuthReq
     }
 
     const user = await UserModel.update(id, updateData);
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.USER_UPDATE, resourceType: 'user', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json({
       id: user!.id,
       email: user!.email,
@@ -367,6 +368,7 @@ router.post('/:id/reset-2fa', authenticate, requireAdmin, async (req: AuthReques
     await UserModel.disableTwoFa(user.id);
     await TrustedDeviceModel.deleteAllForUser(user.id);
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.USER_2FA_RESET, resourceType: 'user', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { resetBy: req.user?.userId } });
     res.json({ message: '2FA reset successfully for user' });
   } catch (error) {
     console.error('Reset 2FA error:', error);

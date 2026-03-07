@@ -13,12 +13,19 @@ export function SsoCallbackPage() {
     const errorMsg = searchParams.get('error');
 
     if (errorMsg) {
-      setError(errorMsg);
+      // Redirect to login with error code — LoginPage applies an allowlist
+      navigate(`/login?error=${encodeURIComponent(errorMsg)}`, { replace: true });
       return;
     }
 
     if (!token) {
       setError('No authentication token received');
+      return;
+    }
+
+    // Validate token has the expected JWT format (three base64url segments)
+    if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(token)) {
+      setError('Invalid authentication token format');
       return;
     }
 

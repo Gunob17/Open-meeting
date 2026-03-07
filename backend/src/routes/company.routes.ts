@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import { CompanyModel } from '../models/company.model';
-import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
+import { authenticate, requireAdmin, requireCompanyAdminOrAbove, AuthRequest } from '../middleware/auth.middleware';
 import { UserRole } from '../types';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -68,6 +69,17 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
     }
 
     const company = await CompanyModel.create({ name, address, parkId: targetParkId });
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.COMPANY_CREATE,
+      resourceType: 'company',
+      resourceId: company.id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.status(201).json(company);
   } catch (error) {
     console.error('Create company error:', error);
@@ -97,10 +109,61 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Res
       return;
     }
 
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.COMPANY_UPDATE,
+      resourceType: 'company',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.json(company);
   } catch (error) {
     console.error('Update company error:', error);
     res.status(500).json({ error: 'Failed to update company' });
+  }
+});
+
+// Update company 2FA enforcement (company admin for own company, park admin for any in their park, super admin for any)
+router.put('/:id/twofa', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { twofaEnforcement } = req.body;
+
+    // Company admin can only update their own company
+    if (req.user?.role === UserRole.COMPANY_ADMIN && req.user?.companyId !== id) {
+      res.status(403).json({ error: 'Access denied to this company' });
+      return;
+    }
+
+    if (!['inherit', 'optional', 'required'].includes(twofaEnforcement)) {
+      res.status(400).json({ error: 'Invalid twofaEnforcement value' });
+      return;
+    }
+
+    const company = await CompanyModel.update(id, { twofaEnforcement });
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.COMPANY_UPDATE,
+      resourceType: 'company',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+      metadata: { twofaEnforcement },
+    });
+
+    res.json(company);
+  } catch (error) {
+    console.error('Update company 2FA error:', error);
+    res.status(500).json({ error: 'Failed to update company 2FA settings' });
   }
 });
 
@@ -114,6 +177,16 @@ router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: 
       res.status(404).json({ error: 'Company not found' });
       return;
     }
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.COMPANY_DELETE,
+      resourceType: 'company',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
 
     res.status(204).send();
   } catch (error) {

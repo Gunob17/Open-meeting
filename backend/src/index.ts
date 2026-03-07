@@ -22,6 +22,8 @@ import receptionistRoutes from './routes/receptionist.routes';
 import ldapRoutes from './routes/ldap.routes';
 import ssoRoutes from './routes/sso.routes';
 import devRoutes from './routes/dev.routes';
+import icalRoutes from './routes/ical.routes';
+import calendarTokenRoutes from './routes/calendar-token.routes';
 import { ldapScheduler } from './services/ldap-scheduler.service';
 import { imapManager } from './services/imap.service';
 
@@ -99,6 +101,8 @@ app.use('/api/statistics', statisticsRoutes);
 app.use('/api/receptionist', receptionistRoutes);
 app.use('/api/ldap', ldapRoutes);
 app.use('/api/sso', ssoRoutes);
+app.use('/api/ical', icalRoutes);
+app.use('/api/calendar-tokens', calendarTokenRoutes);
 
 // Dev-only routes — never available in production
 if (process.env.NODE_ENV !== 'production') {

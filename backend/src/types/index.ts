@@ -25,6 +25,7 @@ export interface Park {
   twofaEnforcement: TwoFaLevelEnforcement;
   receptionEmail: string | null;
   receptionGuestFields: string[];
+  calendarFeedEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -52,6 +53,7 @@ export interface User {
   ssoProviderId: string | null;
   inviteToken: string | null;
   inviteTokenExpiry: string | null;
+  hasSeenTour: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -92,6 +94,7 @@ export interface MeetingRoom {
   smtpHost?: string | null;    // Defaults to imapHost if null
   smtpPort?: number | null;    // Default 587 (STARTTLS); use 465 for SSL
   smtpSecure?: boolean | null; // false = STARTTLS (587), true = SSL (465)
+  calendarFeedEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -106,6 +109,12 @@ export interface Settings {
   twofaMode: TwoFaMode;
   twofaTrustedDeviceDays: number;
   updatedAt: string;
+  // System banner
+  bannerEnabled: boolean;
+  bannerMessage: string | null;
+  bannerLevel: 'info' | 'warning' | 'critical';
+  bannerStartsAt: string | null;
+  bannerEndsAt: string | null;
 }
 
 export interface Booking {
@@ -407,4 +416,31 @@ export interface SsoDiscoveryResult {
   configId?: string;
   protocol?: SsoProtocol;
   displayName?: string;
+}
+
+// Calendar feed token types
+export type CalendarTokenScope = 'my_bookings' | 'room' | 'park_rooms';
+
+export interface CalendarToken {
+  id: string;
+  userId: string;
+  scope: CalendarTokenScope;
+  roomId: string | null;
+  tokenHash: string; // SHA-256 hex — never returned to API clients
+  label: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+}
+
+export interface CalendarTokenResponse {
+  id: string;
+  scope: CalendarTokenScope;
+  roomId: string | null;
+  label: string | null;
+  createdAt: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  rawToken?: string; // Only present immediately after creation
+  feedUrl?: string;  // Only present immediately after creation
 }

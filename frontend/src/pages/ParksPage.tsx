@@ -20,6 +20,7 @@ export function ParksPage() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [parkTwofaEnforcement, setParkTwofaEnforcement] = useState<TwoFaLevelEnforcement>('inherit');
+  const [parkCalendarFeedEnabled, setParkCalendarFeedEnabled] = useState(true);
 
   useEffect(() => {
     loadParks();
@@ -58,6 +59,7 @@ export function ParksPage() {
         receptionGuestFields: park.receptionGuestFields || ['name']
       });
       setParkTwofaEnforcement(park.twofaEnforcement || 'inherit');
+      setParkCalendarFeedEnabled(park.calendarFeedEnabled !== false);
     } else {
       setEditingPark(null);
       setFormData({
@@ -68,6 +70,7 @@ export function ParksPage() {
         receptionGuestFields: ['name']
       });
       setParkTwofaEnforcement('inherit');
+      setParkCalendarFeedEnabled(true);
     }
     setError('');
     setShowModal(true);
@@ -86,7 +89,8 @@ export function ParksPage() {
           description: formData.description,
           twofaEnforcement: parkTwofaEnforcement,
           receptionEmail: formData.receptionEmail || null,
-          receptionGuestFields: formData.receptionGuestFields
+          receptionGuestFields: formData.receptionGuestFields,
+          calendarFeedEnabled: parkCalendarFeedEnabled,
         });
       } else {
         await api.createPark(formData);
@@ -380,6 +384,20 @@ export function ParksPage() {
                       <option value="required">Required - All users in this park must use 2FA</option>
                     </select>
                     <small>Override system 2FA enforcement for this park</small>
+                  </div>
+                )}
+
+                {editingPark && (
+                  <div className="form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={parkCalendarFeedEnabled}
+                        onChange={e => setParkCalendarFeedEnabled(e.target.checked)}
+                      />
+                      Allow calendar feed subscriptions (ICS)
+                    </label>
+                    <small>When disabled, all existing ICS feed URLs for rooms in this park will stop working (returns 410 Gone).</small>
                   </div>
                 )}
               </div>

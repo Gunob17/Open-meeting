@@ -11,9 +11,13 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | POST | `/auth/login` | None | Login (local, LDAP, or trusted device bypass) |
+| POST | `/auth/logout` | Required | Logout (clears server-side session state) |
 | GET | `/auth/me` | Required | Get current user profile |
 | POST | `/auth/refresh` | Required | Refresh JWT token |
-| POST | `/auth/change-password` | Required | Change password |
+| POST | `/auth/change-password` | Required | Change password (zxcvbn score ≥ 2 required) |
+| POST | `/auth/complete-invite` | None | Complete user invite (set password); rate-limited to 5 req/min |
+| POST | `/auth/tour-complete` | Required | Mark guided tour as seen (suppresses auto-start on next login) |
+| POST | `/auth/tour-reset` | Required | Reset tour flag so it auto-starts on next login |
 
 ### Two-Factor Authentication
 
@@ -38,6 +42,7 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | POST | `/parks` | Super Admin | Create park |
 | PUT | `/parks/:id` | Super Admin | Update park |
 | PUT | `/parks/:id/reception` | Park Admin+ | Update reception settings |
+| PUT | `/parks/:id/twofa` | Park Admin (own park) / Super Admin | Update park-level 2FA enforcement (`inherit`/`optional`/`required`) |
 | DELETE | `/parks/:id` | Super Admin | Delete park |
 | POST | `/parks/:id/logo` | Super Admin | Upload park logo (multipart, max 2MB) |
 | GET | `/parks/:id/logo/:filename` | None | Get park logo image |
@@ -53,6 +58,7 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | GET | `/companies/:id` | Required | Get company details |
 | POST | `/companies` | Park Admin+ | Create company |
 | PUT | `/companies/:id` | Park Admin+ | Update company |
+| PUT | `/companies/:id/twofa` | Company Admin (own company) / Park Admin+ | Update company-level 2FA enforcement (`inherit`/`optional`/`required`) |
 | DELETE | `/companies/:id` | Park Admin+ | Delete company |
 
 ---
@@ -76,8 +82,8 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/rooms` | Required | List rooms (respects park filter and company locks) |
-| GET | `/rooms/:id` | Required | Get room details |
-| GET | `/rooms/:id/availability` | Required | Check room availability for time range |
+| GET | `/rooms/:id` | Required | Get room details — returns 403 if room is in a different park |
+| GET | `/rooms/:id/availability` | Required | Check room availability — returns 403 if room is in a different park |
 | POST | `/rooms` | Park Admin+ | Create room |
 | PUT | `/rooms/:id` | Park Admin+ | Update room |
 | DELETE | `/rooms/:id` | Park Admin+ | Delete room |
@@ -106,6 +112,7 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | GET | `/settings` | Required | Get global settings |
 | PUT | `/settings` | Park Admin+ | Update booking hours |
 | PUT | `/settings/2fa` | Super Admin | Update 2FA enforcement settings |
+| PUT | `/settings/banner` | Super Admin | Update system-wide announcement banner (message, level, date range) |
 
 ---
 
@@ -210,6 +217,41 @@ Authentication: `X-Device-Token` header.
 | GET | `/statistics/top-bookers` | Park Admin+ | Top bookers list |
 
 All statistics endpoints accept `startDate`, `endDate`, and `parkId` query parameters.
+
+---
+
+## Calendar Tokens
+
+Manage personal iCal feed subscription tokens. Tokens are scoped to either the authenticated user's bookings (`my_bookings`) or a specific room (`room`).
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/calendar-tokens` | Required | List all tokens for current user |
+| POST | `/calendar-tokens` | Required | Create a new token (body: `scope`, `roomId?`, `label?`, `expiresAt?`) |
+| DELETE | `/calendar-tokens/:id` | Required | Revoke a token |
+
+---
+
+## iCal Feeds
+
+Public iCal feed endpoints authenticated by token (no JWT required). Suitable for subscribing directly in calendar apps.
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/ical/my?token=<token>` | Token | Personal iCal feed — all upcoming bookings for the token owner |
+| GET | `/ical/room/:roomId?token=<token>` | Token | Room iCal feed — full room schedule; other users' bookings shown as "Booked" |
+
+Feeds return `Content-Type: text/calendar`. Endpoints are rate-limited independently of the JWT API.
+
+---
+
+## Audit Log
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/audit-log` | Park Admin+ | Query audit log events (filterable by action, user, date range) |
+
+Audit events cover all state-changing actions: authentication, 2FA changes, room/park/company/booking CRUD, device management, firmware, LDAP/SSO config, settings, guest check-in/out, and system setup.
 
 ---
 

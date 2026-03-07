@@ -16,6 +16,11 @@ export class SettingsModel {
         twofaMode: 'trusted_device',
         twofaTrustedDeviceDays: 30,
         updatedAt: new Date().toISOString(),
+        bannerEnabled: false,
+        bannerMessage: null,
+        bannerLevel: 'info',
+        bannerStartsAt: null,
+        bannerEndsAt: null,
       };
     }
     return {
@@ -28,6 +33,11 @@ export class SettingsModel {
       twofaMode: row.twofa_mode || 'trusted_device',
       twofaTrustedDeviceDays: row.twofa_trusted_device_days ?? 30,
       updatedAt: row.updated_at,
+      bannerEnabled: !!row.banner_enabled,
+      bannerMessage: row.banner_message ?? null,
+      bannerLevel: (['info', 'warning', 'critical'].includes(row.banner_level) ? row.banner_level : 'info') as 'info' | 'warning' | 'critical',
+      bannerStartsAt: row.banner_starts_at ?? null,
+      bannerEndsAt: row.banner_ends_at ?? null,
     };
   }
 
@@ -53,6 +63,25 @@ export class SettingsModel {
       twofa_enforcement: enforcement,
       twofa_mode: mode,
       twofa_trusted_device_days: trustedDeviceDays,
+      updated_at: new Date().toISOString(),
+    });
+    return this.getGlobal();
+  }
+
+  static async updateBannerSettings(
+    enabled: boolean,
+    message: string | null,
+    level: 'info' | 'warning' | 'critical',
+    startsAt: string | null,
+    endsAt: string | null
+  ): Promise<Settings> {
+    const db = getDb();
+    await db('settings').where('id', 'global').update({
+      banner_enabled: enabled,
+      banner_message: message,
+      banner_level: level,
+      banner_starts_at: startsAt,
+      banner_ends_at: endsAt,
       updated_at: new Date().toISOString(),
     });
     return this.getGlobal();

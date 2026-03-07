@@ -5,6 +5,7 @@ import { SsoService } from '../services/sso.service';
 import { SettingsModel } from '../models/settings.model';
 import { UserRole } from '../types';
 import { getEffectiveTwoFaEnforcement } from '../utils/twofa-enforcement';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 const APP_URL = process.env.APP_URL || 'http://localhost';
@@ -246,6 +247,7 @@ router.post('/config', authenticate, requireCompanyAdminOrAbove, async (req: Aut
       ...rest,
     });
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.SSO_CREATE, resourceType: 'sso_config', resourceId: config.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.status(201).json(config);
   } catch (error) {
     console.error('Create SSO config error:', error);
@@ -268,6 +270,7 @@ router.put('/config/:id', authenticate, requireCompanyAdminOrAbove, async (req: 
     }
 
     const config = await SsoConfigModel.update(req.params.id, req.body);
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.SSO_UPDATE, resourceType: 'sso_config', resourceId: req.params.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json(config);
   } catch (error) {
     console.error('Update SSO config error:', error);
@@ -290,6 +293,7 @@ router.delete('/config/:id', authenticate, requireCompanyAdminOrAbove, async (re
     }
 
     await SsoConfigModel.delete(req.params.id);
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.SSO_DELETE, resourceType: 'sso_config', resourceId: req.params.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.status(204).send();
   } catch (error) {
     console.error('Delete SSO config error:', error);
@@ -312,6 +316,7 @@ router.post('/config/:id/enable', authenticate, requireCompanyAdminOrAbove, asyn
     }
 
     const config = await SsoConfigModel.update(req.params.id, { isEnabled: true });
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.SSO_ENABLE, resourceType: 'sso_config', resourceId: req.params.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json(config);
   } catch (error) {
     console.error('Enable SSO error:', error);
@@ -334,6 +339,7 @@ router.post('/config/:id/disable', authenticate, requireCompanyAdminOrAbove, asy
     }
 
     const config = await SsoConfigModel.update(req.params.id, { isEnabled: false });
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.SSO_DISABLE, resourceType: 'sso_config', resourceId: req.params.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json(config);
   } catch (error) {
     console.error('Disable SSO error:', error);

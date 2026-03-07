@@ -4,6 +4,7 @@ import { RoomModel } from '../models/room.model';
 import { FirmwareModel } from '../models/firmware.model';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
 import { UserRole } from '../types';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -113,6 +114,16 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
 
     const device = await DeviceModel.create({ name, roomId, deviceType });
 
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.DEVICE_CREATE,
+      resourceType: 'device',
+      resourceId: device.id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.status(201).json({
       ...device,
       room: {
@@ -150,6 +161,16 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Res
     const device = await DeviceModel.update(id, { name, roomId, deviceType, isActive });
     const deviceWithRoom = await DeviceModel.findByIdWithRoom(id);
 
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.DEVICE_UPDATE,
+      resourceType: 'device',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.json({
       ...deviceWithRoom,
       room: deviceWithRoom?.room ? {
@@ -176,6 +197,16 @@ router.post('/:id/regenerate-token', authenticate, requireAdmin, async (req: Aut
 
     const device = await DeviceModel.regenerateToken(id);
     const deviceWithRoom = await DeviceModel.findByIdWithRoom(id);
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.DEVICE_TOKEN_REGENERATE,
+      resourceType: 'device',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
 
     res.json({
       ...deviceWithRoom,
@@ -283,6 +314,17 @@ router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: 
     }
 
     await DeviceModel.delete(id);
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.DEVICE_DELETE,
+      resourceType: 'device',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.status(204).send();
   } catch (error) {
     console.error('Delete device error:', error);

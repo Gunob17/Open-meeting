@@ -47,7 +47,7 @@ export class ParkModel {
     return rows.map((row: any) => this.mapRowToPark(row));
   }
 
-  static async update(id: string, data: Partial<CreateParkRequest> & { isActive?: boolean; twofaEnforcement?: TwoFaLevelEnforcement }): Promise<Park | null> {
+  static async update(id: string, data: Partial<CreateParkRequest> & { isActive?: boolean; twofaEnforcement?: TwoFaLevelEnforcement; calendarFeedEnabled?: boolean }): Promise<Park | null> {
     const existing = await this.findById(id);
     if (!existing) return null;
 
@@ -60,6 +60,7 @@ export class ParkModel {
       description: data.description ?? existing.description,
       is_active: data.isActive !== undefined ? data.isActive : existing.isActive,
       twofa_enforcement: data.twofaEnforcement ?? existing.twofaEnforcement,
+      calendar_feed_enabled: data.calendarFeedEnabled !== undefined ? data.calendarFeedEnabled : existing.calendarFeedEnabled,
       updated_at: now,
     };
 
@@ -116,6 +117,7 @@ export class ParkModel {
       twofaEnforcement: row.twofa_enforcement || 'inherit',
       receptionEmail: row.reception_email || null,
       receptionGuestFields: JSON.parse(row.reception_guest_fields || '["name"]'),
+      calendarFeedEnabled: row.calendar_feed_enabled !== undefined ? !!row.calendar_feed_enabled : true,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

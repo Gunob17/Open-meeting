@@ -5,6 +5,7 @@ import { RoomModel } from '../models/room.model';
 import { ParkModel } from '../models/park.model';
 import { UserRole } from '../types';
 import { getDb } from '../models/database';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -403,6 +404,8 @@ router.post('/production', async (req, res: Response) => {
       companyId: company.id,
       parkId: null  // Super admin has no park restriction
     });
+
+    auditLog({ userId: admin.id, action: AuditAction.SYSTEM_SETUP, resourceType: 'system', resourceId: admin.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { companyName, adminEmail } });
 
     res.json({
       success: true,

@@ -426,6 +426,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.BOOKING_UPDATE, resourceType: 'booking', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json({
       ...booking,
       attendees: JSON.parse(booking.attendees),
@@ -605,6 +606,7 @@ router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) =
       });
     }
 
+    auditLog({ userId: req.user?.userId ?? null, action: AuditAction.BOOKING_MOVE, resourceType: 'booking', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { newRoomId } });
     res.json({
       ...updatedBooking,
       attendees: JSON.parse(updatedBooking.attendees),

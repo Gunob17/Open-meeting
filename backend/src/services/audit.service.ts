@@ -50,6 +50,54 @@ export const AuditAction = {
   BOOKING_EMAIL_REJECTED_ROOM: 'booking.email.rejected.room',
   BOOKING_EMAIL_REJECTED_USER: 'booking.email.rejected.user',
   BOOKING_EMAIL_REJECTED_RATELIMIT: 'booking.email.rejected.ratelimit',
+  // Calendar feed tokens
+  CALENDAR_TOKEN_CREATE: 'calendar.token.create',
+  CALENDAR_TOKEN_REVOKE: 'calendar.token.revoke',
+  // Users (additional)
+  USER_2FA_RESET: 'user.2fa.reset',
+  // Rooms
+  ROOM_CREATE: 'room.create',
+  ROOM_UPDATE: 'room.update',
+  ROOM_DELETE: 'room.delete',
+  // Parks
+  PARK_CREATE: 'park.create',
+  PARK_UPDATE: 'park.update',
+  PARK_DELETE: 'park.delete',
+  // Companies
+  COMPANY_CREATE: 'company.create',
+  COMPANY_UPDATE: 'company.update',
+  COMPANY_DELETE: 'company.delete',
+  // Settings
+  SETTINGS_UPDATE: 'settings.update',
+  SETTINGS_2FA_POLICY: 'settings.2fa.policy',
+  SETTINGS_BANNER: 'settings.banner',
+  // Devices
+  DEVICE_CREATE: 'device.create',
+  DEVICE_UPDATE: 'device.update',
+  DEVICE_DELETE: 'device.delete',
+  DEVICE_TOKEN_REGENERATE: 'device.token.regenerate',
+  // Firmware
+  FIRMWARE_UPLOAD: 'firmware.upload',
+  FIRMWARE_DELETE: 'firmware.delete',
+  FIRMWARE_ACTIVATE: 'firmware.activate',
+  // LDAP
+  LDAP_CREATE: 'ldap.create',
+  LDAP_UPDATE: 'ldap.update',
+  LDAP_DELETE: 'ldap.delete',
+  LDAP_ENABLE: 'ldap.enable',
+  LDAP_DISABLE: 'ldap.disable',
+  LDAP_SYNC: 'ldap.sync',
+  // SSO
+  SSO_CREATE: 'sso.create',
+  SSO_UPDATE: 'sso.update',
+  SSO_DELETE: 'sso.delete',
+  SSO_ENABLE: 'sso.enable',
+  SSO_DISABLE: 'sso.disable',
+  // Guests (receptionist)
+  GUEST_CHECKIN: 'guest.checkin',
+  GUEST_CHECKOUT: 'guest.checkout',
+  // System
+  SYSTEM_SETUP: 'system.setup',
   // Dev
   DEV_IMPERSONATE: 'dev.impersonate',
 } as const;

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
-import { TwoFaEnforcement, TwoFaMode } from '../types';
+import { TwoFaEnforcement, TwoFaLevelEnforcement, TwoFaMode } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 import { formatHour, TimeFormat } from '../utils/time';
 
 export function SettingsPage() {
-  const { isSuperAdmin } = useAuth();
+  const { user, isSuperAdmin, isAdmin } = useAuth();
   const { setTimeFormat: setContextTimeFormat } = useSettings();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -25,6 +25,18 @@ export function SettingsPage() {
   const [twofaTrustedDeviceDays, setTwofaTrustedDeviceDays] = useState(30);
   const [saving2fa, setSaving2fa] = useState(false);
 
+  // Park 2FA settings (park admin only)
+  const [parkTwofaEnforcement, setParkTwofaEnforcement] = useState<TwoFaLevelEnforcement>('inherit');
+  const [savingParkTwofa, setSavingParkTwofa] = useState(false);
+
+  // Banner settings (super admin only)
+  const [bannerEnabled, setBannerEnabled] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState('');
+  const [bannerLevel, setBannerLevel] = useState<'info' | 'warning' | 'critical'>('info');
+  const [bannerStartsAt, setBannerStartsAt] = useState('');
+  const [bannerEndsAt, setBannerEndsAt] = useState('');
+  const [savingBanner, setSavingBanner] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -32,7 +44,12 @@ export function SettingsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const settingsData = await api.getSettings();
+      const [settingsData] = await Promise.all([
+        api.getSettings(),
+        isAdmin && !isSuperAdmin && user?.parkId
+          ? api.getPark(user.parkId).then(p => setParkTwofaEnforcement((p.twofaEnforcement as TwoFaLevelEnforcement) || 'inherit'))
+          : Promise.resolve(),
+      ]);
       setOpeningHour(settingsData.openingHour);
       setClosingHour(settingsData.closingHour);
       setTimezone(settingsData.timezone || 'UTC');
@@ -40,6 +57,11 @@ export function SettingsPage() {
       setTwofaEnforcement((settingsData.twofaEnforcement as TwoFaEnforcement) || 'disabled');
       setTwofaMode((settingsData.twofaMode as TwoFaMode) || 'trusted_device');
       setTwofaTrustedDeviceDays(settingsData.twofaTrustedDeviceDays ?? 30);
+      setBannerEnabled(settingsData.bannerEnabled ?? false);
+      setBannerMessage(settingsData.bannerMessage ?? '');
+      setBannerLevel(settingsData.bannerLevel ?? 'info');
+      setBannerStartsAt(settingsData.bannerStartsAt ? settingsData.bannerStartsAt.slice(0, 16) : '');
+      setBannerEndsAt(settingsData.bannerEndsAt ? settingsData.bannerEndsAt.slice(0, 16) : '');
     } catch (err) {
       setError('Failed to load settings');
       console.error(err);
@@ -88,6 +110,42 @@ export function SettingsPage() {
       setError(err instanceof Error ? err.message : 'Failed to save 2FA settings');
     } finally {
       setSaving2fa(false);
+    }
+  };
+
+  const handleSaveParkTwofaSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setSavingParkTwofa(true);
+    try {
+      await api.updateParkTwofa(user!.parkId!, parkTwofaEnforcement);
+      setSuccess('Two-factor authentication settings saved successfully');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save 2FA settings');
+    } finally {
+      setSavingParkTwofa(false);
+    }
+  };
+
+  const handleSaveBannerSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    setSavingBanner(true);
+    try {
+      await api.updateBannerSettings({
+        bannerEnabled,
+        bannerMessage: bannerMessage.trim() || null,
+        bannerLevel,
+        bannerStartsAt: bannerStartsAt ? new Date(bannerStartsAt).toISOString() : null,
+        bannerEndsAt: bannerEndsAt ? new Date(bannerEndsAt).toISOString() : null,
+      });
+      setSuccess('Banner settings saved successfully');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save banner settings');
+    } finally {
+      setSavingBanner(false);
     }
   };
 
@@ -263,6 +321,122 @@ export function SettingsPage() {
 
             <button type="submit" className="btn btn-primary" disabled={saving2fa}>
               {saving2fa ? 'Saving...' : 'Save 2FA Settings'}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* Two-Factor Authentication (Park Admin only — scoped to their park) */}
+      {isAdmin && !isSuperAdmin && (
+        <section className="settings-section">
+          <h2>Two-Factor Authentication</h2>
+          <p className="section-description">
+            Set the 2FA enforcement level for your site. "Inherit" follows the system-wide policy set by the super admin.
+          </p>
+
+          <form onSubmit={handleSaveParkTwofaSettings} className="settings-form">
+            <div className="form-group">
+              <label htmlFor="parkTwofaEnforcement">Site Enforcement</label>
+              <select
+                id="parkTwofaEnforcement"
+                value={parkTwofaEnforcement}
+                onChange={e => setParkTwofaEnforcement(e.target.value as TwoFaLevelEnforcement)}
+              >
+                <option value="inherit">Inherit — follow system-wide policy</option>
+                <option value="optional">Optional — users can enable 2FA voluntarily</option>
+                <option value="required">Required — all users on this site must set up 2FA</option>
+              </select>
+            </div>
+
+            <button type="submit" className="btn btn-primary" disabled={savingParkTwofa}>
+              {savingParkTwofa ? 'Saving...' : 'Save 2FA Settings'}
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* System Banner (Super Admin only) */}
+      {isSuperAdmin && (
+        <section className="settings-section">
+          <h2>System Banner</h2>
+          <p className="section-description">
+            Display a system-wide message to all users — useful for communicating maintenance windows,
+            migrations, or other important notices. Users can dismiss the banner per session.
+          </p>
+
+          <form onSubmit={handleSaveBannerSettings} className="settings-form">
+            <div className="form-group">
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={bannerEnabled}
+                  onChange={e => setBannerEnabled(e.target.checked)}
+                />
+                Enable banner
+              </label>
+            </div>
+
+            {bannerEnabled && (
+              <div className="form-group">
+                <label htmlFor="bannerMessage">Message</label>
+                <textarea
+                  id="bannerMessage"
+                  value={bannerMessage}
+                  onChange={e => setBannerMessage(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Scheduled maintenance on Saturday 10:00–12:00 UTC. The system may be briefly unavailable."
+                  required={bannerEnabled}
+                  maxLength={500}
+                />
+              </div>
+            )}
+
+            <div className="form-group">
+              <label htmlFor="bannerLevel">Severity</label>
+              <select
+                id="bannerLevel"
+                value={bannerLevel}
+                onChange={e => setBannerLevel(e.target.value as 'info' | 'warning' | 'critical')}
+              >
+                <option value="info">Info — general notice (blue)</option>
+                <option value="warning">Warning — action may be needed (yellow)</option>
+                <option value="critical">Critical — urgent attention required (red)</option>
+              </select>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="bannerStartsAt">Show from (optional)</label>
+                <input
+                  type="datetime-local"
+                  id="bannerStartsAt"
+                  value={bannerStartsAt}
+                  onChange={e => setBannerStartsAt(e.target.value)}
+                />
+                <small>Leave blank to show immediately</small>
+              </div>
+              <div className="form-group">
+                <label htmlFor="bannerEndsAt">Show until (optional)</label>
+                <input
+                  type="datetime-local"
+                  id="bannerEndsAt"
+                  value={bannerEndsAt}
+                  onChange={e => setBannerEndsAt(e.target.value)}
+                />
+                <small>Leave blank to show indefinitely</small>
+              </div>
+            </div>
+
+            {/* Preview */}
+            {bannerEnabled && bannerMessage.trim() && (
+              <div className={`system-banner system-banner--${bannerLevel}`} style={{ marginBottom: '1rem', borderRadius: '6px' }}>
+                <span className="system-banner-message">{bannerMessage.trim()}</span>
+                <span className="system-banner-dismiss" style={{ opacity: 0.4, cursor: 'default' }}>&times;</span>
+              </div>
+            )}
+
+            <button type="submit" className="btn btn-primary" disabled={savingBanner}>
+              {savingBanner ? 'Saving...' : 'Save Banner Settings'}
             </button>
           </form>
         </section>

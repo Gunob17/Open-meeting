@@ -5,6 +5,7 @@ import { CompanyModel } from '../models/company.model';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
 import { MeetingRoom, UserRole } from '../types';
 import { imapManager } from '../services/imap.service';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -62,7 +63,20 @@ router.get('/imap-status', authenticate, requireAdmin, (req: AuthRequest, res: R
   res.json(imapManager.getStatuses());
 });
 
-// Get single room with availability
+/** Returns true if the requesting user has access to the given room. */
+function userCanAccessRoom(room: MeetingRoom, req: AuthRequest): boolean {
+  if (!req.user) return false;
+  if (req.user.role === UserRole.SUPER_ADMIN) return true;
+  // Park-level access: user must belong to the same park as the room
+  if (room.parkId !== req.user.parkId) return false;
+  // Company-lock check for non-admin users
+  if (req.user.role !== UserRole.PARK_ADMIN && room.lockedToCompanyIds && room.lockedToCompanyIds.length > 0) {
+    if (!room.lockedToCompanyIds.includes(req.user.companyId)) return false;
+  }
+  return true;
+}
+
+// Get single room
 router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
@@ -70,6 +84,11 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     if (!room) {
       res.status(404).json({ error: 'Room not found' });
+      return;
+    }
+
+    if (!userCanAccessRoom(room, req)) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
 
@@ -94,6 +113,11 @@ router.get('/:id/availability', authenticate, async (req: AuthRequest, res: Resp
     const room = await RoomModel.findById(id);
     if (!room) {
       res.status(404).json({ error: 'Room not found' });
+      return;
+    }
+
+    if (!userCanAccessRoom(room, req)) {
+      res.status(403).json({ error: 'Access denied' });
       return;
     }
 
@@ -227,6 +251,16 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
       );
     }
 
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.ROOM_CREATE,
+      resourceType: 'room',
+      resourceId: room.id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.status(201).json(sanitizeRoomForClient({ ...room, amenities: JSON.parse(room.amenities) }));
   } catch (error) {
     console.error('Create room error:', error);
@@ -238,7 +272,7 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
 router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyIds, quickBookDurations, bookingEmail, imapHost, imapPort, imapUser, imapPass, imapMailbox, smtpHost, smtpPort, smtpSecure } = req.body;
+    const { name, capacity, amenities, floor, address, description, isActive, openingHour, closingHour, lockedToCompanyIds, quickBookDurations, bookingEmail, imapHost, imapPort, imapUser, imapPass, imapMailbox, smtpHost, smtpPort, smtpSecure, calendarFeedEnabled } = req.body;
 
     // Validate booking email if provided in this update
     let normalizedBookingEmail: string | null | undefined;
@@ -300,6 +334,7 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Res
       smtpHost: 'smtpHost' in req.body ? (smtpHost ?? null) : undefined,
       smtpPort: 'smtpPort' in req.body ? (smtpPort ?? null) : undefined,
       smtpSecure: 'smtpSecure' in req.body ? (smtpSecure ?? null) : undefined,
+      calendarFeedEnabled: 'calendarFeedEnabled' in req.body ? calendarFeedEnabled : undefined,
     });
 
     if (!room) {
@@ -311,6 +346,16 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Res
     imapManager.restartRoom(id).catch(err =>
       console.error('[imap] Failed to restart worker after room update:', err)
     );
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.ROOM_UPDATE,
+      resourceType: 'room',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
 
     res.json(sanitizeRoomForClient({ ...room, amenities: JSON.parse(room.amenities) }));
   } catch (error) {
@@ -343,6 +388,16 @@ router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: 
 
     // Stop IMAP worker for the deleted/deactivated room
     imapManager.stopRoom(id);
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.ROOM_DELETE,
+      resourceType: 'room',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
 
     res.status(204).send();
   } catch (error) {

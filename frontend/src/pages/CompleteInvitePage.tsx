@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import zxcvbn from 'zxcvbn';
 
 export function CompleteInvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -23,6 +24,11 @@ export function CompleteInvitePage() {
 
     if (password.length < 8) {
       setError('Password must be at least 8 characters');
+      return;
+    }
+
+    if (zxcvbn(password).score < 2) {
+      setError('Password is too weak. Please choose a stronger password.');
       return;
     }
 
@@ -92,6 +98,21 @@ export function CompleteInvitePage() {
               minLength={8}
               required
             />
+            {password.length > 0 && (() => {
+              const score = zxcvbn(password).score;
+              const labels = ['Very weak', 'Weak', 'Fair', 'Strong', 'Very strong'];
+              const colors = ['#e53935', '#e53935', '#f57c00', '#43a047', '#1b5e20'];
+              return (
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[0,1,2,3,4].map(i => (
+                      <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= score ? colors[score] : '#ddd' }} />
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 12, color: colors[score] }}>{labels[score]}</span>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="form-group">

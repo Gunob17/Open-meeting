@@ -362,7 +362,7 @@ body {
   width: 0;
 }
 
-.user-name {
+.sidebar .user-name {
   font-weight: 600;
   font-size: 0.875rem;
   color: white;
@@ -400,6 +400,68 @@ body {
 .sidebar.closed .logout-btn .link-text {
   opacity: 0;
   width: 0;
+}
+
+/* User menu button (replaces old static user-info div) */
+.user-info-btn {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  border-radius: 0.375rem;
+  transition: background 0.15s;
+}
+
+.user-info-btn:hover {
+  background: #334155;
+}
+
+.user-menu-chevron {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+/* Dropdown menu above sidebar footer */
+.user-menu-dropdown {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.user-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.625rem 0.75rem;
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.user-menu-item:hover {
+  background: #334155;
+  color: white;
+}
+
+.user-menu-item--logout {
+  color: #fca5a5;
+}
+
+.user-menu-item--logout:hover {
+  background: #7f1d1d;
+  color: white;
 }
 
 /* Sidebar overlay for mobile */
@@ -646,6 +708,11 @@ body {
   margin-bottom: 0.5rem;
   font-weight: 500;
   font-size: 0.875rem;
+}
+
+.form-group input[type="checkbox"],
+.form-group input[type="radio"] {
+  width: auto;
 }
 
 .form-group input,
@@ -3810,4 +3877,57 @@ body {
   width: 18px;
   height: 18px;
   cursor: pointer;
+}
+
+/* ============================================================
+   System Banner
+   ============================================================ */
+
+.system-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: 10px 20px;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.system-banner--info {
+  background: #dbeafe;
+  color: #1e40af;
+  border-bottom: 1px solid #93c5fd;
+}
+
+.system-banner--warning {
+  background: #fef9c3;
+  color: #854d0e;
+  border-bottom: 1px solid #fde047;
+}
+
+.system-banner--critical {
+  background: #fee2e2;
+  color: #991b1b;
+  border-bottom: 1px solid #fca5a5;
+}
+
+.system-banner-message {
+  flex: 1;
+}
+
+.system-banner-dismiss {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 4px;
+  color: inherit;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+
+.system-banner-dismiss:hover {
+  opacity: 1;
 }

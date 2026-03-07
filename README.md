@@ -21,7 +21,7 @@ Open Meeting gives your organization a complete room booking system — from a v
 - **Walk-up room displays** — Mount affordable ESP32 touchscreen devices outside meeting rooms for live status and one-tap booking.
 - **Professional visitor experience** — Track external guests with check-in/check-out, automated reception notifications, and configurable visitor fields.
 - **Data-driven space decisions** — Built-in analytics show room utilization, peak hours, and underused spaces so you can optimize your real estate.
-- **Deploy in minutes** — One Docker container, one command. Works with SQLite out of the box or connect to PostgreSQL, MySQL, or MSSQL.
+- **Deploy in minutes** — One Docker container, one command. Works with SQLite out of the box or connect to PostgreSQL, MySQL, MariaDB, or MSSQL.
 
 ---
 
@@ -69,13 +69,16 @@ Meet your organization's security and compliance requirements. Open Meeting is b
 - Trusted device management — skip 2FA on recognized browsers
 - Hierarchical 2FA enforcement: system-wide, per site, or per company (disabled / optional / required)
 - Two modes: require on every login, or trust verified devices for a configurable period
-- **Structured audit log** — every security event (login, 2FA, password change, booking actions, user management, data exports) is recorded with timestamp, user, IP, and outcome
+- **Password strength enforcement** — passwords are evaluated with [zxcvbn](https://github.com/dropbox/zxcvbn); a minimum score of "fair" (2/4) is required at invite acceptance and password change; a strength meter is shown in the UI
+- **Comprehensive audit log** — every state-changing action across all routes is recorded with timestamp, user, IP, action type, affected resource, and outcome (login, 2FA changes, room/park/company/booking CRUD, device management, LDAP/SSO config, firmware, settings, guest check-in/out, system setup)
+- **Park-scoped room access** — users and park admins can only access rooms within their own park; cross-park room lookups return 403 (prevents information disclosure via IDOR)
 - **GDPR data export** — users can download all their personal data (profile, bookings) via a self-service endpoint (Art. 15 right of access)
 - **GDPR soft-delete** — user deletion anonymizes PII and records a deletion audit trail rather than hard-deleting records (Art. 17 right to erasure)
 - **Data minimization** — booking list endpoints return only the fields required for display; full attendee details are restricted to booking owners and admins; organizer emails in iMIP audit events are stored as one-way hashes
 - Content Security Policy (CSP) headers via Helmet prevent cross-site scripting escalation
 - All LDAP/SSO/IMAP credentials encrypted at rest using a dedicated `ENCRYPTION_KEY` (AES-256-GCM), separate from the JWT signing secret
-- **Global API rate limiting** — 300 requests per 15 minutes per IP globally; 20 requests per 15 minutes on authentication endpoints to slow brute-force attacks
+- **Global API rate limiting** — 300 requests per 15 minutes per IP globally; 20 requests per 15 minutes on authentication endpoints; 5 requests per minute on the invite-completion endpoint to prevent brute-force attacks
+- **Mandatory production secrets** — the production Docker Compose configuration uses Docker's `:?` syntax so `JWT_SECRET`, `DB_ROOT_PASSWORD`, and `DB_PASSWORD` must be set explicitly; the container will refuse to start if any are missing or empty
 - HTML email content is fully escaped before sending — booking titles, room names, guest data, and admin reasons cannot inject HTML into email clients
 
 ### Identity Provider Integration
@@ -148,6 +151,35 @@ Everyone stays in the loop without lifting a finger. Booking confirmations, canc
 - Reception alerts when external guests are expected
 - Works with any SMTP email provider
 
+### System Announcement Banner
+
+Keep all users informed about upcoming maintenance windows, migrations, or important notices. Super admins can post a site-wide banner with a severity level and optional date range — it appears at the top of every page and can be dismissed per browser session. The banner reappears automatically when its content changes.
+
+- Three severity levels: **Info** (blue), **Warning** (yellow), **Critical** (red)
+- Optional show-from / show-until date range — automatically hides outside the window
+- Per-session dismissal — disappears when clicked but reappears in a new tab or after content changes
+- Only visible to logged-in users; configurable exclusively by super admins
+
+### Guided Onboarding Tour
+
+New users are greeted with a role-tailored spotlight tour that walks them through every section of the application relevant to their role. The tour only appears once per user (tracked in the database, not per-device), can be skipped at any time, and can be replayed from **Account Settings**.
+
+- Role-specific step sets — super admins, park admins, company admins, users, and receptionists each see only the sections available to them
+- Spotlight highlighting with tooltips for each navigation element
+- Skip at any time; replay from Account Settings with one click
+- Tracked server-side so the tour appears only once regardless of which device the user logs in from
+
+### Personal Calendar Feed (iCal)
+
+Subscribe to your bookings in any calendar app — Outlook, Google Calendar, Apple Calendar — via a standard iCal feed URL. Each user can generate personal tokens to share their upcoming bookings or monitor specific room schedules without exposing their login credentials.
+
+- Personal feed: all your upcoming bookings in iCal format (`/api/ical/my?token=…`)
+- Room feed: full schedule for a specific room (`/api/ical/room/:id?token=…`)
+- Tokens are scoped (personal bookings vs. room) and can be revoked at any time
+- Per-park and per-room opt-out for organizations that prefer not to expose feeds
+- Privacy: room feeds show your bookings with full titles; other users' bookings appear as "Booked"
+- Manage tokens in **Account Settings → Calendar** tab
+
 ### Email-Based Room Booking (iMIP)
 
 Rooms can accept meeting invitations directly from your calendar client — no web portal required. Assign each room a dedicated email address and IMAP inbox; Open Meeting polls the inbox, validates the invite, and automatically accepts or declines it based on availability. A standard iCal REPLY is sent back to the organizer so the event lands in their calendar.
@@ -167,16 +199,26 @@ Rooms can accept meeting invitations directly from your calendar client — no w
 
 ```bash
 # Pull and run with Docker
-docker run -d -p 80:80 --name open-meeting -v open-meeting-data:/app/backend/data open-meeting:latest
+docker run -d -p 80:80 --name open-meeting \
+  -v open-meeting-data:/app/backend/data \
+  -e JWT_SECRET=your-secret-key-here \
+  -e ENCRYPTION_KEY=your-encryption-key-here \
+  open-meeting:latest
 ```
 
 Open `http://localhost` and follow the setup wizard to create your admin account — or load demo data to explore all features immediately.
+
+> **Required:** `JWT_SECRET` and `ENCRYPTION_KEY` must be set to long, random strings. Generate them with `openssl rand -hex 32`. Never reuse the same value for both.
 
 For releases, download the image from [GitHub Releases](../../releases):
 
 ```bash
 gunzip -c open-meeting-v1.0.0.tar.gz | docker load
-docker run -d -p 80:80 --name open-meeting -v open-meeting-data:/app/backend/data open-meeting:v1.0.0
+docker run -d -p 80:80 --name open-meeting \
+  -v open-meeting-data:/app/backend/data \
+  -e JWT_SECRET=your-secret-key-here \
+  -e ENCRYPTION_KEY=your-encryption-key-here \
+  open-meeting:v1.0.0
 ```
 
 ---
@@ -185,9 +227,24 @@ docker run -d -p 80:80 --name open-meeting -v open-meeting-data:/app/backend/dat
 
 ### Docker Compose
 
+Create a `.env` file in the project root before starting:
+
 ```bash
-# Production
+JWT_SECRET=your-secret-key-here        # generate: openssl rand -hex 32
+ENCRYPTION_KEY=your-encryption-key-here # generate: openssl rand -hex 32  (must differ from JWT_SECRET)
+SMTP_HOST=your-smtp-host
+SMTP_USER=your-smtp-user
+SMTP_PASS=your-smtp-password
+```
+
+Then start the container:
+
+```bash
+# Production (single container — SQLite, good for small deployments)
 docker-compose up -d
+
+# Production with MariaDB (see docker-compose.prod.yml for full config)
+docker-compose -f docker-compose.prod.yml up -d
 
 # Development (separate backend and frontend services)
 docker-compose -f docker-compose.dev.yml up -d
@@ -197,14 +254,15 @@ docker-compose -f docker-compose.dev.yml up -d
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `JWT_SECRET` | Secret key for JWT tokens | **(change in production!)** |
-| `ENCRYPTION_KEY` | Encryption key for stored LDAP/SSO credentials (AES-256-GCM) | **(required in production — must not share with JWT_SECRET)** |
+| `JWT_SECRET` | Secret key for JWT tokens — **required in production, no fallback** | — |
+| `ENCRYPTION_KEY` | Encryption key for stored LDAP/SSO/IMAP credentials (AES-256-GCM) — **required, must differ from JWT_SECRET** | — |
 | `DB_TYPE` | Database engine (`sqlite`, `pg`, `mysql`, `mssql`) | `sqlite` |
 | `DB_HOST` | Database host | `localhost` |
 | `DB_PORT` | Database port | — |
 | `DB_NAME` | Database name | `meeting_booking` |
 | `DB_USER` | Database username | — |
-| `DB_PASSWORD` | Database password | — |
+| `DB_PASSWORD` | MariaDB/MySQL/PostgreSQL application user password — **required in production** | — |
+| `DB_ROOT_PASSWORD` | MariaDB root password (Docker Compose only) — **required in production** | — |
 | `SMTP_HOST` | SMTP server hostname | — |
 | `SMTP_PORT` | SMTP server port | `587` |
 | `SMTP_USER` | SMTP username | — |
@@ -250,7 +308,7 @@ Demo data includes 3 sites, 7 companies, 12 users, and 10 meeting rooms with var
 
 Open Meeting is built with Node.js/Express (backend), React 18 (frontend), and PlatformIO/Arduino (ESP32 firmware), all in TypeScript.
 
-- [API Reference](docs/API.md) — Complete REST API documentation with all 87+ endpoints
+- [API Reference](docs/API.md) — Complete REST API documentation with all 92+ endpoints
 - [Development Guide](docs/DEVELOPMENT.md) — Local setup, project structure, tech stack, and email configuration
 - [Backend Guide](backend/README.md) — Models, routes, services, migrations, and middleware
 - [Frontend Guide](frontend/README.md) — Pages, components, routing, and state management

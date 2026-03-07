@@ -16,6 +16,7 @@ import { ParksPage } from './pages/ParksPage';
 import { DevicesPage } from './pages/DevicesPage';
 import { StatisticsPage } from './pages/StatisticsPage';
 import { TwoFaSettingsPage } from './pages/TwoFaSettingsPage';
+import { UserSettingsPage } from './pages/UserSettingsPage';
 import { ReceptionistPage } from './pages/ReceptionistPage';
 import { LdapConfigPage } from './pages/LdapConfigPage';
 import { SsoCallbackPage } from './pages/SsoCallbackPage';
@@ -98,12 +99,17 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/account/security"
+        path="/account/settings"
         element={
           <PrivateRoute>
-            <TwoFaSettingsPage />
+            <UserSettingsPage />
           </PrivateRoute>
         }
+      />
+      {/* Backward-compat redirect: old /account/security links go to the Security tab */}
+      <Route
+        path="/account/security"
+        element={<Navigate to="/account/settings?tab=security" replace />}
       />
       <Route
         path="/users"

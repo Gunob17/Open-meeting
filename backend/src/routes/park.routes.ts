@@ -6,6 +6,7 @@ import multer, { FileFilterCallback, MulterError } from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -120,6 +121,17 @@ router.post('/', authenticate, requireSuperAdmin, async (req: AuthRequest, res: 
     }
 
     const park = await ParkModel.create({ name, address, description });
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.PARK_CREATE,
+      resourceType: 'park',
+      resourceId: park.id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.status(201).json(park);
   } catch (error) {
     console.error('Create park error:', error);
@@ -131,13 +143,23 @@ router.post('/', authenticate, requireSuperAdmin, async (req: AuthRequest, res: 
 router.put('/:id', authenticate, requireSuperAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, address, description, isActive, twofaEnforcement, receptionEmail, receptionGuestFields } = req.body;
+    const { name, address, description, isActive, twofaEnforcement, receptionEmail, receptionGuestFields, calendarFeedEnabled } = req.body;
 
-    const park = await ParkModel.update(id, { name, address, description, isActive, twofaEnforcement, receptionEmail, receptionGuestFields });
+    const park = await ParkModel.update(id, { name, address, description, isActive, twofaEnforcement, receptionEmail, receptionGuestFields, calendarFeedEnabled });
     if (!park) {
       res.status(404).json({ error: 'Park not found' });
       return;
     }
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.PARK_UPDATE,
+      resourceType: 'park',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
 
     res.json(park);
   } catch (error) {
@@ -187,10 +209,64 @@ router.put('/:id/reception', authenticate, async (req: AuthRequest, res: Respons
       return;
     }
 
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.PARK_UPDATE,
+      resourceType: 'park',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+      metadata: { field: 'reception' },
+    });
+
     res.json(park);
   } catch (error) {
     console.error('Update park reception error:', error);
     res.status(500).json({ error: 'Failed to update park reception settings' });
+  }
+});
+
+// Update park 2FA enforcement (park admin for own park, super admin for any)
+router.put('/:id/twofa', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { twofaEnforcement } = req.body;
+
+    if (!req.user || (req.user.role !== UserRole.SUPER_ADMIN && req.user.role !== UserRole.PARK_ADMIN)) {
+      res.status(403).json({ error: 'Admin access required' });
+      return;
+    }
+    if (req.user.role === UserRole.PARK_ADMIN && req.user.parkId !== id) {
+      res.status(403).json({ error: 'Access denied to this park' });
+      return;
+    }
+    if (!['inherit', 'optional', 'required'].includes(twofaEnforcement)) {
+      res.status(400).json({ error: 'Invalid twofaEnforcement value' });
+      return;
+    }
+
+    const park = await ParkModel.update(id, { twofaEnforcement });
+    if (!park) {
+      res.status(404).json({ error: 'Park not found' });
+      return;
+    }
+
+    auditLog({
+      userId: req.user.userId,
+      action: AuditAction.PARK_UPDATE,
+      resourceType: 'park',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+      metadata: { twofaEnforcement },
+    });
+
+    res.json(park);
+  } catch (error) {
+    console.error('Update park 2FA error:', error);
+    res.status(500).json({ error: 'Failed to update park 2FA settings' });
   }
 });
 
@@ -219,6 +295,16 @@ router.delete('/:id', authenticate, requireSuperAdmin, async (req: AuthRequest, 
         return;
       }
     }
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.PARK_DELETE,
+      resourceType: 'park',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
 
     res.status(204).send();
   } catch (error) {
@@ -273,6 +359,17 @@ router.post('/:id/logo', authenticate, logoUploadMiddleware, async (req: MulterA
     // Update park with new logo URL
     const logoUrl = `/api/parks/${id}/logo/${filename}`;
     const updatedPark = await ParkModel.updateLogo(id, logoUrl);
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.PARK_UPDATE,
+      resourceType: 'park',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+      metadata: { field: 'logo', action: 'upload' },
+    });
 
     res.json(updatedPark);
   } catch (error) {
@@ -358,6 +455,18 @@ router.delete('/:id/logo', authenticate, async (req: AuthRequest, res: Response)
 
     // Update park to remove logo URL
     const updatedPark = await ParkModel.updateLogo(id, null);
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.PARK_UPDATE,
+      resourceType: 'park',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+      metadata: { field: 'logo', action: 'delete' },
+    });
+
     res.json(updatedPark);
   } catch (error) {
     console.error('Delete logo error:', error);

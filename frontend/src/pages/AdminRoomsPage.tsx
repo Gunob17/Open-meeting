@@ -46,6 +46,7 @@ export function AdminRoomsPage() {
     smtpHost: '' as string,
     smtpPort: 587 as number,
     smtpSecure: false as boolean,
+    calendarFeedEnabled: true as boolean,
   });
   // Track whether the user typed a new IMAP password (empty = keep existing)
   const [imapPassChanged, setImapPassChanged] = useState(false);
@@ -132,6 +133,7 @@ export function AdminRoomsPage() {
         smtpHost: room.smtpHost || '',
         smtpPort: room.smtpPort || 587,
         smtpSecure: room.smtpSecure ?? false,
+        calendarFeedEnabled: room.calendarFeedEnabled !== false,
       });
     } else {
       setEditingRoom(null);
@@ -155,6 +157,7 @@ export function AdminRoomsPage() {
         smtpHost: '',
         smtpPort: 587,
         smtpSecure: false,
+        calendarFeedEnabled: true,
       });
     }
     setImapPassChanged(false);
@@ -677,6 +680,18 @@ export function AdminRoomsPage() {
                     </label>
                   </div>
                 </fieldset>
+
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.calendarFeedEnabled}
+                      onChange={e => setFormData({ ...formData, calendarFeedEnabled: e.target.checked })}
+                    />
+                    Allow calendar feed subscriptions (ICS)
+                  </label>
+                  <small>When disabled, users cannot subscribe to this room's ICS feed and existing feed URLs will stop working.</small>
+                </div>
 
                 <div className="form-group">
                   <label>Quick Book Durations (for device screen)</label>

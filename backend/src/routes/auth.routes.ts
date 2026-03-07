@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { Router, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import zxcvbn from 'zxcvbn';
 import { UserModel } from '../models/user.model';
 import { SettingsModel } from '../models/settings.model';
 import { TrustedDeviceModel } from '../models/trusted-device.model';
@@ -21,6 +22,15 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Strict rate limit for invite completion: 5 attempts per minute per IP
+const inviteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: 'Too many attempts, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 function sanitizeUser(user: any) {
   return {
     id: user.id,
@@ -31,6 +41,7 @@ function sanitizeUser(user: any) {
     parkId: user.parkId,
     twofaEnabled: user.twofaEnabled,
     addonRoles: user.addonRoles || [],
+    hasSeenTour: user.hasSeenTour !== undefined ? user.hasSeenTour : true,
   };
 }
 
@@ -230,6 +241,10 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       res.status(400).json({ error: 'New password must be at least 8 characters' });
       return;
     }
+    if (zxcvbn(newPassword).score < 2) {
+      res.status(400).json({ error: 'Password is too weak. Please choose a stronger password.' });
+      return;
+    }
 
     const user = await UserModel.findById(req.user.userId);
     if (!user) {
@@ -263,7 +278,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
 });
 
 // Complete account setup from invite link (public — no auth required)
-router.post('/complete-invite', async (req, res: Response) => {
+router.post('/complete-invite', inviteLimiter, async (req, res: Response) => {
   try {
     const { token, name, password } = req.body;
 
@@ -274,6 +289,10 @@ router.post('/complete-invite', async (req, res: Response) => {
 
     if (password.length < 8) {
       res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return;
+    }
+    if (zxcvbn(password).score < 2) {
+      res.status(400).json({ error: 'Password is too weak. Please choose a stronger password.' });
       return;
     }
 
@@ -308,6 +327,36 @@ router.post('/complete-invite', async (req, res: Response) => {
   } catch (error) {
     console.error('Complete invite error:', error);
     res.status(500).json({ error: 'Failed to complete account setup' });
+  }
+});
+
+// Mark tour as seen for the authenticated user
+router.post('/tour-complete', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+    await UserModel.markTourSeen(req.user.userId);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Tour complete error:', error);
+    res.status(500).json({ error: 'Failed to mark tour as seen' });
+  }
+});
+
+// Reset tour so it shows again on next login
+router.post('/tour-reset', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return;
+    }
+    await UserModel.resetTour(req.user.userId);
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Tour reset error:', error);
+    res.status(500).json({ error: 'Failed to reset tour' });
   }
 });
 

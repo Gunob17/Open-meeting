@@ -4,6 +4,7 @@ import { GuestVisitModel } from '../models/guest-visit.model';
 import { UserModel } from '../models/user.model';
 import { SettingsModel } from '../models/settings.model';
 import { UserRole } from '../types';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -61,6 +62,7 @@ router.post('/guests/:id/checkin', authenticate, requireReceptionist, async (req
       res.status(404).json({ error: 'Guest visit not found or already checked in' });
       return;
     }
+    auditLog({ userId: req.user!.userId, action: AuditAction.GUEST_CHECKIN, resourceType: 'guest_visit', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string ?? null, outcome: 'success' });
     res.json(visit);
   } catch (error) {
     console.error('Check in error:', error);
@@ -77,6 +79,7 @@ router.post('/guests/:id/checkout', authenticate, requireReceptionist, async (re
       res.status(404).json({ error: 'Guest not checked in or already checked out' });
       return;
     }
+    auditLog({ userId: req.user!.userId, action: AuditAction.GUEST_CHECKOUT, resourceType: 'guest_visit', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string ?? null, outcome: 'success' });
     res.json(visit);
   } catch (error) {
     console.error('Check out error:', error);

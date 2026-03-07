@@ -2,6 +2,7 @@ import { Router, Response, Request, NextFunction } from 'express';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth.middleware';
 import { FirmwareModel } from '../models/firmware.model';
 import multer, { FileFilterCallback, MulterError } from 'multer';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
 
@@ -114,6 +115,17 @@ router.post('/', authenticate, requireAdmin, uploadMiddleware, async (req: Multe
     );
 
     console.log('Firmware uploaded successfully:', firmware.id);
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.FIRMWARE_UPLOAD,
+      resourceType: 'firmware',
+      resourceId: firmware.id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.status(201).json(firmware);
   } catch (error) {
     console.error('Upload firmware error:', error);
@@ -133,6 +145,17 @@ router.delete('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: 
     }
 
     await FirmwareModel.delete(id);
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.FIRMWARE_DELETE,
+      resourceType: 'firmware',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+    });
+
     res.status(204).send();
   } catch (error) {
     console.error('Delete firmware error:', error);
@@ -153,6 +176,18 @@ router.patch('/:id/active', authenticate, requireAdmin, async (req: AuthRequest,
     }
 
     const updated = await FirmwareModel.setActive(id, isActive);
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.FIRMWARE_ACTIVATE,
+      resourceType: 'firmware',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+      metadata: { active: isActive },
+    });
+
     res.json(updated);
   } catch (error) {
     console.error('Update firmware status error:', error);

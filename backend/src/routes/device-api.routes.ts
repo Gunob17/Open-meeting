@@ -7,6 +7,7 @@ import { FirmwareModel } from '../models/firmware.model';
 import { SettingsModel } from '../models/settings.model';
 import { DeviceWithRoom, DeviceRoomStatus, BookingWithDetails, BookingStatus } from '../types';
 import { getDb } from '../models/database';
+import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 import fs from 'fs';
 
 const router = Router();
@@ -238,6 +239,8 @@ router.post('/quick-book', authenticateDevice, async (req: DeviceRequest, res: R
 
     const booking = await BookingModel.findById(bookingId);
 
+    auditLog({ userId: 'device-booking-user', action: AuditAction.BOOKING_CREATE, resourceType: 'booking', resourceId: bookingId, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string ?? null, outcome: 'success', metadata: { deviceId: device.id, roomId: room.id } });
+
     res.status(201).json({
       ...booking,
       attendees: [],
@@ -287,6 +290,8 @@ router.post('/end-meeting', authenticateDevice, async (req: DeviceRequest, res: 
     }
 
     await BookingModel.endEarly(currentBooking.id, now.toISOString());
+
+    auditLog({ userId: 'device-booking-user', action: AuditAction.BOOKING_UPDATE, resourceType: 'booking', resourceId: currentBooking.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string ?? null, outcome: 'success', metadata: { deviceId: device.id, action: 'end_early' } });
 
     res.json({ success: true, message: 'Meeting ended early' });
   } catch (error) {
