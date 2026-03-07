@@ -171,6 +171,24 @@ jobs:
 
           echo "" >> CHANGELOG.md
           echo "" >> CHANGELOG.md
+          echo "## Contributors" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          {
+            if [ -n "$PREV_TAG" ]; then
+              git log --pretty=format:"%aN" $PREV_TAG..HEAD
+              git log --pretty=format:"%b" $PREV_TAG..HEAD \
+                | grep -i "^Co-authored-by:" \
+                | sed 's/[Cc]o-authored-by: //;s/ <.*//'
+            else
+              git log --pretty=format:"%aN"
+              git log --pretty=format:"%b" \
+                | grep -i "^Co-authored-by:" \
+                | sed 's/[Cc]o-authored-by: //;s/ <.*//'
+            fi
+          } | sort -u | sed 's/^/- /' >> CHANGELOG.md
+
+          echo "" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
           echo "## Docker Image" >> CHANGELOG.md
           echo "" >> CHANGELOG.md
           echo "### Option 1 — Pull from registry (recommended)" >> CHANGELOG.md
