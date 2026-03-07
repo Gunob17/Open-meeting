@@ -37,10 +37,6 @@ export function SettingsPage() {
   const [bannerEndsAt, setBannerEndsAt] = useState('');
   const [savingBanner, setSavingBanner] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -69,6 +65,9 @@ export function SettingsPage() {
       setLoading(false);
     }
   };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadData(); }, []);
 
   const handleSaveGlobalSettings = async (e: React.FormEvent) => {
     e.preventDefault();

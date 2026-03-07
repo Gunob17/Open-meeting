@@ -15,7 +15,6 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ParksPage } from './pages/ParksPage';
 import { DevicesPage } from './pages/DevicesPage';
 import { StatisticsPage } from './pages/StatisticsPage';
-import { TwoFaSettingsPage } from './pages/TwoFaSettingsPage';
 import { UserSettingsPage } from './pages/UserSettingsPage';
 import { ReceptionistPage } from './pages/ReceptionistPage';
 import { LdapConfigPage } from './pages/LdapConfigPage';
