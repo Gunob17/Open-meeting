@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { Response, Router } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authenticate, AuthRequest, requireAdmin, requireCompanyAdminOrAbove } from '../middleware/auth.middleware';
 import { UserModel } from '../models/user.model';
 import { getDb } from '../models/database';
@@ -11,6 +12,15 @@ import { sendUserInviteEmail } from '../services/email.service';
 import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
+
+// Rate limit user invite creation: 20 per hour per IP (prevents enumeration/spam)
+const userInviteLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 20,
+  message: { error: 'Too many invite requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Get all users (admin only)
 router.get('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
@@ -121,7 +131,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 // Create user (sends invite email — admin only provides email, role, companyId)
-router.post('/', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, requireCompanyAdminOrAbove, userInviteLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const { email, role, companyId, addonRoles } = req.body;
 

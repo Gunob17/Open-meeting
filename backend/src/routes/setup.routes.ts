@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { CompanyModel } from '../models/company.model';
 import { UserModel } from '../models/user.model';
 import { RoomModel } from '../models/room.model';
@@ -8,6 +9,15 @@ import { getDb } from '../models/database';
 import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
+
+// Strict rate limit on setup endpoints: 3 per hour per IP
+const setupLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { error: 'Too many setup attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Check if system has been set up
 router.get('/status', async (req, res: Response) => {
@@ -360,7 +370,7 @@ router.post('/demo', async (req, res: Response) => {
 });
 
 // Initialize with production setup (create first admin)
-router.post('/production', async (req, res: Response) => {
+router.post('/production', setupLimiter, async (req, res: Response) => {
   try {
     const { companyName, companyAddress, adminName, adminEmail, adminPassword } = req.body;
 

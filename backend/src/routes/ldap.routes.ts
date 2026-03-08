@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { authenticate, AuthRequest, requireCompanyAdminOrAbove } from '../middleware/auth.middleware';
 import { LdapConfigModel } from '../models/ldap-config.model';
+import { CompanyModel } from '../models/company.model';
 import { LdapService } from '../services/ldap.service';
 import { ldapScheduler } from '../services/ldap-scheduler.service';
 import { UserRole } from '../types';
@@ -9,10 +10,13 @@ import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 const router = Router();
 
 // Helper: verify the requesting user has access to the company
-function canAccessCompany(req: AuthRequest, companyId: string): boolean {
+async function canAccessCompany(req: AuthRequest, companyId: string): Promise<boolean> {
   if (!req.user) return false;
   if (req.user.role === UserRole.SUPER_ADMIN) return true;
-  if (req.user.role === UserRole.PARK_ADMIN) return true; // park-scoped check could be added
+  if (req.user.role === UserRole.PARK_ADMIN) {
+    const company = await CompanyModel.findById(companyId);
+    return company?.parkId === req.user.parkId;
+  }
   if (req.user.role === UserRole.COMPANY_ADMIN) return req.user.companyId === companyId;
   return false;
 }
@@ -22,7 +26,7 @@ router.get('/config/:companyId', authenticate, requireCompanyAdminOrAbove, async
   try {
     const { companyId } = req.params;
 
-    if (!canAccessCompany(req, companyId)) {
+    if (!await canAccessCompany(req, companyId)) {
       res.status(403).json({ error: 'Cannot access LDAP config for this company' });
       return;
     }
@@ -50,7 +54,7 @@ router.post('/config', authenticate, requireCompanyAdminOrAbove, async (req: Aut
       return;
     }
 
-    if (!canAccessCompany(req, companyId)) {
+    if (!await canAccessCompany(req, companyId)) {
       res.status(403).json({ error: 'Cannot configure LDAP for this company' });
       return;
     }
@@ -99,7 +103,7 @@ router.put('/config/:id', authenticate, requireCompanyAdminOrAbove, async (req: 
       return;
     }
 
-    if (!canAccessCompany(req, existing.companyId)) {
+    if (!await canAccessCompany(req, existing.companyId)) {
       res.status(403).json({ error: 'Cannot modify LDAP config for this company' });
       return;
     }
@@ -130,7 +134,7 @@ router.delete('/config/:id', authenticate, requireCompanyAdminOrAbove, async (re
       return;
     }
 
-    if (!canAccessCompany(req, existing.companyId)) {
+    if (!await canAccessCompany(req, existing.companyId)) {
       res.status(403).json({ error: 'Cannot delete LDAP config for this company' });
       return;
     }
@@ -157,7 +161,7 @@ router.post('/config/:id/enable', authenticate, requireCompanyAdminOrAbove, asyn
       return;
     }
 
-    if (!canAccessCompany(req, existing.companyId)) {
+    if (!await canAccessCompany(req, existing.companyId)) {
       res.status(403).json({ error: 'Cannot modify LDAP config for this company' });
       return;
     }
@@ -186,7 +190,7 @@ router.post('/config/:id/disable', authenticate, requireCompanyAdminOrAbove, asy
       return;
     }
 
-    if (!canAccessCompany(req, existing.companyId)) {
+    if (!await canAccessCompany(req, existing.companyId)) {
       res.status(403).json({ error: 'Cannot modify LDAP config for this company' });
       return;
     }
@@ -213,7 +217,7 @@ router.post('/config/:id/test', authenticate, requireCompanyAdminOrAbove, async 
       return;
     }
 
-    if (!canAccessCompany(req, existing.companyId)) {
+    if (!await canAccessCompany(req, existing.companyId)) {
       res.status(403).json({ error: 'Cannot test LDAP config for this company' });
       return;
     }
@@ -242,7 +246,7 @@ router.post('/config/:id/sync', authenticate, requireCompanyAdminOrAbove, async 
       return;
     }
 
-    if (!canAccessCompany(req, existing.companyId)) {
+    if (!await canAccessCompany(req, existing.companyId)) {
       res.status(403).json({ error: 'Cannot sync LDAP for this company' });
       return;
     }
@@ -267,7 +271,7 @@ router.get('/config/:id/sync-status', authenticate, requireCompanyAdminOrAbove, 
       return;
     }
 
-    if (!canAccessCompany(req, config.companyId)) {
+    if (!await canAccessCompany(req, config.companyId)) {
       res.status(403).json({ error: 'Cannot view LDAP sync status for this company' });
       return;
     }

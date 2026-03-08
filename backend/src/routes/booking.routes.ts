@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { BookingModel } from '../models/booking.model';
 import { RoomModel } from '../models/room.model';
 import { UserModel } from '../models/user.model';
@@ -9,6 +10,21 @@ import { UserRole, MeetingRoom, ExternalGuest } from '../types';
 import { SettingsModel } from '../models/settings.model';
 import { ParkModel } from '../models/park.model';
 import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
+
+// Rate limit booking creation: 30 per hour per IP
+const bookingCreateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: { error: 'Too many booking requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Safe JSON.parse helper — returns fallback value instead of throwing on corrupt data
+function safeParseArray<T>(json: unknown, fallback: T[] = []): T[] {
+  if (Array.isArray(json)) return json as T[];
+  try { return JSON.parse(json as string) as T[]; } catch { return fallback; }
+}
 
 // Helper to get global settings
 async function getGlobalSettings(): Promise<{ openingHour: number; closingHour: number }> {
@@ -113,7 +129,7 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       externalGuests: [] as ExternalGuest[],
       room: b.room ? {
         ...b.room,
-        amenities: (() => { try { return JSON.parse(b.room!.amenities as unknown as string); } catch { return []; } })()
+        amenities: safeParseArray(b.room!.amenities)
       } : undefined
     }));
 
@@ -133,11 +149,11 @@ router.get('/my', authenticate, async (req: AuthRequest, res: Response) => {
       const room = await RoomModel.findById(b.roomId);
       return {
         ...b,
-        attendees: JSON.parse(b.attendees),
-        externalGuests: JSON.parse(b.externalGuests),
+        attendees: safeParseArray(b.attendees),
+        externalGuests: safeParseArray(b.externalGuests),
         room: room ? {
           ...room,
-          amenities: JSON.parse(room.amenities)
+          amenities: safeParseArray(room.amenities)
         } : undefined
       };
     }));
@@ -172,11 +188,11 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     res.json({
       ...booking,
-      attendees: JSON.parse(booking.attendees),
-      externalGuests: JSON.parse(booking.externalGuests),
+      attendees: safeParseArray(booking.attendees),
+      externalGuests: safeParseArray(booking.externalGuests),
       room: booking.room ? {
         ...booking.room,
-        amenities: JSON.parse(booking.room.amenities)
+        amenities: safeParseArray(booking.room.amenities)
       } : undefined
     });
   } catch (error) {
@@ -186,7 +202,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 // Create booking
-router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, bookingCreateLimiter, async (req: AuthRequest, res: Response) => {
   try {
     const { roomId, title, description, startTime, endTime, attendees, externalGuests } = req.body;
 
@@ -331,11 +347,11 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     auditLog({ userId: req.user!.userId, action: AuditAction.BOOKING_CREATE, resourceType: 'booking', resourceId: booking.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
     res.status(201).json({
       ...booking,
-      attendees: JSON.parse(booking.attendees),
-      externalGuests: JSON.parse(booking.externalGuests),
+      attendees: safeParseArray(booking.attendees),
+      externalGuests: safeParseArray(booking.externalGuests),
       room: {
         ...room,
-        amenities: JSON.parse(room.amenities)
+        amenities: safeParseArray(room.amenities)
       }
     });
   } catch (error) {
@@ -405,12 +421,12 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         booking,
         room,
         organizer: { ...user, password: undefined } as any,
-        attendeeEmails: attendees || JSON.parse(booking.attendees)
+        attendeeEmails: attendees || safeParseArray(booking.attendees)
       });
     }
 
     // Send reception notification if external guests are present
-    const parsedExternalGuests = JSON.parse(booking.externalGuests) as ExternalGuest[];
+    const parsedExternalGuests = safeParseArray(booking.externalGuests) as ExternalGuest[];
     if (parsedExternalGuests.length > 0 && room && user) {
       const park = await ParkModel.findById(room.parkId);
       if (park?.receptionEmail) {
@@ -429,11 +445,11 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
     auditLog({ userId: req.user?.userId ?? null, action: AuditAction.BOOKING_UPDATE, resourceType: 'booking', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success' });
     res.json({
       ...booking,
-      attendees: JSON.parse(booking.attendees),
+      attendees: safeParseArray(booking.attendees),
       externalGuests: parsedExternalGuests,
       room: room ? {
         ...room,
-        amenities: JSON.parse(room.amenities)
+        amenities: safeParseArray(room.amenities)
       } : undefined
     });
   } catch (error) {
@@ -474,7 +490,7 @@ router.post('/:id/cancel', authenticate, async (req: AuthRequest, res: Response)
         booking,
         room,
         organizer: { ...user, password: undefined } as any,
-        attendeeEmails: JSON.parse(booking.attendees)
+        attendeeEmails: safeParseArray(booking.attendees)
       });
     }
 
@@ -522,7 +538,7 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         room,
         bookingOwner: { ...bookingOwner, password: undefined } as any,
         admin: { ...admin, password: undefined } as any,
-        attendeeEmails: JSON.parse(booking.attendees),
+        attendeeEmails: safeParseArray(booking.attendees),
         reason
       });
     }
@@ -601,7 +617,7 @@ router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) =
         newRoom,
         bookingOwner: { ...bookingOwner, password: undefined } as any,
         admin: { ...admin, password: undefined } as any,
-        attendeeEmails: JSON.parse(booking.attendees),
+        attendeeEmails: safeParseArray(booking.attendees),
         reason
       });
     }
@@ -609,11 +625,11 @@ router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) =
     auditLog({ userId: req.user?.userId ?? null, action: AuditAction.BOOKING_MOVE, resourceType: 'booking', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { newRoomId } });
     res.json({
       ...updatedBooking,
-      attendees: JSON.parse(updatedBooking.attendees),
-      externalGuests: JSON.parse(updatedBooking.externalGuests),
+      attendees: safeParseArray(updatedBooking.attendees),
+      externalGuests: safeParseArray(updatedBooking.externalGuests),
       room: {
         ...newRoom,
-        amenities: JSON.parse(newRoom.amenities)
+        amenities: safeParseArray(newRoom.amenities)
       }
     });
   } catch (error) {

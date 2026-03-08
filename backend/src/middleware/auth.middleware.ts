@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { JwtPayload, UserRole } from '../types';
 import { UserModel } from '../models/user.model';
@@ -7,8 +8,8 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET environment variable is required in production');
   }
-  console.warn('WARNING: Using default JWT secret. Set JWT_SECRET env var for production.');
-  return 'open-meeting-secret-key-change-in-production';
+  console.warn('WARNING: JWT_SECRET not set. Using a random secret — all sessions will be lost on restart. Set JWT_SECRET for persistent sessions.');
+  return crypto.randomBytes(32).toString('hex');
 })();
 
 export interface AuthRequest extends Request {
@@ -17,7 +18,7 @@ export interface AuthRequest extends Request {
 
 export function generateToken(payload: JwtPayload, keepLoggedIn?: boolean): string {
   const { twofaPending, ...cleanPayload } = payload;
-  return jwt.sign(cleanPayload, JWT_SECRET, { expiresIn: keepLoggedIn ? '30d' : '24h' });
+  return jwt.sign(cleanPayload, JWT_SECRET, { expiresIn: keepLoggedIn ? '14d' : '24h' });
 }
 
 export function generatePartialToken(payload: Omit<JwtPayload, 'twofaPending'>): string {

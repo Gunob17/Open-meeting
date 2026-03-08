@@ -3,17 +3,23 @@ import crypto from 'crypto';
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
 
-function getEncryptionKey(): Buffer {
+// Derive and cache the key once at startup so encrypt/decrypt always use the same key.
+const ENCRYPTION_KEY: Buffer = (() => {
   const key = process.env.ENCRYPTION_KEY || process.env.LDAP_ENCRYPTION_KEY;
   if (!key) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('ENCRYPTION_KEY environment variable is required in production');
     }
-    // Development fallback only — never use in production
-    console.warn('[security] ENCRYPTION_KEY not set. Using development fallback. Set ENCRYPTION_KEY in production.');
+    // Development fallback — deterministic so existing encrypted data remains readable.
+    // NEVER use in production; set ENCRYPTION_KEY env var instead.
+    console.warn('[security] ENCRYPTION_KEY not set. Using dev fallback key. Set ENCRYPTION_KEY in production.');
     return crypto.scryptSync('open-meeting-dev-only-change-in-production', 'ldap-bind-salt', 32);
   }
   return crypto.scryptSync(key, 'ldap-bind-salt', 32);
+})();
+
+function getEncryptionKey(): Buffer {
+  return ENCRYPTION_KEY;
 }
 
 export function encrypt(plaintext: string): string {

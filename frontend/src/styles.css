@@ -684,6 +684,7 @@ body {
     z-index: 100;
   }
 
+
   .room-column-header {
     top: 48px;
   }
@@ -3966,6 +3967,9 @@ body {
    ============================================================ */
 
 .system-banner {
+  position: sticky;
+  top: 0;
+  z-index: 99;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -3996,6 +4000,19 @@ body {
 
 .system-banner-message {
   flex: 1;
+  overflow: hidden;
+}
+
+@keyframes banner-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+.system-banner-text {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  animation: banner-marquee 25s linear infinite;
 }
 
 .system-banner-dismiss {
@@ -4012,4 +4029,31 @@ body {
 
 .system-banner-dismiss:hover {
   opacity: 1;
+}
+
+/* On mobile, overflow-x:hidden on parents breaks position:sticky in all browsers.
+   Use position:fixed for both the top-bar and the banner so they always stay on screen. */
+@media (max-width: 768px) {
+  .top-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+  }
+
+  /* Push all main content below the fixed top-bar */
+  .main-wrapper {
+    padding-top: 56px;
+  }
+
+  .system-banner {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+  }
+
+  /* Extra push when banner is also visible */
+  .has-banner .main-content {
+    padding-top: calc(var(--space-3) + 41px);
+  }
 }

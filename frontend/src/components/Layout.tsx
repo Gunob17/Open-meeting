@@ -38,6 +38,7 @@ export function Layout({ children }: LayoutProps) {
 
   // Guided tour
   const [runTour, setRunTour] = useState(false);
+  const tourSteps = getStepsForRole(user?.role ?? 'user');
 
   useEffect(() => {
     loadParks();
@@ -79,8 +80,27 @@ export function Layout({ children }: LayoutProps) {
     setBannerDismissed(true);
   };
 
+  // Tour keys that live inside the sidebar — need it open on mobile
+  const SIDEBAR_TOUR_KEYS = new Set([
+    'park-select', 'nav-calendar', 'nav-rooms', 'nav-my-bookings',
+    'nav-users', 'nav-admin-rooms', 'nav-admin-devices', 'nav-admin-companies',
+    'nav-admin-statistics', 'nav-admin-settings', 'nav-admin-parks',
+    'nav-ldap', 'nav-sso', 'nav-reception', 'user-menu',
+  ]);
+
+  const handleTourStep = useCallback((stepIndex: number) => {
+    if (window.innerWidth >= 768) return; // desktop: sidebar always visible
+    const step = tourSteps[stepIndex];
+    if (!step) return;
+    const target = typeof step.target === 'string' ? step.target : '';
+    const match = target.match(/data-tour="([^"]+)"/);
+    const tourKey = match?.[1] ?? '';
+    setSidebarOpen(SIDEBAR_TOUR_KEYS.has(tourKey));
+  }, [tourSteps]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleTourFinish = useCallback(() => {
     setRunTour(false);
+    if (window.innerWidth < 768) setSidebarOpen(false);
     api.tourComplete().catch(() => {});
   }, []);
 
@@ -172,13 +192,11 @@ export function Layout({ children }: LayoutProps) {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const tourSteps = getStepsForRole(user?.role ?? 'user');
-
   return (
     <TourProvider startTour={startTour}>
       <div className="app-layout">
         {/* Guided tour overlay */}
-        <TourGuide steps={tourSteps} run={runTour} onFinish={handleTourFinish} />
+        <TourGuide steps={tourSteps} run={runTour} onFinish={handleTourFinish} onStep={handleTourStep} />
 
         {/* Sidebar */}
         <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
@@ -394,7 +412,7 @@ export function Layout({ children }: LayoutProps) {
         {sidebarOpen && <div className="sidebar-overlay" onClick={toggleSidebar}></div>}
 
         {/* Main content */}
-        <div className={`main-wrapper ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
+        <div className={`main-wrapper ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}${isBannerActive && !bannerDismissed ? ' has-banner' : ''}`}>
           {/* Top bar for mobile */}
           <header className="top-bar">
             <button className="mobile-menu-btn" onClick={toggleSidebar} aria-label="Open menu">
@@ -408,7 +426,9 @@ export function Layout({ children }: LayoutProps) {
           {/* System banner */}
           {isBannerActive && !bannerDismissed && (
             <div className={`system-banner system-banner--${settings?.bannerLevel ?? 'info'}`} role="alert">
-              <span className="system-banner-message">{settings?.bannerMessage}</span>
+              <span className="system-banner-message">
+                <span className="system-banner-text">{settings?.bannerMessage}</span>
+              </span>
               <button
                 className="system-banner-dismiss"
                 onClick={handleBannerDismiss}

@@ -1,18 +1,22 @@
 import React, { useCallback } from 'react';
-import Joyride, { CallBackProps, STATUS, Step } from 'react-joyride';
+import Joyride, { CallBackProps, EVENTS, STATUS, Step } from 'react-joyride';
 
 interface TourGuideProps {
   steps: Step[];
   run: boolean;
   onFinish: () => void;
+  onStep?: (stepIndex: number) => void;
 }
 
-export function TourGuide({ steps, run, onFinish }: TourGuideProps) {
+export function TourGuide({ steps, run, onFinish, onStep }: TourGuideProps) {
   const handleCallback = useCallback((data: CallBackProps) => {
+    if (data.type === EVENTS.STEP_BEFORE && onStep) {
+      onStep(data.index);
+    }
     if (data.status === STATUS.FINISHED || data.status === STATUS.SKIPPED) {
       onFinish();
     }
-  }, [onFinish]);
+  }, [onFinish, onStep]);
 
   return (
     <Joyride

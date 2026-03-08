@@ -56,8 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             api.refreshToken().catch(() => {});
           }
         })
-        .catch(() => {
-          api.logout();
+        .catch((err: any) => {
+          // Only clear the session for actual auth failures (invalid/expired token).
+          // Network errors, 5xx, etc. should leave the stored token intact so
+          // the user isn't logged out due to a transient backend hiccup.
+          if (err?.status === 401) {
+            api.logout();
+          }
         })
         .finally(() => setLoading(false));
     } else {

@@ -241,7 +241,7 @@ router.post('/change-password', authenticate, async (req: AuthRequest, res: Resp
       res.status(400).json({ error: 'New password must be at least 8 characters' });
       return;
     }
-    if (zxcvbn(newPassword).score < 2) {
+    if (zxcvbn(newPassword).score < 3) {
       res.status(400).json({ error: 'Password is too weak. Please choose a stronger password.' });
       return;
     }
@@ -291,7 +291,7 @@ router.post('/complete-invite', inviteLimiter, async (req, res: Response) => {
       res.status(400).json({ error: 'Password must be at least 8 characters' });
       return;
     }
-    if (zxcvbn(password).score < 2) {
+    if (zxcvbn(password).score < 3) {
       res.status(400).json({ error: 'Password is too weak. Please choose a stronger password.' });
       return;
     }

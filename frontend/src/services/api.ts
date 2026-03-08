@@ -1,6 +1,6 @@
 import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park, Firmware, TwoFaSetupResponse, TwoFaStatusResponse, TrustedDeviceInfo, ExternalGuest, GuestVisit, LdapConfig, LdapSyncResult, SsoConfig, SsoDiscoveryResult, CalendarToken, CalendarTokenCreated } from '../types';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const API_BASE = process.env.REACT_APP_API_URL || '/api';
 
 class ApiService {
   private token: string | null = null;
@@ -95,7 +95,9 @@ class ApiService {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
-      throw new Error(error.error || 'Request failed');
+      const err = new Error(error.error || 'Request failed') as Error & { status: number };
+      err.status = response.status;
+      throw err;
     }
 
     this.updateLastActivity();

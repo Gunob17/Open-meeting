@@ -46,7 +46,7 @@ export const tourStepsByRole: Record<string, Step[]> = {
     step('nav-admin-parks', 'Parks',
       'Create and manage sites. Upload per-site logos, configure the visitor reception email and custom guest fields, and control whether iCal calendar feeds are enabled for a site.'),
     step('user-menu', 'Account Menu',
-      'Click here to open your account menu. Access personal settings (two-factor authentication, calendar feed subscriptions, password), or log out.', 'top'),
+      'Click here to open your account menu. Access personal settings (two-factor authentication, calendar feed subscriptions, password), or log out.', 'auto'),
   ],
 
   // ──────────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export const tourStepsByRole: Record<string, Step[]> = {
     step('nav-admin-settings', 'Settings',
       'Configure default booking hours, timezone, time format, and two-factor authentication enforcement policy for your site.'),
     step('user-menu', 'Account Menu',
-      'Click here to open your account menu. Access personal settings (two-factor authentication, calendar feed subscriptions, password), or log out.', 'top'),
+      'Click here to open your account menu. Access personal settings (two-factor authentication, calendar feed subscriptions, password), or log out.', 'auto'),
   ],
 
   // ──────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ export const tourStepsByRole: Record<string, Step[]> = {
     step('nav-sso', 'SSO Settings',
       'Enable Single Sign-On so your team logs in with their existing corporate credentials. Supports OpenID Connect (OIDC) and SAML 2.0 — compatible with Keycloak, Azure AD, Okta, ADFS, and more.'),
     step('user-menu', 'Account Menu',
-      'Click here to open your account menu. Access personal settings (two-factor authentication, calendar feed subscriptions, password), or log out.', 'top'),
+      'Click here to open your account menu. Access personal settings (two-factor authentication, calendar feed subscriptions, password), or log out.', 'auto'),
   ],
 
   // ──────────────────────────────────────────────────────────────

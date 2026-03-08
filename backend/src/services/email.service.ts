@@ -98,7 +98,7 @@ function getDurationMinutes(startTime: string, endTime: string): number {
 export async function generateICSContent(params: MeetingInviteParams): Promise<string> {
   const { booking, room, organizer, attendeeEmails } = params;
 
-  const amenities = JSON.parse(room.amenities) as string[];
+  const amenities = ((): string[] => { try { return JSON.parse(room.amenities) as string[]; } catch { return []; } })();
   const amenitiesText = amenities.length > 0 ? `\nAmenities: ${amenities.join(', ')}` : '';
 
   const event: EventAttributes = {
@@ -150,7 +150,7 @@ export async function sendMeetingInvite(params: MeetingInviteParams): Promise<vo
 
   try {
     const icsContent = await generateICSContent(params);
-    const amenities = JSON.parse(room.amenities) as string[];
+    const amenities = ((): string[] => { try { return JSON.parse(room.amenities) as string[]; } catch { return []; } })();
     const amenitiesText = amenities.length > 0 ? `<p><strong>Amenities:</strong> ${amenities.map(htmlEscape).join(', ')}</p>` : '';
 
     const startTime = new Date(booking.startTime);
