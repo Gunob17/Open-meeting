@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { initializeDatabase } from './models/database';
+import { initializeDatabase, getDb } from './models/database';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -24,6 +24,7 @@ import ssoRoutes from './routes/sso.routes';
 import devRoutes from './routes/dev.routes';
 import icalRoutes from './routes/ical.routes';
 import calendarTokenRoutes from './routes/calendar-token.routes';
+import auditLogRoutes from './routes/audit-log.routes';
 import { ldapScheduler } from './services/ldap-scheduler.service';
 import { imapManager } from './services/imap.service';
 
@@ -94,6 +95,7 @@ app.use('/api/ldap', ldapRoutes);
 app.use('/api/sso', ssoRoutes);
 app.use('/api/ical', icalRoutes);
 app.use('/api/calendar-tokens', calendarTokenRoutes);
+app.use('/api/audit-log', auditLogRoutes);
 
 // Dev-only routes — never available in production
 if (process.env.NODE_ENV !== 'production') {
@@ -101,8 +103,26 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (_req, res) => {
+  const checks: Record<string, 'ok' | 'error'> = {};
+
+  try {
+    await getDb().raw('SELECT 1');
+    checks.database = 'ok';
+  } catch {
+    checks.database = 'error';
+  }
+
+  const imapStatuses = imapManager.getStatuses();
+  const imapErrors = Object.values(imapStatuses).filter(s => s.status === 'error').length;
+  checks.imap = imapErrors === 0 ? 'ok' : 'error';
+
+  const healthy = checks.database === 'ok';
+  res.status(healthy ? 200 : 503).json({
+    status: healthy ? 'ok' : 'degraded',
+    timestamp: new Date().toISOString(),
+    checks,
+  });
 });
 
 // Error handling middleware

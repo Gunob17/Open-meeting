@@ -43,3 +43,5 @@ coverage/
 
 # Misc
 *.log
+/backend-data
+/.claude
