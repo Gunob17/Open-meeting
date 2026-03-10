@@ -14,6 +14,18 @@ export function RoomsListPage() {
   const [filterCapacity, setFilterCapacity] = useState<number>(0);
   const [filterAmenity, setFilterAmenity] = useState<string>('');
 
+  // Room Finder state
+  const [finderOpen, setFinderOpen] = useState(false);
+  const [finderDate, setFinderDate] = useState('');
+  const [finderStart, setFinderStart] = useState('09:00');
+  const [finderEnd, setFinderEnd] = useState('10:00');
+  const [finderPeople, setFinderPeople] = useState(1);
+  const [finderAmenities, setFinderAmenities] = useState<string[]>([]);
+  const [finderActive, setFinderActive] = useState(false);
+  const [finderBookings, setFinderBookings] = useState<Booking[]>([]);
+  const [finderLoading, setFinderLoading] = useState(false);
+  const [finderSlot, setFinderSlot] = useState<{ start: string; end: string } | null>(null);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -66,11 +78,56 @@ export function RoomsListPage() {
     }) || null;
   };
 
+  const isRoomAvailableForSlot = (roomId: string, start: Date, end: Date): boolean => {
+    return !finderBookings.some(b => {
+      if (b.roomId !== roomId || b.status === 'cancelled') return false;
+      const bStart = parseISO(b.startTime);
+      const bEnd = parseISO(b.endTime);
+      return bStart < end && bEnd > start;
+    });
+  };
+
+  const handleFinderSearch = async () => {
+    if (!finderDate || !finderStart || !finderEnd) return;
+    setFinderLoading(true);
+    try {
+      const startISO = new Date(`${finderDate}T${finderStart}`).toISOString();
+      const endISO = new Date(`${finderDate}T${finderEnd}`).toISOString();
+      const bookingsData = await api.getBookings(startISO, endISO);
+      setFinderBookings(bookingsData);
+      setFinderSlot({ start: `${finderDate}T${finderStart}`, end: `${finderDate}T${finderEnd}` });
+      setFinderActive(true);
+    } catch (err) {
+      console.error('Finder search failed:', err);
+    } finally {
+      setFinderLoading(false);
+    }
+  };
+
+  const handleFinderClear = () => {
+    setFinderActive(false);
+    setFinderSlot(null);
+    setFinderBookings([]);
+  };
+
   const { timeFormat } = useSettings();
 
   const allAmenities = [...new Set(rooms.flatMap(r => r.amenities))].sort();
 
+  // Only show amenities that exist in rooms with enough capacity
+  const finderAmenitiesAvailable = [...new Set(
+    rooms.filter(r => r.capacity >= finderPeople).flatMap(r => r.amenities)
+  )].sort();
+
   const filteredRooms = rooms.filter(room => {
+    if (finderActive) {
+      if (room.capacity < finderPeople) return false;
+      if (finderAmenities.some(a => !room.amenities.includes(a))) return false;
+      const start = new Date(`${finderDate}T${finderStart}`);
+      const end = new Date(`${finderDate}T${finderEnd}`);
+      if (!isRoomAvailableForSlot(room.id, start, end)) return false;
+      return true;
+    }
     if (filterCapacity > 0 && room.capacity < filterCapacity) return false;
     if (filterAmenity && !room.amenities.includes(filterAmenity)) return false;
     return true;
@@ -86,28 +143,131 @@ export function RoomsListPage() {
         <h1>Meeting Rooms</h1>
       </div>
 
-      <div className="filters">
-        <div className="filter-group">
-          <label>Min Capacity:</label>
-          <select value={filterCapacity} onChange={e => setFilterCapacity(Number(e.target.value))}>
-            <option value={0}>Any</option>
-            <option value={4}>4+ people</option>
-            <option value={8}>8+ people</option>
-            <option value={12}>12+ people</option>
-            <option value={20}>20+ people</option>
-          </select>
-        </div>
+      <div className="room-finder-panel">
+        <button className="finder-toggle" onClick={() => setFinderOpen(o => !o)}>
+          <span className="finder-toggle-icon">{finderOpen ? '▲' : '▼'}</span>
+          Find an Available Room
+          {finderActive && <span className="finder-active-badge">Search active</span>}
+        </button>
 
-        <div className="filter-group">
-          <label>Amenity:</label>
-          <select value={filterAmenity} onChange={e => setFilterAmenity(e.target.value)}>
-            <option value="">Any</option>
-            {allAmenities.map(amenity => (
-              <option key={amenity} value={amenity}>{amenity}</option>
-            ))}
-          </select>
-        </div>
+        {finderOpen && (
+          <div className="finder-form">
+            <div className="finder-row">
+              <div className="finder-field">
+                <label>Date</label>
+                <input
+                  type="date"
+                  value={finderDate}
+                  onChange={e => setFinderDate(e.target.value)}
+                />
+              </div>
+              <div className="finder-field">
+                <label>From</label>
+                <input
+                  type="time"
+                  value={finderStart}
+                  onChange={e => setFinderStart(e.target.value)}
+                />
+              </div>
+              <div className="finder-field">
+                <label>To</label>
+                <input
+                  type="time"
+                  value={finderEnd}
+                  onChange={e => setFinderEnd(e.target.value)}
+                />
+              </div>
+              <div className="finder-field">
+                <label>People</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={finderPeople}
+                  onChange={e => {
+                    const n = Math.max(1, Number(e.target.value));
+                    setFinderPeople(n);
+                    // Drop selected amenities that no longer exist in rooms with enough capacity
+                    const available = new Set(
+                      rooms.filter(r => r.capacity >= n).flatMap(r => r.amenities)
+                    );
+                    setFinderAmenities(prev => prev.filter(a => available.has(a)));
+                  }}
+                />
+              </div>
+            </div>
+
+            {finderAmenitiesAvailable.length > 0 && (
+              <div className="finder-amenities">
+                <label>Amenities needed:</label>
+                <div className="amenity-checkboxes">
+                  {finderAmenitiesAvailable.map(amenity => (
+                    <label key={amenity} className="amenity-checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={finderAmenities.includes(amenity)}
+                        onChange={e =>
+                          setFinderAmenities(prev =>
+                            e.target.checked ? [...prev, amenity] : prev.filter(a => a !== amenity)
+                          )
+                        }
+                      />
+                      {amenity}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="finder-actions">
+              <button
+                className="btn btn-primary"
+                onClick={handleFinderSearch}
+                disabled={!finderDate || finderLoading}
+              >
+                {finderLoading ? 'Searching...' : 'Find Available Rooms'}
+              </button>
+              {finderActive && (
+                <button className="btn btn-secondary" onClick={handleFinderClear}>
+                  Clear Search
+                </button>
+              )}
+            </div>
+
+            {finderActive && (
+              <p className="finder-status">
+                Showing <strong>{filteredRooms.length}</strong> room{filteredRooms.length !== 1 ? 's' : ''} available on{' '}
+                {finderDate} from {finderStart}–{finderEnd} for {finderPeople}+ {finderPeople === 1 ? 'person' : 'people'}
+                {finderAmenities.length > 0 && ` · ${finderAmenities.join(', ')}`}
+              </p>
+            )}
+          </div>
+        )}
       </div>
+
+      {!finderActive && (
+        <div className="filters">
+          <div className="filter-group">
+            <label>Min Capacity:</label>
+            <select value={filterCapacity} onChange={e => setFilterCapacity(Number(e.target.value))}>
+              <option value={0}>Any</option>
+              <option value={4}>4+ people</option>
+              <option value={8}>8+ people</option>
+              <option value={12}>12+ people</option>
+              <option value={20}>20+ people</option>
+            </select>
+          </div>
+
+          <div className="filter-group">
+            <label>Amenity:</label>
+            <select value={filterAmenity} onChange={e => setFilterAmenity(e.target.value)}>
+              <option value="">Any</option>
+              {allAmenities.map(amenity => (
+                <option key={amenity} value={amenity}>{amenity}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       <div className="rooms-grid">
         {filteredRooms.map(room => {
@@ -116,11 +276,11 @@ export function RoomsListPage() {
           const nextBooking = getNextBooking(room.id);
 
           return (
-            <div key={room.id} className={`room-card ${isAvailable ? 'available' : 'occupied'}`}>
+            <div key={room.id} className={`room-card ${finderActive ? 'available' : (isAvailable ? 'available' : 'occupied')}`}>
               <div className="room-card-header">
                 <h3>{room.name}</h3>
-                <span className={`status-badge ${isAvailable ? 'available' : 'occupied'}`}>
-                  {isAvailable ? 'Available' : 'Occupied'}
+                <span className={`status-badge ${finderActive ? 'available' : (isAvailable ? 'available' : 'occupied')}`}>
+                  {finderActive ? 'Available' : (isAvailable ? 'Available' : 'Occupied')}
                 </span>
               </div>
 
@@ -150,7 +310,7 @@ export function RoomsListPage() {
                   </p>
                 )}
 
-                {currentBooking && (
+                {!finderActive && currentBooking && (
                   <div className="current-booking">
                     <strong>Current Meeting:</strong>
                     <p>{currentBooking.title}</p>
@@ -160,7 +320,7 @@ export function RoomsListPage() {
                   </div>
                 )}
 
-                {isAvailable && nextBooking && (
+                {!finderActive && isAvailable && nextBooking && (
                   <div className="next-booking">
                     <strong>Next Booking:</strong>
                     <p>{nextBooking.title}</p>
@@ -175,9 +335,9 @@ export function RoomsListPage() {
                 <button
                   className="btn btn-primary"
                   onClick={() => setSelectedRoom(room)}
-                  disabled={!isAvailable}
+                  disabled={finderActive ? false : !isAvailable}
                 >
-                  {isAvailable ? 'Book Now' : 'View Schedule'}
+                  {finderActive ? 'Book This Room' : (isAvailable ? 'Book Now' : 'View Schedule')}
                 </button>
               </div>
             </div>
@@ -187,7 +347,10 @@ export function RoomsListPage() {
 
       {filteredRooms.length === 0 && (
         <div className="empty-state">
-          <p>No rooms match your filters.</p>
+          {finderActive
+            ? <p>No rooms available for this time slot matching your criteria.</p>
+            : <p>No rooms match your filters.</p>
+          }
         </div>
       )}
 
@@ -196,6 +359,8 @@ export function RoomsListPage() {
           room={selectedRoom}
           initialDate={new Date()}
           initialHour={new Date().getHours() + 1}
+          initialStartTime={finderSlot?.start}
+          initialEndTime={finderSlot?.end}
           onClose={() => setSelectedRoom(null)}
           onBooked={() => {
             setSelectedRoom(null);

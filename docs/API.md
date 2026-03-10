@@ -11,7 +11,6 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | POST | `/auth/login` | None | Login (local, LDAP, or trusted device bypass) |
-| POST | `/auth/logout` | Required | Logout (clears server-side session state) |
 | GET | `/auth/me` | Required | Get current user profile |
 | POST | `/auth/refresh` | Required | Refresh JWT token |
 | POST | `/auth/change-password` | Required | Change password (zxcvbn score ≥ 2 required) |
@@ -73,6 +72,8 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | POST | `/users` | Company Admin+ | Create user |
 | PUT | `/users/:id` | Company Admin+ | Update user |
 | POST | `/users/:id/reset-2fa` | Park Admin+ | Reset user's 2FA |
+| POST | `/users/:id/resend-invite` | Company Admin+ | Resend invite email to a pending user |
+| GET | `/users/:id/export` | Required | Export user data (own record, or admin for others) |
 | DELETE | `/users/:id` | Company Admin+ | Delete user |
 
 ---
@@ -84,6 +85,7 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | GET | `/rooms` | Required | List rooms (respects park filter and company locks) |
 | GET | `/rooms/:id` | Required | Get room details — returns 403 if room is in a different park |
 | GET | `/rooms/:id/availability` | Required | Check room availability — returns 403 if room is in a different park |
+| GET | `/rooms/imap-status` | Park Admin+ | Get IMAP worker status for all rooms |
 | POST | `/rooms` | Park Admin+ | Create room |
 | PUT | `/rooms/:id` | Park Admin+ | Update room |
 | DELETE | `/rooms/:id` | Park Admin+ | Delete room |
@@ -140,6 +142,7 @@ Authentication: `X-Device-Token` header.
 |--------|----------|------|-------------|
 | GET | `/device/status` | Device Token | Get room status, current/upcoming bookings |
 | POST | `/device/quick-book` | Device Token | Quick book room for specified duration |
+| POST | `/device/end-meeting` | Device Token | End the current meeting early |
 | GET | `/device/info` | Device Token | Get device and room information |
 | GET | `/device/ping` | Device Token | Health check |
 | POST | `/device/firmware/report` | Device Token | Report current firmware version |
@@ -240,6 +243,7 @@ Public iCal feed endpoints authenticated by token (no JWT required). Suitable fo
 |--------|----------|------|-------------|
 | GET | `/ical/my?token=<token>` | Token | Personal iCal feed — all upcoming bookings for the token owner |
 | GET | `/ical/room/:roomId?token=<token>` | Token | Room iCal feed — full room schedule; other users' bookings shown as "Booked" |
+| GET | `/ical/park?token=<token>` | Token | Park iCal feed — all rooms in the park |
 
 Feeds return `Content-Type: text/calendar`. Endpoints are rate-limited independently of the JWT API.
 
@@ -249,7 +253,7 @@ Feeds return `Content-Type: text/calendar`. Endpoints are rate-limited independe
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/audit-log` | Park Admin+ | Query audit log events (filterable by action, user, date range) |
+| GET | `/audit-log` | Super Admin | Query audit log events (filterable by action, user, date range) |
 
 Audit events cover all state-changing actions: authentication, 2FA changes, room/park/company/booking CRUD, device management, firmware, LDAP/SSO config, settings, guest check-in/out, and system setup.
 
