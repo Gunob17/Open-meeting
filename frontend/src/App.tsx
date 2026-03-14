@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { ConfirmProvider } from './context/ConfirmContext';
+import { ToastProvider } from './context/ToastContext';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { CalendarPage } from './pages/CalendarPage';
@@ -250,7 +252,11 @@ function AppWithSetup() {
   return (
     <AuthProvider>
       <SettingsProvider>
-        <AppRoutes />
+        <ConfirmProvider>
+          <ToastProvider>
+            <AppRoutes />
+          </ToastProvider>
+        </ConfirmProvider>
       </SettingsProvider>
     </AuthProvider>
   );

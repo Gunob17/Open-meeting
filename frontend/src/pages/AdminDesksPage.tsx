@@ -3,27 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Company, Desk, DeskQuotaType, ParkDeskQuota, User, UserDeskQuota } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 type Tab = 'desks' | 'quota' | 'access';
 
 type DeskFormData = { name: string; description: string; floor: string };
 const DEFAULT_DESK_FORM: DeskFormData = { name: '', description: '', floor: '' };
 
-const TAB_STYLE = (active: boolean): React.CSSProperties => ({
-  background: 'none',
-  border: 'none',
-  padding: '0.625rem 1rem',
-  cursor: 'pointer',
-  fontSize: '0.9rem',
-  borderBottom: active ? '2px solid var(--primary, #3b82f6)' : '2px solid transparent',
-  fontWeight: active ? 600 : 400,
-  color: active ? 'var(--primary, #3b82f6)' : 'inherit',
-  whiteSpace: 'nowrap',
-});
+const tabClass = (active: boolean) =>
+  `tab-btn${active ? ' tab-btn--active' : ''}`;
 
 export function AdminDesksPage() {
   const { user, isSuperAdmin } = useAuth();
   const navigate = useNavigate();
+  const showConfirm = useConfirm();
   const parkId = isSuperAdmin ? 'default' : (user?.parkId ?? 'default');
 
   const getTabFromSearch = (): Tab => {
@@ -155,7 +148,7 @@ export function AdminDesksPage() {
   };
 
   const handleDelete = async (desk: Desk) => {
-    if (!window.confirm(`Delete desk "${desk.name}"? This will also remove all its bookings.`)) return;
+    if (!await showConfirm({ message: `Delete desk "${desk.name}"? This will also remove all its bookings.`, title: 'Delete Desk', confirmLabel: 'Delete' })) return;
     setDeletingId(desk.id);
     try {
       await api.deleteDesk(desk.id);
@@ -275,14 +268,14 @@ export function AdminDesksPage() {
       </div>
 
       {/* Tab navigation */}
-      <div className="tab-nav" style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color, #e5e7eb)', display: 'flex', gap: '0' }}>
-        <button style={TAB_STYLE(activeTab === 'desks')} onClick={() => switchTab('desks')}>
+      <div className="tab-nav">
+        <button className={tabClass(activeTab === 'desks')} onClick={() => switchTab('desks')}>
           Desks
         </button>
-        <button style={TAB_STYLE(activeTab === 'quota')} onClick={() => switchTab('quota')}>
+        <button className={tabClass(activeTab === 'quota')} onClick={() => switchTab('quota')}>
           Quota
         </button>
-        <button style={TAB_STYLE(activeTab === 'access')} onClick={() => switchTab('access')}>
+        <button className={tabClass(activeTab === 'access')} onClick={() => switchTab('access')}>
           Company Access
         </button>
       </div>
@@ -602,7 +595,7 @@ export function AdminDesksPage() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingDesk ? 'Edit Desk' : 'Add Desk'}</h2>
-              <button className="modal-close" onClick={closeModal}>×</button>
+              <button className="modal-close" onClick={closeModal} aria-label="Close">×</button>
             </div>
             <form onSubmit={handleDeskSubmit}>
               <div className="modal-body">

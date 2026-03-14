@@ -15,6 +15,19 @@ import { TrustedDeviceModel } from '../models/trusted-device.model';
 import { UserModel } from '../models/user.model';
 import { getEffectiveTwoFaEnforcement } from '../utils/twofa-enforcement';
 import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
+import { encrypt, decrypt } from '../utils/encryption';
+
+// Decrypt a TOTP secret that may be encrypted (new) or plaintext Base32 (legacy).
+// Encrypted format: iv:authtag:ciphertext (hex values separated by colons).
+// Legacy format: Base32 string (uppercase A-Z and 2-7 only).
+function decryptTotpSecret(stored: string): string {
+  const parts = stored.split(':');
+  if (parts.length === 3 && /^[0-9a-f]+$/i.test(parts[0]) && /^[0-9a-f]+$/i.test(parts[1])) {
+    return decrypt(stored);
+  }
+  // Legacy plaintext Base32 — return as-is
+  return stored;
+}
 
 const router = Router();
 
@@ -66,8 +79,8 @@ router.post('/setup', authenticatePartial, async (req: AuthRequest, res: Respons
     const otpauthUrl = totp.toString();
     const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
 
-    // Store the secret temporarily (not yet enabled)
-    await UserModel.setTwofaSecret(user.id, secret.base32);
+    // Store the secret encrypted (not yet enabled)
+    await UserModel.setTwofaSecret(user.id, encrypt(secret.base32));
 
     auditLog({ userId: req.user?.userId ?? null, action: AuditAction.AUTH_2FA_SETUP, resourceType: 'user', resourceId: req.user!.userId, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { step: 'initiate' } });
     res.json({
@@ -110,7 +123,7 @@ router.post('/setup/confirm', authenticatePartial, async (req: AuthRequest, res:
       algorithm: 'SHA1',
       digits: 6,
       period: 30,
-      secret: OTPAuth.Secret.fromBase32(user.twofaSecret),
+      secret: OTPAuth.Secret.fromBase32(decryptTotpSecret(user.twofaSecret)),
     });
 
     const delta = totp.validate({ token: code, window: 1 });
@@ -185,7 +198,7 @@ router.post('/verify', twofaVerifyLimiter, authenticatePartial, async (req: Auth
       algorithm: 'SHA1',
       digits: 6,
       period: 30,
-      secret: OTPAuth.Secret.fromBase32(user.twofaSecret),
+      secret: OTPAuth.Secret.fromBase32(decryptTotpSecret(user.twofaSecret)),
     });
 
     let isValid = totp.validate({ token: code, window: 1 }) !== null;

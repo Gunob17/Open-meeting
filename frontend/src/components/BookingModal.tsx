@@ -127,7 +127,7 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>{isEditing ? 'Edit Booking' : `Book ${room.name}`}</h2>
-          <button className="modal-close" onClick={onClose}>×</button>
+          <button className="modal-close" onClick={onClose} aria-label="Close">×</button>
         </div>
 
         <form onSubmit={handleSubmit}>

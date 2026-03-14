@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import zxcvbn from 'zxcvbn';
 import { CompanyModel } from '../models/company.model';
 import { UserModel } from '../models/user.model';
 import { RoomModel } from '../models/room.model';
@@ -405,6 +406,10 @@ router.post('/production', setupLimiter, async (req, res: Response) => {
 
     if (adminPassword.length < 8) {
       res.status(400).json({ error: 'Password must be at least 8 characters' });
+      return;
+    }
+    if (zxcvbn(adminPassword).score < 2) {
+      res.status(400).json({ error: 'Password is too weak. Please choose a stronger password.' });
       return;
     }
 

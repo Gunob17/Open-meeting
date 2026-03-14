@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { MeetingRoom, Device, Company, Settings } from '../types';
 import { useSettings } from '../context/SettingsContext';
 import { formatHour } from '../utils/time';
+import { useConfirm } from '../context/ConfirmContext';
 
 const COMMON_AMENITIES = [
   'Projector',
@@ -20,6 +21,7 @@ const COMMON_AMENITIES = [
 
 export function AdminRoomsPage() {
   const { timeFormat } = useSettings();
+  const showConfirm = useConfirm();
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -233,7 +235,7 @@ export function AdminRoomsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to permanently delete this room? This action cannot be undone.')) return;
+    if (!await showConfirm({ message: 'Are you sure you want to permanently delete this room? This action cannot be undone.', title: 'Delete Room', confirmLabel: 'Delete' })) return;
 
     try {
       await api.deleteRoom(id, false);
@@ -300,7 +302,7 @@ export function AdminRoomsPage() {
 
   const handleRegenerateToken = async (device: Device) => {
     if (!selectedRoom) return;
-    if (!window.confirm(`Regenerate token for "${device.name}"? The old token will stop working immediately.`)) return;
+    if (!await showConfirm({ message: `Regenerate token for "${device.name}"? The old token will stop working immediately.`, title: 'Regenerate Token', confirmLabel: 'Regenerate', variant: 'warning' })) return;
 
     try {
       await api.regenerateDeviceToken(device.id);
@@ -312,7 +314,7 @@ export function AdminRoomsPage() {
 
   const handleDeleteDevice = async (device: Device) => {
     if (!selectedRoom) return;
-    if (!window.confirm(`Delete device "${device.name}"? This action cannot be undone.`)) return;
+    if (!await showConfirm({ message: `Delete device "${device.name}"? This action cannot be undone.`, title: 'Delete Device', confirmLabel: 'Delete' })) return;
 
     try {
       await api.deleteDevice(device.id);
@@ -474,7 +476,7 @@ export function AdminRoomsPage() {
           <div className="modal modal-large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingRoom ? 'Edit Room' : 'Add Room'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowModal(false)} aria-label="Close">×</button>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -815,7 +817,7 @@ export function AdminRoomsPage() {
           <div className="modal modal-large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Screen Devices - {selectedRoom.name}</h2>
-              <button className="modal-close" onClick={() => setShowDevicesModal(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowDevicesModal(false)} aria-label="Close">×</button>
             </div>
 
             <div className="modal-body">

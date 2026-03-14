@@ -4,9 +4,11 @@ import { api } from '../services/api';
 import zxcvbn from 'zxcvbn';
 import { useAuth } from '../context/AuthContext';
 import { useTour } from '../context/TourContext';
+import { useConfirm } from '../context/ConfirmContext';
+import { useSettings } from '../context/SettingsContext';
 import { MeetingRoom, TwoFaSetupResponse, TwoFaStatusResponse, TrustedDeviceInfo, CalendarToken, CalendarTokenCreated, TwoFaLevelEnforcement } from '../types';
 
-type Tab = 'security' | 'calendar' | 'password' | 'organization';
+type Tab = 'security' | 'calendar' | 'password' | 'organization' | 'appearance';
 
 export function UserSettingsPage() {
   const location = useLocation();
@@ -19,6 +21,7 @@ export function UserSettingsPage() {
     if (tab === 'calendar') return 'calendar';
     if (tab === 'password') return 'password';
     if (tab === 'organization') return 'organization';
+    if (tab === 'appearance') return 'appearance';
     return 'security';
   };
 
@@ -48,34 +51,16 @@ export function UserSettingsPage() {
         </button>
       </div>
 
-      <div className="tab-nav" style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color, #e5e7eb)', display: 'flex', gap: '0' }}>
+      <div className="tab-nav">
         <button
           className={`tab-btn${activeTab === 'security' ? ' tab-btn--active' : ''}`}
           onClick={() => switchTab('security')}
-          style={{
-            padding: '0.6rem 1.2rem',
-            border: 'none',
-            borderBottom: activeTab === 'security' ? '2px solid var(--primary, #3b82f6)' : '2px solid transparent',
-            background: 'transparent',
-            cursor: 'pointer',
-            fontWeight: activeTab === 'security' ? 600 : 400,
-            color: activeTab === 'security' ? 'var(--primary, #3b82f6)' : 'inherit',
-          }}
         >
           Security
         </button>
         <button
           className={`tab-btn${activeTab === 'calendar' ? ' tab-btn--active' : ''}`}
           onClick={() => switchTab('calendar')}
-          style={{
-            padding: '0.6rem 1.2rem',
-            border: 'none',
-            borderBottom: activeTab === 'calendar' ? '2px solid var(--primary, #3b82f6)' : '2px solid transparent',
-            background: 'transparent',
-            cursor: 'pointer',
-            fontWeight: activeTab === 'calendar' ? 600 : 400,
-            color: activeTab === 'calendar' ? 'var(--primary, #3b82f6)' : 'inherit',
-          }}
         >
           Calendar
         </button>
@@ -83,15 +68,6 @@ export function UserSettingsPage() {
           <button
             className={`tab-btn${activeTab === 'password' ? ' tab-btn--active' : ''}`}
             onClick={() => switchTab('password')}
-            style={{
-              padding: '0.6rem 1.2rem',
-              border: 'none',
-              borderBottom: activeTab === 'password' ? '2px solid var(--primary, #3b82f6)' : '2px solid transparent',
-              background: 'transparent',
-              cursor: 'pointer',
-              fontWeight: activeTab === 'password' ? 600 : 400,
-              color: activeTab === 'password' ? 'var(--primary, #3b82f6)' : 'inherit',
-            }}
           >
             Password
           </button>
@@ -100,19 +76,16 @@ export function UserSettingsPage() {
           <button
             className={`tab-btn${activeTab === 'organization' ? ' tab-btn--active' : ''}`}
             onClick={() => switchTab('organization')}
-            style={{
-              padding: '0.6rem 1.2rem',
-              border: 'none',
-              borderBottom: activeTab === 'organization' ? '2px solid var(--primary, #3b82f6)' : '2px solid transparent',
-              background: 'transparent',
-              cursor: 'pointer',
-              fontWeight: activeTab === 'organization' ? 600 : 400,
-              color: activeTab === 'organization' ? 'var(--primary, #3b82f6)' : 'inherit',
-            }}
           >
             Organization
           </button>
         )}
+        <button
+          className={`tab-btn${activeTab === 'appearance' ? ' tab-btn--active' : ''}`}
+          onClick={() => switchTab('appearance')}
+        >
+          Appearance
+        </button>
       </div>
 
       {activeTab === 'security' && <SecurityTab />}
@@ -121,6 +94,7 @@ export function UserSettingsPage() {
       {activeTab === 'organization' && isCompanyAdmin && !isAdmin && (
         <OrganizationTab companyId={user?.companyId ?? ''} />
       )}
+      {activeTab === 'appearance' && <AppearanceTab />}
     </div>
   );
 }
@@ -130,6 +104,7 @@ export function UserSettingsPage() {
 // ---------------------------------------------------------------------------
 
 function SecurityTab() {
+  const showConfirm = useConfirm();
   const [status, setStatus] = useState<TwoFaStatusResponse | null>(null);
   const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -220,7 +195,7 @@ function SecurityTab() {
   };
 
   const handleRevokeDevice = async (id: string) => {
-    if (!window.confirm('Revoke this trusted device? You will need to verify 2FA again on next login from this device.')) return;
+    if (!await showConfirm({ message: 'Revoke this trusted device? You will need to verify 2FA again on next login from this device.', title: 'Revoke Trusted Device', confirmLabel: 'Revoke', variant: 'warning' })) return;
     try {
       await api.twofaRevokeTrustedDevice(id);
       setTrustedDevices(prev => prev.filter(d => d.id !== id));
@@ -417,6 +392,7 @@ function SecurityTab() {
 // ---------------------------------------------------------------------------
 
 function CalendarTab({ hasPark }: { hasPark: boolean }) {
+  const showConfirm = useConfirm();
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
   const [tokens, setTokens] = useState<CalendarToken[]>([]);
   const [loading, setLoading] = useState(true);
@@ -522,7 +498,7 @@ function CalendarTab({ hasPark }: { hasPark: boolean }) {
   };
 
   const handleRevoke = async (id: string) => {
-    if (!window.confirm('Revoke this calendar feed? Any calendar subscriptions using this URL will stop working.')) return;
+    if (!await showConfirm({ message: 'Revoke this calendar feed? Any calendar subscriptions using this URL will stop working.', title: 'Revoke Calendar Feed', confirmLabel: 'Revoke', variant: 'warning' })) return;
     try {
       await api.revokeCalendarToken(id);
       setTokens(prev => prev.filter(t => t.id !== id));
@@ -932,6 +908,49 @@ function PasswordTab() {
           {loading ? 'Changing...' : 'Change Password'}
         </button>
       </form>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Appearance tab — theme toggle
+// ---------------------------------------------------------------------------
+
+function AppearanceTab() {
+  const { theme, toggleTheme } = useSettings();
+
+  return (
+    <div className="card">
+      <h2>Appearance</h2>
+      <p className="section-description">Choose how Open Meeting looks to you.</p>
+
+      <div className="settings-section" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 0 }}>
+        <h3 style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, marginBottom: 'var(--space-2)' }}>
+          Color theme
+        </h3>
+        <p className="section-description">
+          Select Light or Dark. This preference is saved to this browser.
+        </p>
+
+        <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={`btn ${theme === 'light' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => { if (theme !== 'light') toggleTheme(); }}
+            aria-pressed={theme === 'light'}
+          >
+            Light
+          </button>
+          <button
+            type="button"
+            className={`btn ${theme === 'dark' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => { if (theme !== 'dark') toggleTheme(); }}
+            aria-pressed={theme === 'dark'}
+          >
+            Dark
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

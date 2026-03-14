@@ -12,26 +12,38 @@ export class TrustedDeviceModel {
   }): Promise<TrustedDevice> {
     const db = getDb();
     const id = uuidv4();
-    const deviceToken = crypto.randomBytes(32).toString('hex');
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
     const now = new Date();
     const expiresAt = new Date(now.getTime() + data.expiresInDays * 24 * 60 * 60 * 1000);
 
     await db('trusted_devices').insert({
       id,
       user_id: data.userId,
-      device_token: deviceToken,
+      device_token: tokenHash,
       device_name: data.deviceName,
       ip_address: data.ipAddress || null,
       expires_at: expiresAt.toISOString(),
       created_at: now.toISOString(),
     });
 
-    return (await this.findById(id))!;
+    // Return the raw token so the caller can send it to the client once.
+    // Subsequent DB lookups will return the hash — the raw token is never stored.
+    return {
+      id,
+      userId: data.userId,
+      deviceToken: rawToken,
+      deviceName: data.deviceName,
+      ipAddress: data.ipAddress || null,
+      expiresAt: expiresAt.toISOString(),
+      createdAt: now.toISOString(),
+    };
   }
 
   static async findByToken(deviceToken: string): Promise<TrustedDevice | null> {
     const db = getDb();
-    const row = await db('trusted_devices').where('device_token', deviceToken).first();
+    const tokenHash = crypto.createHash('sha256').update(deviceToken).digest('hex');
+    const row = await db('trusted_devices').where('device_token', tokenHash).first();
     if (!row) return null;
     return this.mapRow(row);
   }

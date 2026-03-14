@@ -147,8 +147,9 @@ export class SsoService {
       issuer: config.samlIssuer || `${API_URL}/api/sso/saml/metadata/${configId}`,
       callbackUrl,
       idpCert: config.samlCert || '',
-      wantAssertionsSigned: false,
-      wantAuthnResponseSigned: false,
+      wantAssertionsSigned: true,
+      wantAuthnResponseSigned: true,
+      acceptedClockSkewMs: 5000,
     });
 
     const url = await saml.getAuthorizeUrlAsync(state, undefined, {});
@@ -171,14 +172,19 @@ export class SsoService {
 
     const callbackUrl = config.samlCallbackUrl || `${API_URL}/api/sso/callback/saml`;
 
+    if (!config.samlCert) {
+      throw new Error('SAML IdP certificate is not configured. Assertion signature validation requires an IdP certificate.');
+    }
+
     const { SAML } = await import('@node-saml/node-saml');
     const saml = new SAML({
       entryPoint: config.samlEntryPoint || '',
       issuer: config.samlIssuer || `${API_URL}/api/sso/saml/metadata/${configId}`,
       callbackUrl,
-      idpCert: config.samlCert || '',
-      wantAssertionsSigned: false,
-      wantAuthnResponseSigned: false,
+      idpCert: config.samlCert,
+      wantAssertionsSigned: true,
+      wantAuthnResponseSigned: true,
+      acceptedClockSkewMs: 5000,
     });
 
     const { profile } = await saml.validatePostResponseAsync({ SAMLResponse: samlResponse });

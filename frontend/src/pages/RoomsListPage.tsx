@@ -15,7 +15,7 @@ export function RoomsListPage() {
   const [filterAmenity, setFilterAmenity] = useState<string>('');
 
   // Room Finder state
-  const [finderOpen, setFinderOpen] = useState(false);
+  const [finderOpen, setFinderOpen] = useState(true);
   const [finderDate, setFinderDate] = useState('');
   const [finderStart, setFinderStart] = useState('09:00');
   const [finderEnd, setFinderEnd] = useState('10:00');
@@ -134,7 +134,15 @@ export function RoomsListPage() {
   });
 
   if (loading) {
-    return <div className="loading">Loading rooms...</div>;
+    return (
+      <div className="page-container">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem', marginTop: '1rem' }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="skeleton" style={{ height: '160px', borderRadius: '0.5rem' }} />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (

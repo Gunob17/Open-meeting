@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Company, Settings, TwoFaLevelEnforcement } from '../types';
+import { useConfirm } from '../context/ConfirmContext';
 
 export function CompaniesPage() {
   const navigate = useNavigate();
+  const showConfirm = useConfirm();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -85,7 +87,7 @@ export function CompaniesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this company? All users in this company will also be deleted.')) return;
+    if (!await showConfirm({ message: 'Are you sure you want to delete this company? All users in this company will also be deleted.', title: 'Delete Company', confirmLabel: 'Delete' })) return;
 
     try {
       await api.deleteCompany(id);
@@ -161,7 +163,7 @@ export function CompaniesPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingCompany ? 'Edit Company' : 'Add Company'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowModal(false)} aria-label="Close">×</button>
             </div>
 
             <form onSubmit={handleSubmit}>

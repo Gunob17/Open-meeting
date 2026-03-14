@@ -3,6 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { api } from '../services/api';
 import { Desk, DeskBooking, DeskQuotaStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
@@ -10,6 +11,7 @@ function todayISO(): string {
 
 export function DesksPage() {
   const { user } = useAuth();
+  const showConfirm = useConfirm();
   const [desks, setDesks] = useState<Desk[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayISO());
   const [bookingsForDate, setBookingsForDate] = useState<DeskBooking[]>([]);
@@ -99,7 +101,7 @@ export function DesksPage() {
   };
 
   const handleCancel = async (bookingId: string) => {
-    if (!window.confirm('Are you sure you want to cancel this desk booking?')) return;
+    if (!await showConfirm({ message: 'Are you sure you want to cancel this desk booking?', confirmLabel: 'Cancel Booking', variant: 'warning' })) return;
     setCancellingId(bookingId);
     try {
       await api.cancelDeskBooking(bookingId);
