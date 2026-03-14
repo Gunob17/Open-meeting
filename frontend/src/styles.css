@@ -1623,15 +1623,25 @@ body {
   padding: var(--space-4) var(--space-6);
   border-bottom: var(--border);
   display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.calendar-header-top {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: var(--space-4);
 }
 
 .calendar-header h1 {
   font-size: var(--font-size-2xl);
   font-weight: 600;
+}
+
+.quick-book-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .calendar-header h2 {

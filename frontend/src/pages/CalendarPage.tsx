@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { format, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { api } from '../services/api';
 import { Booking, MeetingRoom, Settings } from '../types';
@@ -356,7 +357,12 @@ export function CalendarPage() {
   return (
     <div className="calendar-page">
       <div className="calendar-header">
-        <h1>Meeting Room Calendar</h1>
+        <div className="calendar-header-top">
+          <h1>Meeting Room Calendar</h1>
+          <Link to="/rooms" className="btn btn-primary quick-book-btn">
+            Quick Book
+          </Link>
+        </div>
         <div className="calendar-nav">
           <button onClick={() => setStartDate(subDays(startDate, 7))} className="btn btn-secondary">
             {isMobile ? '\u25C0 7d' : 'Previous 7 Days'}
