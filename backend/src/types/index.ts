@@ -26,6 +26,8 @@ export interface Park {
   receptionEmail: string | null;
   receptionGuestFields: string[];
   calendarFeedEnabled: boolean;
+  deskQuotaType: DeskQuotaType | null;
+  monthlyDeskQuota: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -64,6 +66,7 @@ export interface Company {
   address: string;
   parkId: string;
   twofaEnforcement: TwoFaLevelEnforcement;
+  deskBookingEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -444,3 +447,67 @@ export interface CalendarTokenResponse {
   rawToken?: string; // Only present immediately after creation
   feedUrl?: string;  // Only present immediately after creation
 }
+
+// Hot desk types
+export type DeskQuotaType = 'per_user' | 'per_company';
+
+export enum DeskBookingStatus {
+  CONFIRMED = 'confirmed',
+  CANCELLED = 'cancelled',
+}
+
+export interface Desk {
+  id: string;
+  parkId: string;
+  name: string;
+  description: string | null;
+  floor: string | null;
+  isActive: boolean;
+  quotaType: DeskQuotaType | null;
+  monthlyQuota: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeskBooking {
+  id: string;
+  deskId: string;
+  userId: string;
+  bookingDate: string; // 'YYYY-MM-DD'
+  status: DeskBookingStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeskBookingWithDetails extends DeskBooking {
+  desk?: Desk;
+  user?: Omit<User, 'password'>;
+}
+
+export interface CreateDeskRequest {
+  name: string;
+  description?: string | null;
+  floor?: string | null;
+  parkId: string;
+  quotaType?: DeskQuotaType | null;
+  monthlyQuota?: number | null;
+}
+
+export interface CreateDeskBookingRequest {
+  deskId: string;
+  bookingDate: string; // 'YYYY-MM-DD'
+}
+
+export interface UserDeskQuota {
+  id: string;
+  parkId: string;
+  userId: string;
+  monthlyQuota: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserDeskQuotaWithUser extends UserDeskQuota {
+  user?: Omit<User, 'password'>;
+}
+

@@ -21,6 +21,8 @@ import { LdapConfigPage } from './pages/LdapConfigPage';
 import { SsoCallbackPage } from './pages/SsoCallbackPage';
 import { SsoConfigPage } from './pages/SsoConfigPage';
 import { CompleteInvitePage } from './pages/CompleteInvitePage';
+import { AdminDesksPage } from './pages/AdminDesksPage';
+import { DesksPage } from './pages/DesksPage';
 import { api } from './services/api';
 import './styles.css';
 
@@ -98,6 +100,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/desks"
+        element={
+          <PrivateRoute>
+            <DesksPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
         path="/account/settings"
         element={
           <PrivateRoute>
@@ -123,6 +133,14 @@ function AppRoutes() {
         element={
           <PrivateRoute adminOnly>
             <AdminRoomsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/desks"
+        element={
+          <PrivateRoute adminOnly>
+            <AdminDesksPage />
           </PrivateRoute>
         }
       />

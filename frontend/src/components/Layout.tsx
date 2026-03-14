@@ -13,7 +13,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { user, logout, isAdmin, isCompanyAdmin, isSuperAdmin, isReceptionist, impersonatedUser, viewAsRole, viewAsReceptionist } = useAuth();
+  const { user, logout, isAdmin, isParkAdmin, isCompanyAdmin, isSuperAdmin, isReceptionist, impersonatedUser, viewAsRole, viewAsReceptionist } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [parks, setParks] = useState<Park[]>([]);
@@ -277,6 +277,14 @@ export function Layout({ children }: LayoutProps) {
                     <span className="link-text">My Bookings</span>
                   </Link>
                 </li>
+                {(user?.deskBookingEnabled || isAdmin || isParkAdmin || isSuperAdmin) && (
+                  <li>
+                    <Link to="/desks" className={`sidebar-link ${isActive('/desks') ? 'active' : ''}`} data-tour="nav-desks">
+                      <span className="link-icon">&#128188;</span>
+                      <span className="link-text">Hot Desks</span>
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -332,6 +340,12 @@ export function Layout({ children }: LayoutProps) {
                     <Link to="/admin/rooms" className={`sidebar-link ${isActive('/admin/rooms') ? 'active' : ''}`} data-tour="nav-admin-rooms">
                       <span className="link-icon">&#128736;</span>
                       <span className="link-text">Manage Rooms</span>
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/admin/desks" className={`sidebar-link ${isActive('/admin/desks') ? 'active' : ''}`} data-tour="nav-admin-desks">
+                      <span className="link-icon">&#128188;</span>
+                      <span className="link-text">Manage Desks</span>
                     </Link>
                   </li>
                   <li>

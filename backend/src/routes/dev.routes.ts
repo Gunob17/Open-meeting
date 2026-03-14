@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { UserModel } from '../models/user.model';
+import { CompanyModel } from '../models/company.model';
 import { generateToken, authenticate, requireSuperAdmin, AuthRequest } from '../middleware/auth.middleware';
 import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
@@ -30,6 +31,7 @@ router.post('/impersonate', authenticate, requireSuperAdmin, async (req: AuthReq
       parkId: target.parkId,
     });
 
+    const company = await CompanyModel.findById(target.companyId);
     auditLog({ userId: req.user!.userId, action: AuditAction.DEV_IMPERSONATE, resourceType: 'user', resourceId: target.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
     res.json({
       token,
@@ -41,6 +43,7 @@ router.post('/impersonate', authenticate, requireSuperAdmin, async (req: AuthReq
         companyId: target.companyId,
         parkId: target.parkId,
         addonRoles: target.addonRoles,
+        deskBookingEnabled: company?.deskBookingEnabled ?? false,
       },
     });
   } catch (error) {

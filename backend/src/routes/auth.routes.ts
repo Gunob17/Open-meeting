@@ -3,6 +3,7 @@ import { Router, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import zxcvbn from 'zxcvbn';
 import { UserModel } from '../models/user.model';
+import { CompanyModel } from '../models/company.model';
 import { SettingsModel } from '../models/settings.model';
 import { TrustedDeviceModel } from '../models/trusted-device.model';
 import { LdapConfigModel } from '../models/ldap-config.model';
@@ -31,7 +32,7 @@ const inviteLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-function sanitizeUser(user: any) {
+function sanitizeUser(user: any, deskBookingEnabled = false) {
   return {
     id: user.id,
     email: user.email,
@@ -42,7 +43,13 @@ function sanitizeUser(user: any) {
     twofaEnabled: user.twofaEnabled,
     addonRoles: user.addonRoles || [],
     hasSeenTour: user.hasSeenTour !== undefined ? user.hasSeenTour : true,
+    deskBookingEnabled,
   };
+}
+
+async function getUserDeskBookingEnabled(companyId: string): Promise<boolean> {
+  const company = await CompanyModel.findById(companyId);
+  return company?.deskBookingEnabled ?? false;
 }
 
 // Login
@@ -112,7 +119,8 @@ router.post('/login', loginLimiter, async (req, res: Response) => {
             parkId: user.parkId,
           }, !!keepLoggedIn);
           auditLog({ userId: user.id, action: AuditAction.AUTH_LOGIN_SUCCESS, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success', metadata: { method: 'trusted_device' } });
-          res.json({ token, user: sanitizeUser(user) });
+          const deskEnabled1 = await getUserDeskBookingEnabled(user.companyId);
+          res.json({ token, user: sanitizeUser(user, deskEnabled1) });
           return;
         }
       }
@@ -165,7 +173,8 @@ router.post('/login', loginLimiter, async (req, res: Response) => {
     }, !!keepLoggedIn);
 
     auditLog({ userId: user.id, action: AuditAction.AUTH_LOGIN_SUCCESS, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success', metadata: { method: user.authSource } });
-    res.json({ token, user: sanitizeUser(user) });
+    const deskEnabled2 = await getUserDeskBookingEnabled(user.companyId);
+    res.json({ token, user: sanitizeUser(user, deskEnabled2) });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
@@ -186,7 +195,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    res.json(sanitizeUser(user));
+    const deskEnabled = await getUserDeskBookingEnabled(user.companyId);
+    res.json(sanitizeUser(user, deskEnabled));
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ error: 'Failed to get user' });
@@ -320,9 +330,10 @@ router.post('/complete-invite', inviteLimiter, async (req, res: Response) => {
       parkId: user.parkId,
     });
 
+    const inviteDeskEnabled = await getUserDeskBookingEnabled(user.companyId);
     res.json({
       token: jwt,
-      user: sanitizeUser({ ...user, name }),
+      user: sanitizeUser({ ...user, name }, inviteDeskEnabled),
     });
   } catch (error) {
     console.error('Complete invite error:', error);
