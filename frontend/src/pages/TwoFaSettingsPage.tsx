@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { TwoFaSetupResponse, TwoFaStatusResponse, TrustedDeviceInfo } from '../types';
+import { useConfirm } from '../context/ConfirmContext';
 
 export function TwoFaSettingsPage() {
+  const showConfirm = useConfirm();
   const [status, setStatus] = useState<TwoFaStatusResponse | null>(null);
   const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +95,7 @@ export function TwoFaSettingsPage() {
   };
 
   const handleRevokeDevice = async (id: string) => {
-    if (!window.confirm('Revoke this trusted device? You will need to verify 2FA again on next login from this device.')) return;
+    if (!await showConfirm({ message: 'Revoke this trusted device? You will need to verify 2FA again on next login from this device.', title: 'Revoke Trusted Device', confirmLabel: 'Revoke', variant: 'warning' })) return;
     try {
       await api.twofaRevokeTrustedDevice(id);
       setTrustedDevices(prev => prev.filter(d => d.id !== id));

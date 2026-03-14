@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../services/api';
 import { SsoConfig, SsoProtocol, Company } from '../types';
+import { useConfirm } from '../context/ConfirmContext';
 
 export function SsoConfigPage() {
   const { companyId } = useParams<{ companyId: string }>();
+  const showConfirm = useConfirm();
   const [config, setConfig] = useState<SsoConfig | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
@@ -137,7 +139,7 @@ export function SsoConfigPage() {
 
   const handleDelete = async () => {
     if (!config) return;
-    if (!window.confirm('Are you sure you want to delete this SSO configuration? Users authenticated via SSO will no longer be able to log in.')) return;
+    if (!await showConfirm({ message: 'Are you sure you want to delete this SSO configuration? Users authenticated via SSO will no longer be able to log in.', title: 'Delete SSO Config', confirmLabel: 'Delete' })) return;
 
     try {
       await api.deleteSsoConfig(config.id);

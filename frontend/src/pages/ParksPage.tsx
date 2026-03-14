@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { Park, Settings, TwoFaLevelEnforcement } from '../types';
+import { useConfirm } from '../context/ConfirmContext';
 
 export function ParksPage() {
+  const showConfirm = useConfirm();
   const [parks, setParks] = useState<Park[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -114,7 +116,7 @@ export function ParksPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this park? All companies, users, and rooms in this park will also be affected.')) return;
+    if (!await showConfirm({ message: 'Are you sure you want to delete this park? All companies, users, and rooms in this park will also be affected.', title: 'Delete Park', confirmLabel: 'Delete' })) return;
 
     try {
       await api.deletePark(id, false);
@@ -149,7 +151,7 @@ export function ParksPage() {
   };
 
   const handleDeleteLogo = async (parkId: string) => {
-    if (!window.confirm('Are you sure you want to remove this logo?')) return;
+    if (!await showConfirm({ message: 'Are you sure you want to remove this logo?', title: 'Remove Logo', confirmLabel: 'Remove' })) return;
 
     try {
       await api.deleteParkLogo(parkId);
@@ -276,7 +278,7 @@ export function ParksPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingPark ? 'Edit Park' : 'Add Park'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowModal(false)} aria-label="Close">×</button>
             </div>
 
             <form onSubmit={handleSubmit}>

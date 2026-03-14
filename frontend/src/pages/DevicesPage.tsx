@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { Device, Firmware } from '../types';
 import { formatDistanceToNow } from 'date-fns';
+import { useConfirm } from '../context/ConfirmContext';
 
 export function DevicesPage() {
+  const showConfirm = useConfirm();
   const [devices, setDevices] = useState<Device[]>([]);
   const [firmware, setFirmware] = useState<Firmware[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +66,7 @@ export function DevicesPage() {
   };
 
   const handleDeleteFirmware = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this firmware version?')) return;
+    if (!await showConfirm({ message: 'Are you sure you want to delete this firmware version?', title: 'Delete Firmware', confirmLabel: 'Delete' })) return;
 
     try {
       await api.deleteFirmware(id);
@@ -354,7 +356,7 @@ export function DevicesPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{selectedDevice.name}</h2>
-              <button className="modal-close" onClick={() => setSelectedDevice(null)}>&times;</button>
+              <button className="modal-close" onClick={() => setSelectedDevice(null)} aria-label="Close">&times;</button>
             </div>
             <div className="modal-body">
               <div className="device-detail-grid">
@@ -462,7 +464,7 @@ export function DevicesPage() {
             <div className="modal modal-large" onClick={e => e.stopPropagation()}>
               <div className="modal-header">
                 <h2>Schedule Firmware Update</h2>
-                <button className="modal-close" onClick={() => setShowUpgradeModal(false)}>&times;</button>
+                <button className="modal-close" onClick={() => setShowUpgradeModal(false)} aria-label="Close">&times;</button>
               </div>
               <div className="modal-body">
                 <p className="upgrade-info">
@@ -553,7 +555,7 @@ export function DevicesPage() {
           <div className="modal modal-large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Upload Firmware</h2>
-              <button className="modal-close" onClick={() => setShowUploadModal(false)}>&times;</button>
+              <button className="modal-close" onClick={() => setShowUploadModal(false)} aria-label="Close">&times;</button>
             </div>
             <form onSubmit={handleUploadFirmware}>
               <div className="modal-body">

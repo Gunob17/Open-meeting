@@ -32,6 +32,9 @@ export function Layout({ children }: LayoutProps) {
     return window.innerWidth > 768;
   });
 
+  // Dark mode is managed by SettingsContext (sets data-theme on <html>).
+  // Layout no longer needs to read the theme value directly.
+
   // System banner
   const [settings, setSettings] = useState<Settings | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -195,6 +198,9 @@ export function Layout({ children }: LayoutProps) {
   return (
     <TourProvider startTour={startTour}>
       <div className="app-layout">
+        {/* Skip navigation link for keyboard/screen reader users */}
+        <a href="#main-content" className="skip-link">Skip to main content</a>
+
         {/* Guided tour overlay */}
         <TourGuide steps={tourSteps} run={runTour} onFinish={handleTourFinish} onStep={handleTourStep} />
 
@@ -385,6 +391,7 @@ export function Layout({ children }: LayoutProps) {
             )}
           </nav>
 
+
           <div className="sidebar-footer" ref={userMenuRef}>
             {userMenuOpen && (
               <div className="user-menu-dropdown">
@@ -485,7 +492,7 @@ export function Layout({ children }: LayoutProps) {
             </div>
           )}
 
-          <main className="main-content">
+          <main className="main-content" id="main-content" tabIndex={-1}>
             {children}
           </main>
         </div>
