@@ -49,6 +49,7 @@
   --space-8:  2rem;
 
   /* Border radius */
+  --radius:      0.375rem;   /* alias for --radius-md, used throughout */
   --radius-sm:   0.25rem;
   --radius-md:   0.375rem;
   --radius-lg:   0.5rem;
@@ -631,30 +632,42 @@ body {
 }
 
 /* ── Room Finder panel ───────────────────────────────────────────────────── */
-[data-theme="dark"] .room-finder-panel {
-  border-color: var(--border-color);
-}
-
-[data-theme="dark"] .finder-toggle {
-  background: var(--color-surface-2);
-  color: var(--color-text);
-}
-
 [data-theme="dark"] .finder-toggle:hover {
   background: var(--color-input-bg);
 }
 
-[data-theme="dark"] .finder-form {
-  border-top-color: var(--border-color);
+[data-theme="dark"] .finder-active-badge {
+  background: rgba(16, 185, 129, 0.15);
+  color: #6ee7b7;
+}
+
+[data-theme="dark"] .finder-status {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.25);
+  color: var(--color-text-muted);
+}
+
+[data-theme="dark"] .finder-field input {
+  background: var(--color-input-bg);
+  border-color: var(--border-color);
+  color: var(--color-text);
 }
 
 [data-theme="dark"] .amenity-checkbox-label {
+  background: var(--color-input-bg);
   border-color: var(--border-color);
   color: var(--color-text);
 }
 
 [data-theme="dark"] .amenity-checkbox-label:hover {
-  background: var(--color-input-bg);
+  background: var(--color-gray-200);
+  border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .amenity-checkbox-label:has(input:checked) {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: var(--color-primary);
+  color: var(--color-primary-hover);
 }
 
 /* ── Mobile room selector ────────────────────────────────────────────────── */
@@ -1954,10 +1967,11 @@ body {
 
 /* Room Finder */
 .room-finder-panel {
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   margin-bottom: 1.5rem;
   overflow: hidden;
+  background: var(--color-surface);
 }
 
 .finder-toggle {
@@ -1966,23 +1980,23 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: var(--color-gray-50);
+  background: var(--color-surface-2);
   border: none;
   cursor: pointer;
   font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--color-gray-700);
+  color: var(--color-text);
   text-align: left;
   transition: background 0.15s;
 }
 
 .finder-toggle:hover {
-  background: #e5e7eb;
+  background: var(--color-gray-100);
 }
 
 .finder-toggle-icon {
   font-size: 0.75rem;
-  color: var(--color-gray-400);
+  color: var(--color-text-muted);
 }
 
 .finder-active-badge {
@@ -1990,14 +2004,15 @@ body {
   font-size: 0.75rem;
   font-weight: 500;
   padding: 0.125rem 0.5rem;
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--color-success-light, #d1fae5);
+  color: var(--color-success-text, #065f46);
   border-radius: 9999px;
 }
 
 .finder-form {
   padding: 1rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--border-color);
+  background: var(--color-surface);
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -2019,14 +2034,24 @@ body {
 .finder-field label {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--color-gray-600);
+  color: var(--color-text-muted);
 }
 
 .finder-field input {
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  padding: 0.5rem 0.625rem;
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-gray-300);
   border-radius: var(--radius);
   font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-text);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.finder-field input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 .finder-amenities {
@@ -2038,7 +2063,7 @@ body {
 .finder-amenities > label {
   font-size: 0.8125rem;
   font-weight: 500;
-  color: var(--color-gray-600);
+  color: var(--color-text-muted);
 }
 
 .amenity-checkboxes {
@@ -2053,18 +2078,29 @@ body {
   gap: 0.375rem;
   font-size: 0.875rem;
   cursor: pointer;
-  padding: 0.25rem 0.625rem;
-  border: 1px solid #d1d5db;
+  padding: 0.3rem 0.75rem;
+  background: var(--color-surface-2);
+  border: 1px solid var(--border-color);
   border-radius: 9999px;
+  color: var(--color-text);
   transition: background 0.15s, border-color 0.15s;
 }
 
 .amenity-checkbox-label:hover {
-  background: var(--color-gray-50);
+  background: var(--color-gray-100);
+  border-color: var(--color-primary);
+}
+
+.amenity-checkbox-label:has(input:checked) {
+  background: var(--color-primary-lighter);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 500;
 }
 
 .amenity-checkbox-label input[type="checkbox"] {
   margin: 0;
+  accent-color: var(--color-primary);
 }
 
 .finder-actions {
@@ -2075,11 +2111,11 @@ body {
 
 .finder-status {
   font-size: 0.875rem;
-  color: var(--color-gray-600);
+  color: var(--color-text-muted);
   margin: 0;
   padding: 0.5rem 0.75rem;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: var(--color-success-light, #f0fdf4);
+  border: 1px solid var(--color-success-border, #bbf7d0);
   border-radius: var(--radius);
 }
 
@@ -2096,16 +2132,79 @@ body {
   gap: 0.5rem;
 }
 
+/* ── Desk date selection widget ── */
+.desk-date-filters { align-items: center; }
+
+.desk-date-mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.desk-date-mode-btn {
+  padding: 0.375rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.desk-date-mode-btn:hover:not(.desk-date-mode-btn--active) {
+  background: var(--color-gray-100);
+  color: var(--color-text);
+}
+.desk-date-mode-btn--active {
+  background: var(--color-primary);
+  color: #fff;
+}
+.desk-date-range-group { flex-wrap: wrap; gap: 0.5rem; }
+.desk-date-range-sep {
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  padding: 0 0.125rem;
+  align-self: center;
+}
+.desk-date-summary { flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+.desk-date-count { font-size: 0.875rem; font-weight: 500; }
+.desk-date-count--over { color: var(--color-danger, #ef4444); }
+.desk-date-over-quota {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.2rem 0.6rem;
+  background: #fee2e2;
+  color: #b91c1c;
+  border-radius: 9999px;
+}
+@media (max-width: 640px) {
+  .desk-date-range-group { flex-direction: column; align-items: flex-start; width: 100%; }
+  .desk-date-range-group input[type="date"] { width: 100%; }
+  .desk-date-range-sep { display: none; }
+}
+
 .filter-group label {
   font-size: 0.875rem;
   font-weight: 500;
 }
 
 .filter-group select {
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
+  padding: 0.4rem 0.625rem;
+  background: var(--color-input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-text);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.filter-group select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
 }
 
 .rooms-grid {
@@ -4491,6 +4590,12 @@ body {
 
   .filter-group {
     width: 100%;
+    justify-content: center;
+  }
+
+  .rooms-search-group .desks-search {
+    width: 100%;
+    margin: 0;
   }
 
   .filter-group select {
@@ -5061,3 +5166,956 @@ body {
   background: white;
   min-height: 60px;
 }
+
+/* ============================================================
+   DeskDatePicker — inline calendar component
+   BEM-style: .ddp = block root
+   ============================================================ */
+
+/* ── Root container ─────────────────────────────────────────────────────── */
+.ddp {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 0.75rem 0.875rem 0.625rem;
+  width: 100%;
+  max-width: 320px;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* ── Mode toggle row ────────────────────────────────────────────────────── */
+.ddp__mode-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.ddp__mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.ddp__mode-btn {
+  padding: 0.3125rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.ddp__mode-btn:hover:not(.ddp__mode-btn--active) {
+  background: var(--color-gray-100);
+  color: var(--color-text);
+}
+
+.ddp__mode-btn--active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+/* ── Quota pill ─────────────────────────────────────────────────────────── */
+.ddp__quota-pill {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 9999px;
+  background: var(--color-primary-lighter);
+  color: var(--color-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ddp__quota-pill--low {
+  background: var(--color-warning-light);
+  color: var(--color-warning-hover);
+}
+
+.ddp__quota-pill--empty {
+  background: var(--color-danger-light);
+  color: var(--color-danger-hover);
+}
+
+/* ── Calendar header (month label + nav buttons) ─────────────────────────── */
+.ddp__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.ddp__month-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+.ddp__nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.ddp__nav-btn:hover {
+  background: var(--color-gray-100);
+  color: var(--color-text);
+  border-color: var(--color-gray-300);
+}
+
+.ddp__nav-btn:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ── 7-column grid ──────────────────────────────────────────────────────── */
+.ddp__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  /* No column gap — range background spans cell-to-cell flush */
+  gap: 0;
+  margin-bottom: 0.25rem;
+}
+
+/* ── Weekday header row ─────────────────────────────────────────────────── */
+.ddp__weekday {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Day cell base ──────────────────────────────────────────────────────── */
+.ddp__cell {
+  position: relative;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  /* Range background fills the full cell width/height */
+  background: transparent;
+}
+
+.ddp__cell--empty {
+  pointer-events: none;
+}
+
+/* ── Interactive state ───────────────────────────────────────────────────── */
+.ddp__cell--interactive {
+  cursor: pointer;
+}
+
+.ddp__cell--interactive:hover .ddp__day-inner {
+  background: var(--color-gray-100);
+}
+
+.ddp__cell--interactive:focus-visible {
+  outline: none;
+}
+
+.ddp__cell--interactive:focus-visible .ddp__day-inner {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 0;
+}
+
+/* ── Day inner — the circular/pill click target ─────────────────────────── */
+.ddp__day-inner {
+  position: relative;
+  z-index: 1;            /* sit above range-band pseudo-element */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-text);
+  transition: background 0.12s, color 0.12s;
+  line-height: 1;
+}
+
+/* ── Past days ──────────────────────────────────────────────────────────── */
+.ddp__cell--past .ddp__day-inner {
+  color: var(--color-gray-400);
+  cursor: not-allowed;
+}
+
+.ddp__cell--past:hover .ddp__day-inner {
+  background: transparent;
+}
+
+/* ── Today indicator ────────────────────────────────────────────────────── */
+.ddp__cell--today .ddp__day-inner {
+  font-weight: 600;
+}
+
+/* Today ring: thin border on the inner circle when NOT selected */
+.ddp__cell--today:not(.ddp__cell--start):not(.ddp__cell--end):not(.ddp__cell--middle):not(.ddp__cell--hover-mid) .ddp__day-inner {
+  box-shadow: 0 0 0 1.5px var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ── Selected single / range start & end ────────────────────────────────── */
+.ddp__cell--start .ddp__day-inner,
+.ddp__cell--end .ddp__day-inner {
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ddp__cell--start:hover .ddp__day-inner,
+.ddp__cell--end:hover .ddp__day-inner {
+  background: var(--color-primary-hover);
+}
+
+/* ── Range middle fill (the continuous band) ─────────────────────────────
+   We use a ::before pseudo-element on each middle cell to draw a full-width
+   band, and let the .ddp__day-inner circle sit above it.              */
+.ddp__cell--middle,
+.ddp__cell--hover-mid {
+  background: transparent;
+}
+
+.ddp__cell--middle::before,
+.ddp__cell--hover-mid::before {
+  content: '';
+  position: absolute;
+  inset: 3px 0;           /* 3px top/bottom — gives a short pill height */
+  background: var(--color-primary-lighter);
+  z-index: 0;
+}
+
+.ddp__cell--middle .ddp__day-inner,
+.ddp__cell--hover-mid .ddp__day-inner {
+  background: transparent;
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.ddp__cell--hover-mid::before {
+  /* Slightly more transparent for the hover preview */
+  background: color-mix(in srgb, var(--color-primary-lighter) 65%, transparent);
+}
+
+/* ── Range end-cap modifiers ────────────────────────────────────────────
+   The band on a start-cap cell only extends rightward (flush left).
+   The band on an end-cap cell only extends leftward (flush right).
+   We clip the ::before band using a half-width inset.                  */
+
+/* Start cap: band runs from cell-centre rightward */
+.ddp__cell--cap-left::before {
+  content: '';
+  position: absolute;
+  inset: 3px 0 3px 50%;   /* left edge at 50%, right edge flush */
+  background: var(--color-primary-lighter);
+  z-index: 0;
+}
+
+/* End cap: band runs from left edge to cell-centre */
+.ddp__cell--cap-right::before {
+  content: '';
+  position: absolute;
+  inset: 3px 50% 3px 0;   /* right edge at 50%, left edge flush */
+  background: var(--color-primary-lighter);
+  z-index: 0;
+}
+
+/* ── Already-booked dot ─────────────────────────────────────────────────── */
+.ddp__booked-dot {
+  position: absolute;
+  bottom: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* When the day is selected, the dot becomes white so it stays visible */
+.ddp__cell--start .ddp__booked-dot,
+.ddp__cell--end .ddp__booked-dot {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* ── Quota warning strip ─────────────────────────────────────────────────── */
+.ddp__quota-warning {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-warning-hover);
+  background: var(--color-warning-light);
+  border-radius: var(--radius-md);
+  padding: 0.3125rem 0.625rem;
+  margin-top: 0.375rem;
+}
+
+.ddp__quota-warning--empty {
+  color: var(--color-danger-hover);
+  background: var(--color-danger-light);
+}
+
+/* ── Selected date summary bar ───────────────────────────────────────────── */
+.ddp__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--border-color);
+  min-height: 28px;
+}
+
+.ddp__summary-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text);
+  line-height: 1.4;
+}
+
+.ddp__clear-btn {
+  flex-shrink: 0;
+  padding: 0.1875rem 0.5625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--color-gray-200);
+  color: var(--color-gray-700);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s;
+  line-height: 1.4;
+}
+
+.ddp__clear-btn:hover {
+  background: var(--color-gray-300);
+}
+
+/* ── Dark mode overrides ─────────────────────────────────────────────────── */
+[data-theme="dark"] .ddp {
+  background: var(--color-surface);
+  /* Subtle primary glow on the card border so it reads as a focused picker */
+  border-color: color-mix(in srgb, var(--color-primary) 35%, var(--border-color));
+}
+
+/* ── Range band: dark mode needs a much stronger fill than --color-primary-lighter.
+   In dark mode that token is #1e1b4b — virtually indistinguishable from the
+   #1e293b card surface.  We use a direct rgba of the primary accent instead,
+   giving a clearly visible tinted stripe without competing with the filled
+   start/end circles.                                                          */
+[data-theme="dark"] .ddp__cell--middle::before,
+[data-theme="dark"] .ddp__cell--cap-left::before,
+[data-theme="dark"] .ddp__cell--cap-right::before {
+  /* ~32% opacity indigo on the dark card = clearly visible band */
+  background: rgba(99, 102, 241, 0.32);
+}
+
+[data-theme="dark"] .ddp__cell--hover-mid::before {
+  /* Slightly lighter for the hover preview — distinguishable from confirmed range */
+  background: rgba(99, 102, 241, 0.18);
+}
+
+/* Middle-day text: use the lighter primary accent in dark mode so it
+   remains readable on the tinted band without being as loud as start/end */
+[data-theme="dark"] .ddp__cell--middle .ddp__day-inner,
+[data-theme="dark"] .ddp__cell--hover-mid .ddp__day-inner {
+  color: var(--color-primary-hover); /* #818cf8 — brighter than primary on dark bg */
+}
+
+/* Today ring: keep it visible but clearly secondary to the filled start/end */
+[data-theme="dark"] .ddp__cell--today:not(.ddp__cell--start):not(.ddp__cell--end):not(.ddp__cell--middle):not(.ddp__cell--hover-mid) .ddp__day-inner {
+  box-shadow: 0 0 0 2px var(--color-primary-hover);
+  color: var(--color-primary-hover);
+}
+
+[data-theme="dark"] .ddp__cell--interactive:hover .ddp__day-inner {
+  background: var(--color-gray-200);
+}
+
+[data-theme="dark"] .ddp__clear-btn {
+  background: var(--color-gray-200);
+  color: var(--color-gray-700);
+}
+
+[data-theme="dark"] .ddp__clear-btn:hover {
+  background: var(--color-gray-300);
+}
+
+/* ── Reduced-motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ddp__day-inner,
+  .ddp__mode-btn,
+  .ddp__nav-btn,
+  .ddp__clear-btn {
+    transition: none;
+  }
+}
+
+/* ── Responsive: on small viewports the picker goes full-width ────────────── */
+@media (max-width: 400px) {
+  .ddp {
+    max-width: 100%;
+    padding: 0.625rem 0.5rem;
+  }
+
+  .ddp__day-inner {
+    width: 30px;
+    height: 30px;
+    font-size: 0.8125rem;
+  }
+
+  .ddp__cell {
+    height: 34px;
+  }
+}
+/* ── System-pref dark: same band + today overrides for users without
+   an explicit data-theme attribute on <html>.
+   Mirrors [data-theme="dark"] .ddp rules above.                       */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .ddp {
+    border-color: color-mix(in srgb, #6366f1 35%, #475569);
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .ddp__cell--middle::before,
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .ddp__cell--cap-left::before,
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .ddp__cell--cap-right::before {
+    background: rgba(99, 102, 241, 0.32);
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .ddp__cell--hover-mid::before {
+    background: rgba(99, 102, 241, 0.18);
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .ddp__cell--middle .ddp__day-inner,
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .ddp__cell--hover-mid .ddp__day-inner {
+    color: #818cf8;
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .ddp__cell--today:not(.ddp__cell--start):not(.ddp__cell--end):not(.ddp__cell--middle):not(.ddp__cell--hover-mid) .ddp__day-inner {
+    box-shadow: 0 0 0 2px #818cf8;
+    color: #818cf8;
+  }
+}
+
+/* ── End DeskDatePicker ─────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════
+   DatePicker  (.dp)
+   Trigger button + floating calendar popup.
+   Calendar grid reuses .ddp__* classes.
+═══════════════════════════════════════════ */
+
+.dp {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+/* ── Trigger (looks like a styled input) ───────────────────────────────── */
+.dp__trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.625rem;
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.dp__trigger:hover {
+  border-color: var(--color-primary);
+}
+
+.dp__trigger--open {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.dp__icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.dp__placeholder {
+  color: var(--color-text-muted);
+}
+
+/* ── Popup card — rendered via portal at document.body (position:fixed via inline style) */
+.dp__popup {
+  background: var(--color-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 0.75rem 0.875rem 0.625rem;
+  min-width: 280px;
+  user-select: none;
+}
+
+/* Dark mode trigger */
+[data-theme="dark"] .dp__trigger {
+  background: var(--color-input-bg);
+  border-color: var(--border-color);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .dp__trigger:hover,
+[data-theme="dark"] .dp__trigger--open {
+  border-color: var(--color-primary);
+}
+
+/* System-pref dark mirror */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .dp__trigger {
+    background: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .dp__trigger:hover,
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .dp__trigger--open {
+    border-color: #6366f1;
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .dp__popup {
+    background: #1e293b;
+    border-color: #475569;
+  }
+}
+
+/* ── End DatePicker ─────────────────────────────────────────────────────── */
+
+/* ═══════════════════════════════════════════
+   Desks page two-column layout
+   Sidebar: calendar + quota + feature filter
+   Main:    availability grid
+═══════════════════════════════════════════ */
+
+.desks-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+  margin-bottom: 2rem;
+}
+
+/* Sidebar sticks while the desk grid scrolls */
+.desks-sidebar {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+}
+
+/* Prevent grid blowout on narrow content */
+.desks-main {
+  min-width: 0;
+}
+
+/* ── Quota card (inside sidebar) ───────────────────────────────────────── */
+.desks-quota-card {
+  background: var(--color-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.desks-quota-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.625rem;
+}
+
+.desks-quota-card__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.desks-quota-card__badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  background: var(--color-primary-lighter);
+  color: var(--color-primary);
+  border-radius: var(--radius-full);
+}
+
+.desks-quota-card__main {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  margin-bottom: 0.625rem;
+}
+
+/* Big remaining-days number */
+.desks-quota-card__big-number {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.desks-quota-card__big-number--low {
+  color: #f59e0b;
+}
+
+.desks-quota-card__big-number--zero {
+  color: #ef4444;
+}
+
+.desks-quota-card__sub {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+/* Progress bar */
+.desks-quota-bar {
+  height: 6px;
+  background: var(--color-gray-200);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: 0.375rem;
+}
+
+.desks-quota-bar__fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
+  transition: width 0.4s ease;
+  min-width: 0;
+}
+
+.desks-quota-bar__fill--low {
+  background: #f59e0b;
+}
+
+.desks-quota-bar__fill--full {
+  background: #ef4444;
+}
+
+.desks-quota-card__used {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+.desks-quota-card__warning {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ef4444;
+}
+
+/* Dark mode */
+[data-theme="dark"] .desks-quota-card__badge {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary-hover);
+}
+
+[data-theme="dark"] .desks-quota-bar {
+  background: var(--color-gray-200);
+}
+
+/* System-pref dark */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .desks-quota-card__badge {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+  }
+}
+
+/* ── Feature filter (inside sidebar) ───────────────────────────────────── */
+.desks-feature-filter {
+  background: var(--color-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: 0.75rem 0.875rem;
+}
+
+.desks-feature-filter__label {
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.desks-feature-filter__chips {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+/* Tablet: slightly narrower sidebar */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .desks-layout {
+    grid-template-columns: 280px 1fr;
+    gap: 1.25rem;
+  }
+}
+
+/* Mobile: single column, sidebar no longer sticky */
+@media (max-width: 768px) {
+  .desks-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .desks-sidebar {
+    position: static;
+  }
+}
+
+/* ── Shared form-input utility ──────────────────────────────────────────── */
+/* Used anywhere a plain input needs styling outside of a .form-group wrapper */
+.form-input {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+/* Dark mode: inherited from the global [data-theme="dark"] input rule */
+
+/* ── Desk search ────────────────────────────────────────────────────────── */
+.desks-search {
+  position: relative;
+  margin-top: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+/* Magnifier icon via inset padding */
+.desks-search::before {
+  content: '';
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  opacity: 0.4;
+  pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='6.5' cy='6.5' r='4.5' stroke='currentColor' strokeWidth='1.5'/%3E%3Cpath d='M10 10l3 3' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round'/%3E%3C/svg%3E") no-repeat center / contain;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='6.5' cy='6.5' r='4.5' stroke='currentColor' strokeWidth='1.5'/%3E%3Cpath d='M10 10l3 3' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round'/%3E%3C/svg%3E") no-repeat center / contain;
+}
+
+.desks-search .form-input {
+  padding-left: 2rem;
+}
+
+/* ── Feature filter chips (sidebar) ────────────────────────────────────── */
+/* Override the global pill style: in the narrow sidebar column the chips
+   sit in a vertical list, so we give them a proper row appearance with
+   a visible background that contrasts against the card surface.            */
+.desks-feature-filter__chips .amenity-checkbox-label {
+  background: var(--color-surface-2);
+  border-color: var(--color-gray-300);
+  border-radius: var(--radius-md);    /* softer rectangle, not full pill */
+  padding: 0.4rem 0.75rem;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  color: var(--color-text);
+}
+
+.desks-feature-filter__chips .amenity-checkbox-label:hover {
+  background: var(--color-gray-100);
+  border-color: var(--color-primary);
+}
+
+/* Checked state — tinted brand background + brand border */
+.desks-feature-filter__chips .amenity-checkbox-label:has(input:checked) {
+  background: var(--color-primary-lighter);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+/* Dark mode overrides */
+[data-theme="dark"] .desks-feature-filter__chips .amenity-checkbox-label {
+  background: var(--color-input-bg);   /* #334155 — clearly above #1e293b card */
+  border-color: var(--border-color);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .desks-feature-filter__chips .amenity-checkbox-label:hover {
+  background: var(--color-gray-200);
+  border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .desks-feature-filter__chips .amenity-checkbox-label:has(input:checked) {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: var(--color-primary);
+  color: var(--color-primary-hover);
+}
+
+/* System-preference dark mode mirrors the explicit dark overrides above */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .desks-feature-filter__chips .amenity-checkbox-label {
+    background: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .desks-feature-filter__chips .amenity-checkbox-label:hover {
+    background: #475569;
+    border-color: #6366f1;
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .desks-feature-filter__chips .amenity-checkbox-label:has(input:checked) {
+    background: rgba(99, 102, 241, 0.18);
+    border-color: #6366f1;
+    color: #818cf8;
+  }
+
+  /* Amenity checkbox checked state */
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .amenity-checkbox-label {
+    background: #334155;
+    border-color: #475569;
+    color: #f1f5f9;
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .amenity-checkbox-label:hover {
+    background: #475569;
+    border-color: #6366f1;
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .amenity-checkbox-label:has(input:checked) {
+    background: rgba(99, 102, 241, 0.18);
+    border-color: #6366f1;
+    color: #818cf8;
+  }
+
+  /* Room finder badge + status — mirrors [data-theme="dark"] overrides */
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .finder-active-badge {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+  }
+
+  :root:not([data-theme="light"]):not([data-theme="dark"]) .finder-status {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.25);
+    color: #94a3b8;
+  }
+}
+
+/* ── Pagination ─────────────────────────────────────────────────────────── */
+.desks-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  margin-top: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.desks-pagination__btn {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.desks-pagination__page {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.375rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.desks-pagination__page:hover:not(.desks-pagination__page--active) {
+  background: var(--color-gray-100, #f3f4f6);
+}
+
+.desks-pagination__page--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  cursor: default;
+}
+
+[data-theme="dark"] .desks-pagination__page:hover:not(.desks-pagination__page--active) {
+  background: var(--color-gray-200);
+}
+
+/* ── End Desks page layout ──────────────────────────────────────────────── */

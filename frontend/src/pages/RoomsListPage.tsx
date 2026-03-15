@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { MeetingRoom, Booking } from '../types';
 import { BookingModal } from '../components/BookingModal';
+import { DatePicker } from '../components/DatePicker';
 import { parseISO, isAfter, isBefore } from 'date-fns';
 import { useSettings } from '../context/SettingsContext';
 import { formatTime } from '../utils/time';
+
+const ROOMS_PER_PAGE = 9;
 
 export function RoomsListPage() {
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
@@ -13,10 +16,12 @@ export function RoomsListPage() {
   const [selectedRoom, setSelectedRoom] = useState<MeetingRoom | null>(null);
   const [filterCapacity, setFilterCapacity] = useState<number>(0);
   const [filterAmenity, setFilterAmenity] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Room Finder state
   const [finderOpen, setFinderOpen] = useState(true);
-  const [finderDate, setFinderDate] = useState('');
+  const [finderDate, setFinderDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [finderStart, setFinderStart] = useState('09:00');
   const [finderEnd, setFinderEnd] = useState('10:00');
   const [finderPeople, setFinderPeople] = useState(1);
@@ -126,12 +131,29 @@ export function RoomsListPage() {
       const start = new Date(`${finderDate}T${finderStart}`);
       const end = new Date(`${finderDate}T${finderEnd}`);
       if (!isRoomAvailableForSlot(room.id, start, end)) return false;
-      return true;
+    } else {
+      if (filterCapacity > 0 && room.capacity < filterCapacity) return false;
+      if (filterAmenity && !room.amenities.includes(filterAmenity)) return false;
     }
-    if (filterCapacity > 0 && room.capacity < filterCapacity) return false;
-    if (filterAmenity && !room.amenities.includes(filterAmenity)) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      if (
+        !room.name.toLowerCase().includes(q) &&
+        !room.floor.toLowerCase().includes(q) &&
+        !room.address.toLowerCase().includes(q)
+      ) return false;
+    }
     return true;
   });
+
+  const totalPages   = Math.max(1, Math.ceil(filteredRooms.length / ROOMS_PER_PAGE));
+  const safePage     = Math.min(currentPage, totalPages);
+  const paginatedRooms = filteredRooms.slice((safePage - 1) * ROOMS_PER_PAGE, safePage * ROOMS_PER_PAGE);
+
+  // Reset to page 1 whenever filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterCapacity, filterAmenity, finderActive]);
 
   if (loading) {
     return (
@@ -163,10 +185,10 @@ export function RoomsListPage() {
             <div className="finder-row">
               <div className="finder-field">
                 <label>Date</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={finderDate}
-                  onChange={e => setFinderDate(e.target.value)}
+                  onChange={setFinderDate}
+                  placeholder="Pick a date"
                 />
               </div>
               <div className="finder-field">
@@ -252,33 +274,50 @@ export function RoomsListPage() {
         )}
       </div>
 
-      {!finderActive && (
-        <div className="filters">
-          <div className="filter-group">
-            <label>Min Capacity:</label>
-            <select value={filterCapacity} onChange={e => setFilterCapacity(Number(e.target.value))}>
-              <option value={0}>Any</option>
-              <option value={4}>4+ people</option>
-              <option value={8}>8+ people</option>
-              <option value={12}>12+ people</option>
-              <option value={20}>20+ people</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label>Amenity:</label>
-            <select value={filterAmenity} onChange={e => setFilterAmenity(e.target.value)}>
-              <option value="">Any</option>
-              {allAmenities.map(amenity => (
-                <option key={amenity} value={amenity}>{amenity}</option>
-              ))}
-            </select>
+      <div className="filters" style={{ alignItems: 'center' }}>
+        {/* Search — always visible */}
+        <div className="filter-group rooms-search-group">
+          <div className="desks-search" style={{ margin: 0, minWidth: '220px' }}>
+            <input
+              type="search"
+              className="form-input"
+              placeholder="Search by name, floor or address…"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              aria-label="Search rooms"
+            />
           </div>
         </div>
-      )}
+
+        {/* Standard filters — hidden while finder is active */}
+        {!finderActive && (
+          <>
+            <div className="filter-group">
+              <label>Min Capacity:</label>
+              <select value={filterCapacity} onChange={e => setFilterCapacity(Number(e.target.value))}>
+                <option value={0}>Any</option>
+                <option value={4}>4+ people</option>
+                <option value={8}>8+ people</option>
+                <option value={12}>12+ people</option>
+                <option value={20}>20+ people</option>
+              </select>
+            </div>
+
+            <div className="filter-group">
+              <label>Amenity:</label>
+              <select value={filterAmenity} onChange={e => setFilterAmenity(e.target.value)}>
+                <option value="">Any</option>
+                {allAmenities.map(amenity => (
+                  <option key={amenity} value={amenity}>{amenity}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="rooms-grid">
-        {filteredRooms.map(room => {
+        {paginatedRooms.map(room => {
           const isAvailable = isRoomAvailableNow(room.id);
           const currentBooking = getCurrentBooking(room.id);
           const nextBooking = getNextBooking(room.id);
@@ -355,10 +394,45 @@ export function RoomsListPage() {
 
       {filteredRooms.length === 0 && (
         <div className="empty-state">
-          {finderActive
-            ? <p>No rooms available for this time slot matching your criteria.</p>
-            : <p>No rooms match your filters.</p>
-          }
+          <p>
+            {finderActive
+              ? 'No rooms available for this time slot matching your criteria.'
+              : searchQuery.trim()
+              ? 'No rooms match your search.'
+              : 'No rooms match your filters.'}
+          </p>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="desks-pagination">
+          <button
+            className="btn btn-secondary desks-pagination__btn"
+            disabled={safePage <= 1}
+            onClick={() => setCurrentPage(p => p - 1)}
+            aria-label="Previous page"
+          >
+            ‹
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            <button
+              key={page}
+              className={`desks-pagination__page${page === safePage ? ' desks-pagination__page--active' : ''}`}
+              onClick={() => setCurrentPage(page)}
+              aria-current={page === safePage ? 'page' : undefined}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            className="btn btn-secondary desks-pagination__btn"
+            disabled={safePage >= totalPages}
+            onClick={() => setCurrentPage(p => p + 1)}
+            aria-label="Next page"
+          >
+            ›
+          </button>
         </div>
       )}
 

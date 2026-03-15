@@ -7,17 +7,22 @@ import { useConfirm } from '../context/ConfirmContext';
 
 type Tab = 'desks' | 'quota' | 'access';
 
-type DeskFormData = { name: string; description: string; floor: string };
-const DEFAULT_DESK_FORM: DeskFormData = { name: '', description: '', floor: '' };
+const COMMON_DESK_FEATURES = [
+  'Standing Desk', 'Dual Monitor', 'Window View', 'Quiet Zone',
+  'Phone', 'External Display', 'Locker', 'Accessible', 'Ergonomic Chair', 'Natural Light',
+];
+
+type DeskFormData = { name: string; description: string; floor: string; features: string[] };
+const DEFAULT_DESK_FORM: DeskFormData = { name: '', description: '', floor: '', features: [] };
 
 const tabClass = (active: boolean) =>
   `tab-btn${active ? ' tab-btn--active' : ''}`;
 
 export function AdminDesksPage() {
-  const { user, isSuperAdmin } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const showConfirm = useConfirm();
-  const parkId = isSuperAdmin ? 'default' : (user?.parkId ?? 'default');
+  const parkId = api.getSelectedParkId() || user?.parkId || 'default';
 
   const getTabFromSearch = (): Tab => {
     const params = new URLSearchParams(window.location.search);
@@ -102,7 +107,7 @@ export function AdminDesksPage() {
 
   const openEdit = (desk: Desk) => {
     setEditingDesk(desk);
-    setDeskForm({ name: desk.name, description: desk.description ?? '', floor: desk.floor ?? '' });
+    setDeskForm({ name: desk.name, description: desk.description ?? '', floor: desk.floor ?? '', features: desk.features ?? [] });
     setDeskError('');
     setShowModal(true);
   };
@@ -113,6 +118,15 @@ export function AdminDesksPage() {
     setDeskForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleFeatureToggle = (feature: string) => {
+    setDeskForm((prev) => ({
+      ...prev,
+      features: prev.features.includes(feature)
+        ? prev.features.filter((f) => f !== feature)
+        : [...prev.features, feature],
+    }));
+  };
+
   const handleDeskSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setDeskError('');
@@ -121,6 +135,7 @@ export function AdminDesksPage() {
       name: deskForm.name.trim(),
       description: deskForm.description.trim() || null,
       floor: deskForm.floor.trim() || null,
+      features: deskForm.features,
     };
     try {
       if (editingDesk) {
@@ -311,6 +326,16 @@ export function AdminDesksPage() {
                         {desk.description && (
                           <div style={{ fontSize: '0.78rem', color: '#6b7280', marginTop: '2px' }}>
                             {desk.description}
+                          </div>
+                        )}
+                        {desk.features && desk.features.length > 0 && (
+                          <div style={{ marginTop: '3px', display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+                            {desk.features.slice(0, 3).map((f) => (
+                              <span key={f} className="amenity-tag small">{f}</span>
+                            ))}
+                            {desk.features.length > 3 && (
+                              <span className="amenity-tag small">+{desk.features.length - 3} more</span>
+                            )}
                           </div>
                         )}
                       </td>
@@ -624,6 +649,21 @@ export function AdminDesksPage() {
                     value={deskForm.description} onChange={handleDeskFormChange}
                     maxLength={2000} rows={2} placeholder="Optional notes"
                   />
+                </div>
+                <div className="form-group">
+                  <label>Features</label>
+                  <div className="amenities-grid">
+                    {COMMON_DESK_FEATURES.map((feature) => (
+                      <label key={feature} className="amenity-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={deskForm.features.includes(feature)}
+                          onChange={() => handleFeatureToggle(feature)}
+                        />
+                        <span>{feature}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">
