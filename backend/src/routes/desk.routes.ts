@@ -63,7 +63,7 @@ router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 // POST /api/desks — create desk (park admin only)
 router.post('/', authenticate, requireParkAdmin, async (req: AuthRequest, res: Response) => {
   try {
-    const { name, description, floor } = req.body;
+    const { name, description, floor, features } = req.body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
       res.status(400).json({ error: 'Desk name is required' });
@@ -90,11 +90,16 @@ router.post('/', authenticate, requireParkAdmin, async (req: AuthRequest, res: R
       parkId = req.user!.parkId;
     }
 
+    const featuresArr: string[] = Array.isArray(features)
+      ? features.filter((f: any) => typeof f === 'string').slice(0, 20)
+      : [];
+
     const desk = await DeskModel.create({
       name: name.trim(),
       description: description?.trim() || null,
       floor: floor?.trim() || null,
       parkId,
+      features: featuresArr,
     });
 
     auditLog({
@@ -152,6 +157,11 @@ router.put('/:id', authenticate, requireParkAdmin, async (req: AuthRequest, res:
     if ('description' in req.body) updates.description = description?.trim() || null;
     if ('floor' in req.body) updates.floor = floor?.trim() || null;
     if (isActive !== undefined) updates.isActive = isActive;
+    if ('features' in req.body) {
+      updates.features = Array.isArray(req.body.features)
+        ? req.body.features.filter((f: any) => typeof f === 'string').slice(0, 20)
+        : [];
+    }
 
     const updated = await DeskModel.update(req.params.id, updates);
 
