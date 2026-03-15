@@ -440,7 +440,7 @@ router.post('/production', setupLimiter, async (req, res: Response) => {
       name: adminName,
       role: UserRole.SUPER_ADMIN,
       companyId: company.id,
-      parkId: null  // Super admin has no park restriction
+      parkId: null,
     });
 
     auditLog({ userId: admin.id, action: AuditAction.SYSTEM_SETUP, resourceType: 'system', resourceId: admin.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { companyName, adminEmail } });

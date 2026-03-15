@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { TourProvider } from '../context/TourContext';
@@ -17,7 +17,10 @@ export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [parks, setParks] = useState<Park[]>([]);
-  const [selectedParkId, setSelectedParkId] = useState<string>('');
+  const [selectedParkId, setSelectedParkId] = useState<string>(
+    () => localStorage.getItem('selectedParkId') || user?.parkId || ''
+  );
+  const [parksLoaded, setParksLoaded] = useState(false);
   const [currentPark, setCurrentPark] = useState<Park | null>(null);
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -42,6 +45,15 @@ export function Layout({ children }: LayoutProps) {
   // Guided tour
   const [runTour, setRunTour] = useState(false);
   const tourSteps = getStepsForRole(user?.role ?? 'user');
+
+  // Sync the initial selectedParkId to localStorage before any child useEffect fires.
+  // useLayoutEffect runs synchronously after DOM commit but before child useEffects,
+  // so api.getSelectedParkId() will return the correct value when pages first fetch data.
+  useLayoutEffect(() => {
+    if (selectedParkId && !localStorage.getItem('selectedParkId')) {
+      localStorage.setItem('selectedParkId', selectedParkId);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadParks();
@@ -117,8 +129,10 @@ export function Layout({ children }: LayoutProps) {
       setSelectedParkId(storedParkId);
     } else if (user?.parkId) {
       setSelectedParkId(user.parkId);
+      localStorage.setItem('selectedParkId', user.parkId);
     } else if (parks.length > 0) {
       setSelectedParkId(parks[0].id);
+      localStorage.setItem('selectedParkId', parks[0].id);
     }
   }, [user, parks, isSuperAdmin]);
 
@@ -172,6 +186,8 @@ export function Layout({ children }: LayoutProps) {
       setParks(data);
     } catch (error) {
       console.error('Failed to load parks:', error);
+    } finally {
+      setParksLoaded(true);
     }
   };
 
@@ -493,7 +509,7 @@ export function Layout({ children }: LayoutProps) {
           )}
 
           <main className="main-content" id="main-content" tabIndex={-1}>
-            {children}
+            {(selectedParkId || parksLoaded) ? children : null}
           </main>
         </div>
 

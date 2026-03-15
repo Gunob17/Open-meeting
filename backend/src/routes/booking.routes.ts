@@ -92,8 +92,10 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
       bookings = await BookingModel.findAll();
     }
 
-    // Scope bookings to the rooms the user can access (super admins see everything)
-    if (req.user?.role !== UserRole.SUPER_ADMIN) {
+    // Scope bookings to the rooms the user can access.
+    // Super admins with no parkId (legacy accounts) see all parks; otherwise scoped like any user.
+    const superAdminWithNoPark = req.user?.role === UserRole.SUPER_ADMIN && !req.user?.parkId;
+    if (!superAdminWithNoPark) {
       let effectiveParkId = req.user?.parkId;
       // Fallback: if parkId not set on user (legacy accounts), derive from their company
       if (!effectiveParkId && req.user?.companyId) {

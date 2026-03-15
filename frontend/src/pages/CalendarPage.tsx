@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { format, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { api } from '../services/api';
@@ -73,9 +73,26 @@ export function CalendarPage() {
   const [moveTargetRoom, setMoveTargetRoom] = useState('');
   const [adminActionReason, setAdminActionReason] = useState('');
 
-  // Mobile responsiveness
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  // Mobile responsiveness — measured from the calendar container, not the window
+  const [isMobile, setIsMobile] = useState(false);
   const [selectedMobileRoomId, setSelectedMobileRoomId] = useState<string>('');
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  // Callback ref: fires whenever the calendar container mounts/unmounts.
+  // Using a callback ref (instead of useRef + useEffect) ensures the observer
+  // is attached even when the element first appears after the loading skeleton clears.
+  const containerRef = useCallback((el: HTMLDivElement | null) => {
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
+    }
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setIsMobile(entry.contentRect.width <= 750);
+    });
+    observer.observe(el);
+    resizeObserverRef.current = observer;
+  }, []);
 
   // Show 7 days starting from startDate
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate]);
@@ -129,12 +146,6 @@ export function CalendarPage() {
     }
   }, [rooms, selectedMobileRoomId]);
 
-  // Listen for resize to toggle mobile mode
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Rooms to render in the grid: single room on mobile, all rooms on desktop
   const displayRooms = isMobile
@@ -419,8 +430,8 @@ export function CalendarPage() {
         </div>
       </div>
 
-      <div className="calendar-container">
-        <div className="calendar-grid" style={{ gridTemplateColumns: `60px repeat(${displayRooms.length}, 1fr)` }}>
+      <div className="calendar-container" ref={containerRef}>
+        <div className="calendar-grid" style={{ gridTemplateColumns: `60px repeat(${displayRooms.length}, 1fr)`, minWidth: isMobile ? 0 : undefined }}>
           {/* Header row with room names */}
           <div className="calendar-corner">
             <div className="room-header">Time / Room</div>
