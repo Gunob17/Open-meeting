@@ -44,7 +44,8 @@ export function Layout({ children }: LayoutProps) {
 
   // Guided tour
   const [runTour, setRunTour] = useState(false);
-  const tourSteps = getStepsForRole(user?.role ?? 'user');
+  const deskBookingEnabled = !!(user?.deskBookingEnabled || isAdmin || isParkAdmin || isSuperAdmin);
+  const tourSteps = getStepsForRole(user?.role ?? 'user', { deskBookingEnabled });
 
   // Sync the initial selectedParkId to localStorage before any child useEffect fires.
   // useLayoutEffect runs synchronously after DOM commit but before child useEffects,
