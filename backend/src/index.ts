@@ -25,6 +25,8 @@ import devRoutes from './routes/dev.routes';
 import icalRoutes from './routes/ical.routes';
 import calendarTokenRoutes from './routes/calendar-token.routes';
 import auditLogRoutes from './routes/audit-log.routes';
+import deskRoutes from './routes/desk.routes';
+import deskBookingRoutes from './routes/desk-booking.routes';
 import { ldapScheduler } from './services/ldap-scheduler.service';
 import { imapManager } from './services/imap.service';
 
@@ -46,6 +48,8 @@ app.use(helmet({
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
     },
   },
   hsts: { maxAge: 31536000, includeSubDomains: true },
@@ -96,6 +100,8 @@ app.use('/api/sso', ssoRoutes);
 app.use('/api/ical', icalRoutes);
 app.use('/api/calendar-tokens', calendarTokenRoutes);
 app.use('/api/audit-log', auditLogRoutes);
+app.use('/api/desks', deskRoutes);
+app.use('/api/desk-bookings', deskBookingRoutes);
 
 // Dev-only routes — never available in production
 if (process.env.NODE_ENV !== 'production') {

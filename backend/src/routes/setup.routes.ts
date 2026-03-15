@@ -1,9 +1,11 @@
 import { Router, Response } from 'express';
 import rateLimit from 'express-rate-limit';
+import zxcvbn from 'zxcvbn';
 import { CompanyModel } from '../models/company.model';
 import { UserModel } from '../models/user.model';
 import { RoomModel } from '../models/room.model';
 import { ParkModel } from '../models/park.model';
+import { DeskModel } from '../models/desk.model';
 import { UserRole } from '../types';
 import { getDb } from '../models/database';
 import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
@@ -196,6 +198,15 @@ router.post('/demo', async (req, res: Response) => {
       parkId: defaultParkId
     });
 
+    // Hot desks for Downtown Business Park — 10 days/month per user
+    await ParkModel.update(defaultParkId, { deskQuotaType: 'per_user', monthlyDeskQuota: 10 });
+    await DeskModel.create({ name: 'Desk 1A', floor: 'Ground Floor', description: 'Window seat with city view', parkId: defaultParkId });
+    await DeskModel.create({ name: 'Desk 1B', floor: 'Ground Floor', description: 'Open plan area', parkId: defaultParkId });
+    await DeskModel.create({ name: 'Desk 1C', floor: 'Ground Floor', description: 'Open plan area', parkId: defaultParkId });
+    await DeskModel.create({ name: 'Desk 2A', floor: '2nd Floor', description: 'Quiet zone near the library', parkId: defaultParkId });
+    await DeskModel.create({ name: 'Desk 2B', floor: '2nd Floor', description: 'Quiet zone near the library', parkId: defaultParkId });
+    await DeskModel.create({ name: 'Standing Desk 1', floor: '2nd Floor', description: 'Height-adjustable standing desk', parkId: defaultParkId });
+
     // =====================
     // TECH INNOVATION HUB
     // =====================
@@ -271,6 +282,13 @@ router.post('/demo', async (req, res: Response) => {
       description: 'Large conference room with AI presentation capabilities',
       parkId: techPark.id
     });
+
+    // Hot desks for Tech Innovation Hub — 8 days/month per user
+    await ParkModel.update(techPark.id, { deskQuotaType: 'per_user', monthlyDeskQuota: 8 });
+    await DeskModel.create({ name: 'Pod Alpha', floor: 'Ground Floor', description: 'Collaborative open space', parkId: techPark.id });
+    await DeskModel.create({ name: 'Pod Beta', floor: 'Ground Floor', description: 'Collaborative open space', parkId: techPark.id });
+    await DeskModel.create({ name: 'Focus Station 1', floor: '1st Floor', description: 'Quiet individual workstation', parkId: techPark.id });
+    await DeskModel.create({ name: 'Focus Station 2', floor: '1st Floor', description: 'Quiet individual workstation', parkId: techPark.id });
 
     // =====================
     // CREATIVE ARTS CENTER
@@ -348,6 +366,12 @@ router.post('/demo', async (req, res: Response) => {
       parkId: creativePark.id
     });
 
+    // Hot desks for Creative Arts Center — unlimited (no quota)
+    await DeskModel.create({ name: 'Studio Desk 1', floor: '1st Floor', description: 'Open creative workspace', parkId: creativePark.id });
+    await DeskModel.create({ name: 'Studio Desk 2', floor: '1st Floor', description: 'Open creative workspace', parkId: creativePark.id });
+    await DeskModel.create({ name: 'Corner Desk', floor: '2nd Floor', description: 'Quiet corner with natural light', parkId: creativePark.id });
+    await DeskModel.create({ name: 'Edit Bay Desk', floor: '2nd Floor', description: 'Next to the screening room', parkId: creativePark.id });
+
     res.json({
       success: true,
       message: 'Demo data created successfully with 3 parks',
@@ -384,6 +408,10 @@ router.post('/production', setupLimiter, async (req, res: Response) => {
       res.status(400).json({ error: 'Password must be at least 8 characters' });
       return;
     }
+    if (zxcvbn(adminPassword).score < 2) {
+      res.status(400).json({ error: 'Password is too weak. Please choose a stronger password.' });
+      return;
+    }
 
     // Check if already set up (exclude system users)
     const db = getDb();
@@ -412,7 +440,7 @@ router.post('/production', setupLimiter, async (req, res: Response) => {
       name: adminName,
       role: UserRole.SUPER_ADMIN,
       companyId: company.id,
-      parkId: null  // Super admin has no park restriction
+      parkId: null,
     });
 
     auditLog({ userId: admin.id, action: AuditAction.SYSTEM_SETUP, resourceType: 'system', resourceId: admin.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'] as string | undefined ?? null, outcome: 'success', metadata: { companyName, adminEmail } });

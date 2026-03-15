@@ -20,8 +20,8 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     const isAdmin = req.user?.role === UserRole.SUPER_ADMIN || req.user?.role === UserRole.PARK_ADMIN;
 
     if (req.user?.role === UserRole.SUPER_ADMIN) {
-      // Super admin can filter by park via query param, or see all if not specified
-      parkId = queryParkId || undefined;
+      // Super admin scoped to their park by default; ?parkId overrides (park switcher)
+      parkId = queryParkId || req.user.parkId || undefined;
     } else {
       // Non-super admins always see their own park's rooms
       parkId = req.user?.parkId;

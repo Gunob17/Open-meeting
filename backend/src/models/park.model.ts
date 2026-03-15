@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from './database';
-import { Park, CreateParkRequest, TwoFaLevelEnforcement } from '../types';
+import { Park, CreateParkRequest, TwoFaLevelEnforcement, DeskQuotaType } from '../types';
 
 export class ParkModel {
   static async create(data: CreateParkRequest): Promise<Park> {
@@ -47,7 +47,7 @@ export class ParkModel {
     return rows.map((row: any) => this.mapRowToPark(row));
   }
 
-  static async update(id: string, data: Partial<CreateParkRequest> & { isActive?: boolean; twofaEnforcement?: TwoFaLevelEnforcement; calendarFeedEnabled?: boolean }): Promise<Park | null> {
+  static async update(id: string, data: Partial<CreateParkRequest> & { isActive?: boolean; twofaEnforcement?: TwoFaLevelEnforcement; calendarFeedEnabled?: boolean; deskQuotaType?: DeskQuotaType | null; monthlyDeskQuota?: number | null }): Promise<Park | null> {
     const existing = await this.findById(id);
     if (!existing) return null;
 
@@ -69,6 +69,12 @@ export class ParkModel {
     }
     if (data.receptionGuestFields !== undefined) {
       updateObj.reception_guest_fields = JSON.stringify(data.receptionGuestFields);
+    }
+    if (data.deskQuotaType !== undefined) {
+      updateObj.desk_quota_type = data.deskQuotaType ?? null;
+    }
+    if (data.monthlyDeskQuota !== undefined) {
+      updateObj.monthly_desk_quota = data.monthlyDeskQuota ?? null;
     }
 
     await db('parks').where('id', id).update(updateObj);
@@ -118,6 +124,8 @@ export class ParkModel {
       receptionEmail: row.reception_email || null,
       receptionGuestFields: JSON.parse(row.reception_guest_fields || '["name"]'),
       calendarFeedEnabled: row.calendar_feed_enabled !== undefined ? !!row.calendar_feed_enabled : true,
+      deskQuotaType: (row.desk_quota_type as DeskQuotaType) || null,
+      monthlyDeskQuota: row.monthly_desk_quota ? Number(row.monthly_desk_quota) : null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

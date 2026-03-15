@@ -91,7 +91,7 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
 router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, address, parkId, twofaEnforcement } = req.body;
+    const { name, address, parkId, twofaEnforcement, deskBookingEnabled } = req.body;
 
     // Only super admins can change parkId
     const updateData: any = { name, address };
@@ -101,6 +101,10 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Res
     // Park admins and above can set 2FA enforcement for a company
     if (twofaEnforcement !== undefined) {
       updateData.twofaEnforcement = twofaEnforcement;
+    }
+    // Park admins and above can toggle desk booking access
+    if (deskBookingEnabled !== undefined) {
+      updateData.deskBookingEnabled = Boolean(deskBookingEnabled);
     }
 
     const company = await CompanyModel.update(id, updateData);

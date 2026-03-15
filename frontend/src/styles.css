@@ -63,11 +63,48 @@
   --shadow-md:  0 4px 12px rgba(0, 0, 0, 0.1);
   --shadow-lg:  0 10px 40px rgba(0, 0, 0, 0.2);
 
+  /* Sidebar — always dark in both themes, do not override in dark block */
+  --color-sidebar-bg:        #1e293b;
+  --color-sidebar-text:      #e2e8f0;
+  --color-sidebar-text-muted: #94a3b8;
+  --color-sidebar-active-bg: rgba(255, 255, 255, 0.1);
+  --color-sidebar-hover-bg:  rgba(255, 255, 255, 0.06);
+  --color-sidebar-border:    rgba(255, 255, 255, 0.08);
+
   /* Badge tokens */
   --badge-radius: var(--radius-full);
   --badge-padding: 0.25rem 0.625rem;
   --badge-font-size: var(--font-size-xs);
   --badge-font-weight: 500;
+
+  /* ── Semantic surface tokens (light mode) ──────────────────────────────────
+     These are the canonical values used throughout the stylesheet.
+     Components reference these tokens; the dark block flips them.
+     ────────────────────────────────────────────────────────────────────────── */
+
+  /* Page / app background */
+  --color-bg:           #f3f4f6;
+
+  /* White card / page-container surface */
+  --color-surface:      #ffffff;
+
+  /* Slightly off-white surface: card headers, table th, modal footer,
+     skeleton cells, .room-card-header, .booking-card-header, etc. */
+  --color-surface-2:    #f9fafb;
+
+  /* Elevated / inset surface: form inputs, select, textarea,
+     code blocks, .companies-grid, .add-device-form, credential cards */
+  --color-input-bg:     #ffffff;
+
+  /* Text on surface */
+  --color-text:         #1f2937;
+  --color-text-muted:   #6b7280;
+
+  /* Focus ring for inputs (semi-transparent primary) */
+  --color-focus-ring:   rgba(79, 70, 229, 0.15);
+
+  /* Modal overlay */
+  --color-overlay:      rgba(0, 0, 0, 0.5);
 }
 
 /* Reset and base styles */
@@ -83,9 +120,586 @@ html {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  background-color: var(--color-gray-100);
-  color: var(--color-gray-800);
+  background-color: var(--color-bg, var(--color-gray-100));
+  color: var(--color-text, var(--color-gray-800));
   line-height: 1.5;
+}
+
+/* ============================================================
+   Dark mode — applied via [data-theme="dark"] on <html>
+   System preference honoured when no explicit data-theme set.
+
+   Palette:
+     Page bg         #0f172a  slate-900
+     Card / modal    #1e293b  slate-800
+     Input / inset   #334155  slate-700
+     Border          #475569  slate-600
+     Primary text    #f1f5f9  slate-100
+     Muted text      #94a3b8  slate-400
+     Primary accent  #6366f1  indigo-500
+
+   NOTE: Sidebar tokens are NOT overridden here — the sidebar is
+   always dark regardless of page theme. That is correct behaviour.
+   ============================================================ */
+
+/* ── Token overrides ─────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  /* Neutral palette remapped to slate */
+  --color-gray-50:  #1e293b;
+  --color-gray-100: #0f172a;
+  --color-gray-200: #334155;
+  --color-gray-300: #475569;
+  --color-gray-400: #64748b;
+  --color-gray-500: #94a3b8;   /* WCAG AA on #1e293b (4.6:1) */
+  --color-gray-600: #cbd5e1;
+  --color-gray-700: #e2e8f0;
+  --color-gray-800: #f1f5f9;   /* WCAG AA on #0f172a (14:1) */
+
+  /* Primary tints for dark surfaces */
+  --color-primary:         #6366f1;
+  --color-primary-hover:   #818cf8;
+  --color-primary-light:   #312e81;
+  --color-primary-lighter: #1e1b4b;
+
+  /* Semantic tints — keep accessible on dark card surfaces */
+  --color-success-light: #052e16;
+  --color-danger-light:  #450a0a;
+  --color-warning-light: #431407;
+  --color-info-light:    #172554;
+
+  /* Borders */
+  --border-color: #475569;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.7);
+
+  /* Semantic surface tokens */
+  --color-bg:         #0f172a;
+  --color-surface:    #1e293b;
+  --color-surface-2:  #0f172a;
+  --color-input-bg:   #334155;
+  --color-text:       #f1f5f9;
+  --color-text-muted: #94a3b8;
+  --color-focus-ring: rgba(99, 102, 241, 0.25);
+  --color-overlay:    rgba(0, 0, 0, 0.75);
+}
+
+/* System-preference fallback for users with no explicit data-theme */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-theme="dark"]) {
+    --color-gray-50:  #1e293b;
+    --color-gray-100: #0f172a;
+    --color-gray-200: #334155;
+    --color-gray-300: #475569;
+    --color-gray-400: #64748b;
+    --color-gray-500: #94a3b8;
+    --color-gray-600: #cbd5e1;
+    --color-gray-700: #e2e8f0;
+    --color-gray-800: #f1f5f9;
+    --color-primary:         #6366f1;
+    --color-primary-hover:   #818cf8;
+    --color-primary-light:   #312e81;
+    --color-primary-lighter: #1e1b4b;
+    --color-success-light: #052e16;
+    --color-danger-light:  #450a0a;
+    --color-warning-light: #431407;
+    --color-info-light:    #172554;
+    --border-color: #475569;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.7);
+    --color-bg:         #0f172a;
+    --color-surface:    #1e293b;
+    --color-surface-2:  #0f172a;
+    --color-input-bg:   #334155;
+    --color-text:       #f1f5f9;
+    --color-text-muted: #94a3b8;
+    --color-focus-ring: rgba(99, 102, 241, 0.25);
+    --color-overlay:    rgba(0, 0, 0, 0.75);
+  }
+}
+
+/* ── Body ────────────────────────────────────────────────────────────────── */
+[data-theme="dark"] body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+@media (prefers-color-scheme: dark) {
+  body:not([data-theme="light"]) {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+  }
+}
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+[data-theme="dark"] .modal-overlay {
+  background: var(--color-overlay);
+}
+
+[data-theme="dark"] .modal {
+  background: var(--color-surface);
+  border: 1px solid var(--border-color);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .modal-header {
+  background: var(--color-surface);
+  border-bottom-color: var(--border-color);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .modal-body {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .modal-footer {
+  /* Surface-2 is the page-bg tone, visually separating the footer from the
+     card body without relying on a heavy border alone. */
+  background: var(--color-surface-2);
+  border-top-color: var(--border-color);
+}
+
+[data-theme="dark"] .modal-description {
+  color: var(--color-text-muted);
+}
+
+/* ── Form elements ───────────────────────────────────────────────────────── */
+[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: var(--color-input-bg);
+  color: var(--color-text);
+  border-color: var(--border-color);
+}
+
+/* Checkboxes & radios — use accent-color so the tick/fill uses brand colour,
+   and force a visible border on the unchecked state in dark mode. */
+[data-theme="dark"] input[type="checkbox"],
+[data-theme="dark"] input[type="radio"] {
+  accent-color: var(--color-primary);
+  outline: 1px solid var(--border-color);
+  outline-offset: 1px;
+}
+
+[data-theme="dark"] .checkbox-label,
+[data-theme="dark"] .checkbox-row label {
+  color: var(--color-text);
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  outline: none;
+}
+
+/* ── Tab navigation ──────────────────────────────────────────────────────── */
+[data-theme="dark"] .tab-nav {
+  border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .tab-btn {
+  color: var(--color-text-muted);
+}
+
+[data-theme="dark"] .tab-btn:hover {
+  color: var(--color-gray-600);
+}
+
+[data-theme="dark"] .tab-btn--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* ── White-surface page containers ──────────────────────────────────────── */
+[data-theme="dark"] .card,
+[data-theme="dark"] .rooms-page,
+[data-theme="dark"] .my-bookings-page,
+[data-theme="dark"] .users-page,
+[data-theme="dark"] .admin-rooms-page,
+[data-theme="dark"] .companies-page,
+[data-theme="dark"] .parks-page,
+[data-theme="dark"] .settings-page,
+[data-theme="dark"] .calendar-page,
+[data-theme="dark"] .receptionist-page,
+[data-theme="dark"] .section,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .stats-section,
+[data-theme="dark"] .firmware-panel,
+[data-theme="dark"] .devices-panel,
+[data-theme="dark"] .login-card,
+[data-theme="dark"] .setup-card {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .devices-page .page-header,
+[data-theme="dark"] .statistics-page .page-header {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* ── Surface-2: inset / header / footer areas within cards ──────────────── */
+[data-theme="dark"] .room-card-header,
+[data-theme="dark"] .booking-card-header,
+[data-theme="dark"] .panel-header,
+[data-theme="dark"] .summary-card,
+[data-theme="dark"] .room-details,
+[data-theme="dark"] .companies-grid,
+[data-theme="dark"] .add-device-form,
+[data-theme="dark"] .selected-devices-list,
+[data-theme="dark"] .firmware-notes,
+[data-theme="dark"] .credential-card,
+[data-theme="dark"] .device-type-group,
+[data-theme="dark"] .twofa-secret-code,
+[data-theme="dark"] .backup-code,
+[data-theme="dark"] .duration-checkbox {
+  background: var(--color-surface-2);
+}
+
+[data-theme="dark"] .data-table th {
+  background: var(--color-surface-2);
+  color: var(--color-gray-600);
+}
+
+[data-theme="dark"] .data-table tr:hover,
+[data-theme="dark"] .table-row:hover {
+  background: var(--color-surface-2);
+}
+
+/* Calendar grid label/header cells */
+[data-theme="dark"] .calendar-corner,
+[data-theme="dark"] .room-column-header,
+[data-theme="dark"] .time-slot-label {
+  background: var(--color-surface-2);
+  border-color: var(--border-color);
+  color: var(--color-text-muted);
+}
+
+/* Skeleton cells */
+[data-theme="dark"] .skeleton-calendar-cell {
+  background: var(--color-surface);
+}
+
+/* ── Calendar time-slot states ───────────────────────────────────────────── */
+[data-theme="dark"] .time-slot {
+  border-color: var(--border-color);
+  background: var(--color-surface);
+}
+
+[data-theme="dark"] .time-slot.available:not(.past) {
+  background: var(--color-surface);
+}
+
+[data-theme="dark"] .time-slot.available:not(.past):hover,
+[data-theme="dark"] .time-slot.available:hover {
+  background: #1e1b4b; /* indigo-950 */
+  border-color: #6366f1;
+}
+
+[data-theme="dark"] .time-slot.booked {
+  background: #450a0a; /* red-950 */
+  border-color: #dc2626;
+}
+
+[data-theme="dark"] .time-slot.booked:hover {
+  background: #5a0d0d;
+  border-color: #ef4444;
+}
+
+[data-theme="dark"] .time-slot.partial {
+  background: linear-gradient(135deg, #052e16 50%, #450a0a 50%); /* green-950 / red-950 */
+  border-color: #16a34a;
+}
+
+[data-theme="dark"] .time-slot.partial:hover {
+  background: linear-gradient(135deg, #064e23 50%, #5a0d0d 50%);
+  border-color: #22c55e;
+}
+
+[data-theme="dark"] .time-slot.past {
+  background: #0f172a; /* slate-900 — recessed */
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+[data-theme="dark"] .time-slot.unavailable {
+  background: #451a03; /* amber-950 */
+  border-color: #d97706;
+  cursor: not-allowed;
+}
+
+[data-theme="dark"] .time-slot.restricted {
+  background: #500724; /* rose-950 */
+  border-color: #db2777;
+  cursor: not-allowed;
+}
+
+/* Calendar legend swatches */
+[data-theme="dark"] .legend-item {
+  color: var(--color-text-muted);
+}
+
+[data-theme="dark"] .legend-color.available {
+  background: var(--color-surface);
+  border-color: #6366f1;
+}
+
+[data-theme="dark"] .legend-color.booked {
+  background: #450a0a;
+  border-color: #dc2626;
+}
+
+[data-theme="dark"] .legend-color.partial {
+  background: linear-gradient(135deg, #052e16 50%, #450a0a 50%);
+  border-color: #16a34a;
+}
+
+[data-theme="dark"] .legend-color.past {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+[data-theme="dark"] .legend-color.unavailable {
+  background: #451a03;
+  border-color: #d97706;
+}
+
+[data-theme="dark"] .legend-color.restricted {
+  background: #500724;
+  border-color: #db2777;
+}
+
+/* Room header text in dark */
+[data-theme="dark"] .room-capacity {
+  color: var(--color-text-muted);
+}
+
+[data-theme="dark"] .room-name {
+  color: var(--color-text);
+}
+
+/* ── Room card booking previews ──────────────────────────────────────────── */
+[data-theme="dark"] .next-booking {
+  background: #1c1917; /* stone-900 — warm dark, evokes "upcoming" */
+  border: 1px solid #451a03; /* amber-950 border */
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .next-booking strong {
+  color: #fbbf24; /* amber-400 — readable label */
+}
+
+[data-theme="dark"] .current-booking {
+  background: #1c0505;
+  border: 1px solid #450a0a;
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .current-booking strong {
+  color: #f87171; /* red-400 */
+}
+
+[data-theme="dark"] .next-booking .booking-time,
+[data-theme="dark"] .current-booking .booking-time {
+  color: var(--color-text-muted);
+}
+
+/* ── System banners ──────────────────────────────────────────────────────── */
+[data-theme="dark"] .system-banner--warning {
+  background: #1c1002;
+  color: #fbbf24;
+  border-bottom-color: #78350f;
+}
+
+[data-theme="dark"] .system-banner--critical {
+  background: #1c0505;
+  color: #f87171;
+  border-bottom-color: #7f1d1d;
+}
+
+/* ── Dropdown menus ──────────────────────────────────────────────────────── */
+/* These are always dark-styled in both themes; just sync border colour. */
+[data-theme="dark"] .user-menu-dropdown,
+[data-theme="dark"] .park-dropdown-list {
+  background: #1e293b;
+  border-color: var(--border-color);
+}
+
+/* ── Device / firmware cards ─────────────────────────────────────────────── */
+[data-theme="dark"] .device-card,
+[data-theme="dark"] .firmware-card {
+  background: var(--color-surface);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .firmware-card.active {
+  background: #052e16; /* green-950 — replaces hardcoded #f0fdf4 */
+  border-color: #16a34a;
+}
+
+/* firmware-compact-card is the actual class used in DevicesPage */
+[data-theme="dark"] .firmware-compact-card.active {
+  background: #052e16;
+  border-color: #16a34a;
+}
+
+[data-theme="dark"] .firmware-compact-card {
+  border-bottom-color: var(--border-color);
+}
+
+/* ── Device-page: hardcoded light colours ────────────────────────────────── */
+[data-theme="dark"] .device-card.selected {
+  background: #1e1b4b; /* indigo-950 */
+  border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .update-info {
+  background: #1c1002;
+  border-color: #78350f;
+}
+
+[data-theme="dark"] .update-info h3 {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .update-info .release-notes {
+  background: var(--color-surface-2);
+}
+
+[data-theme="dark"] .update-info .release-notes strong {
+  color: #fcd34d;
+}
+
+[data-theme="dark"] .update-info .release-notes p,
+[data-theme="dark"] .update-note {
+  color: var(--color-text-muted);
+}
+
+[data-theme="dark"] .update-info.pending {
+  background: #1c0505;
+  border-color: #7f1d1d;
+}
+
+[data-theme="dark"] .update-info.pending h3 {
+  color: #f87171;
+}
+
+[data-theme="dark"] .info-box {
+  background: #082f49; /* sky-950 */
+  border-color: #0369a1;
+  color: #7dd3fc; /* sky-300 */
+}
+
+[data-theme="dark"] .selection-bar {
+  background: var(--color-surface);
+  border-color: var(--border-color);
+  color: var(--color-text);
+}
+
+/* ── Generic hardcoded white/light surfaces ──────────────────────────────── */
+[data-theme="dark"] .room-details,
+[data-theme="dark"] .section-card {
+  background: var(--color-surface);
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .device-card.selected {
+  background: var(--color-primary-lighter);
+  border-color: var(--color-primary);
+}
+
+[data-theme="dark"] .status-badge.available,
+[data-theme="dark"] .status-badge.active,
+[data-theme="dark"] .status-badge.confirmed {
+  color: #4ade80; /* green-400 — readable on dark green-950 bg */
+}
+
+[data-theme="dark"] .status-badge.occupied,
+[data-theme="dark"] .status-badge.inactive {
+  color: #f87171; /* red-400 */
+}
+
+/* ── Room Finder panel ───────────────────────────────────────────────────── */
+[data-theme="dark"] .room-finder-panel {
+  border-color: var(--border-color);
+}
+
+[data-theme="dark"] .finder-toggle {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .finder-toggle:hover {
+  background: var(--color-input-bg);
+}
+
+[data-theme="dark"] .finder-form {
+  border-top-color: var(--border-color);
+}
+
+[data-theme="dark"] .amenity-checkbox-label {
+  border-color: var(--border-color);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .amenity-checkbox-label:hover {
+  background: var(--color-input-bg);
+}
+
+/* ── Mobile room selector ────────────────────────────────────────────────── */
+[data-theme="dark"] .mobile-room-selector select {
+  background: var(--color-input-bg);
+}
+
+/* ── Login / Setup ───────────────────────────────────────────────────────── */
+[data-theme="dark"] .login-email-display {
+  background: var(--color-surface-2);
+}
+
+[data-theme="dark"] .login-email-display:hover {
+  background: var(--color-input-bg);
+}
+
+[data-theme="dark"] .login-email-text {
+  color: var(--color-text);
+}
+
+[data-theme="dark"] .loading-spinner {
+  border-color: var(--border-color);
+  border-top-color: var(--color-primary);
+}
+
+/* Theme toggle in sidebar footer */
+.theme-toggle-btn {
+  background: none;
+  border: none;
+  color: var(--color-sidebar-text-muted, #94a3b8);
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  transition: color 0.15s, background 0.15s;
+  width: 100%;
+  text-align: left;
+}
+
+.theme-toggle-btn:hover {
+  color: var(--color-sidebar-text, #e2e8f0);
+  background: var(--color-sidebar-hover-bg, rgba(255,255,255,0.06));
 }
 
 /* Loading state */
@@ -96,6 +710,24 @@ body {
   min-height: 200px;
   font-size: var(--font-size-lg);
   color: var(--color-gray-500);
+}
+
+/* Skip navigation link (accessibility) */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--space-4);
+  z-index: 9999;
+  background: var(--color-primary);
+  color: #fff;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.1s;
+}
+.skip-link:focus {
+  top: var(--space-4);
 }
 
 /* App Layout with Sidebar */
@@ -111,8 +743,8 @@ body {
   top: 0;
   bottom: 0;
   width: 260px;
-  background: #1e293b;
-  color: #e2e8f0;
+  background: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
   display: flex;
   flex-direction: column;
   z-index: 100;
@@ -406,8 +1038,13 @@ body {
 }
 
 /* Sidebar Footer */
+.sidebar-footer-extras {
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--color-sidebar-border, rgba(255,255,255,0.08));
+}
+
 .sidebar-footer {
-  border-top: 1px solid #334155;
+  border-top: 1px solid var(--color-sidebar-border, #334155);
   padding: 1rem;
 }
 
@@ -866,22 +1503,37 @@ body {
   border: 1px solid #fecaca;
 }
 
+[data-theme="dark"] .alert-error {
+  background: #1c0505;
+  color: #f87171;
+  border-color: #7f1d1d;
+}
+
 /* Login page */
 .login-container {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  /* Subtle indigo tint — welcoming but not overwhelming */
+  background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%);
+}
+
+[data-theme="dark"] .login-container {
+  background: var(--color-bg);
 }
 
 .login-card {
-  background: white;
+  background: var(--color-surface);
   padding: 2rem;
   border-radius: 0.75rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   width: 100%;
   max-width: 400px;
+}
+
+[data-theme="dark"] .login-card {
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
 .login-header {
@@ -891,20 +1543,20 @@ body {
 
 .login-header h1 {
   font-size: 1.5rem;
-  color: #1f2937;
+  color: var(--color-text);
 }
 
 .login-header p {
-  color: #6b7280;
+  color: var(--color-text-muted);
   margin-top: 0.5rem;
 }
 
 .login-demo {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--color-border, #e5e7eb);
   font-size: 0.75rem;
-  color: #6b7280;
+  color: var(--color-text-muted);
 }
 
 .login-demo ul {
@@ -934,13 +1586,13 @@ body {
 
 .login-email-text {
   font-size: 0.9rem;
-  color: #1f2937;
+  color: var(--color-text);
   font-weight: 500;
 }
 
 .login-email-change {
   font-size: 0.8rem;
-  color: #4f46e5;
+  color: var(--color-primary);
   font-weight: 500;
 }
 
@@ -960,7 +1612,8 @@ body {
 
 /* Calendar page */
 .calendar-page {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
@@ -970,15 +1623,25 @@ body {
   padding: var(--space-4) var(--space-6);
   border-bottom: var(--border);
   display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.calendar-header-top {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
   gap: var(--space-4);
 }
 
 .calendar-header h1 {
   font-size: var(--font-size-2xl);
   font-weight: 600;
+}
+
+.quick-book-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .calendar-header h2 {
@@ -1141,14 +1804,18 @@ body {
 }
 
 .booking-indicator {
-  background: #3b82f6; /* fallback — overridden per-booking in JS */
-  color: white;
+  /* backgroundColor set inline per-booking via getBookingColor() */
+  color: #fff;
   padding: 0.25rem 0.375rem;
   border-radius: 0.25rem;
   font-size: 0.75rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+[data-theme="dark"] .booking-indicator {
+  filter: brightness(0.82) saturate(0.9);
 }
 
 .booking-indicator.booking-span {
@@ -1161,6 +1828,7 @@ body {
   white-space: normal;
   overflow: hidden;
   min-height: 20px;
+  padding-bottom: 18px; /* reserve room for the time footer */
 }
 
 .booking-indicator .booking-title {
@@ -1170,10 +1838,50 @@ body {
   white-space: nowrap;
 }
 
+/* Time footer — pinned to the bottom, semi-transparent strip */
 .booking-indicator .booking-time {
-  font-size: 0.65rem;
-  opacity: 0.9;
-  margin-top: 0.125rem;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.38);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.6rem;
+  font-weight: 500;
+  padding: 2px 5px;
+  border-radius: 0 0 3px 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Compact: multiple bookings side by side — shrink title, keep time footer */
+.booking-indicator--compact .booking-title {
+  font-size: 0.68rem;
+}
+
+/* Silent: booking < 45 min — hide title, show only time centred in the bar */
+.booking-indicator--silent.booking-span {
+  padding-bottom: 0;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.booking-indicator--silent .booking-title {
+  display: none;
+}
+
+.booking-indicator--silent .booking-time {
+  position: static;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 3px;
+  padding: 2px 5px;
+  font-size: 0.58rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Calendar legend */
@@ -1237,7 +1945,8 @@ body {
 .admin-rooms-page,
 .companies-page,
 .parks-page {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-6);
@@ -1704,7 +2413,8 @@ body {
 }
 
 .modal {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 650px;
@@ -1759,7 +2469,7 @@ body {
   justify-content: flex-end;
   gap: var(--space-2);
   flex-shrink: 0;
-  background: var(--color-gray-50);
+  background: var(--color-surface-2, var(--color-gray-50));
 }
 
 /* Forms inside modals need to be flex containers too */
@@ -2170,7 +2880,8 @@ body {
 
 /* Settings page */
 .settings-page {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-6);
@@ -2369,7 +3080,8 @@ body {
 
 /* Devices & Firmware Page */
 .section {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-6);
@@ -2394,7 +3106,7 @@ body {
   border: var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
-  background: #fff;
+  background: var(--color-surface, #ffffff);
 }
 
 .firmware-card.active {
@@ -2716,7 +3428,8 @@ body {
 
 .device-card {
   display: flex;
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border: var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
@@ -2822,7 +3535,8 @@ body {
 .firmware-panel {
   flex: 0 0 30%;
   max-width: 30%;
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border: var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -2831,7 +3545,8 @@ body {
 .devices-panel {
   flex: 1;
   min-width: 0;
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border: var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
@@ -2997,7 +3712,8 @@ body {
 }
 
 .stat-card {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border: var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
@@ -3051,7 +3767,8 @@ body {
 }
 
 .stats-section {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border: var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
@@ -3452,7 +4169,8 @@ body {
 }
 
 .card {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border-radius: var(--radius-lg);
   padding: var(--space-6);
   box-shadow: var(--shadow-sm);
@@ -3476,7 +4194,8 @@ body {
 /* Dashboard-style pages (multi-card layout, no outer white card) */
 .devices-page .page-header,
 .statistics-page .page-header {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-4) var(--space-6);
@@ -3941,7 +4660,8 @@ body {
 /* ========== Receptionist / Guest Management Page ========== */
 
 .receptionist-page {
-  background: white;
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, var(--color-gray-800));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-6);
@@ -4205,4 +4925,139 @@ body {
   .has-banner .main-content {
     padding-top: calc(var(--space-3) + 41px);
   }
+}
+
+/* ============================================================
+   Toast notifications
+   ============================================================ */
+.toast-container {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 360px;
+  width: calc(100vw - 2 * var(--space-6));
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  animation: toast-in 0.2s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.toast--success { background: var(--color-success); color: #fff; }
+.toast--error   { background: var(--color-danger);  color: #fff; }
+.toast--warning { background: var(--color-warning); color: #fff; }
+.toast--info    { background: var(--color-info);    color: #fff; }
+
+.toast-message {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.toast-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.8;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.toast-dismiss:hover { opacity: 1; }
+
+/* ============================================================
+   Tab navigation (replaces inline styles in Settings pages)
+   ============================================================ */
+.tab-nav {
+  display: flex;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: var(--space-6);
+  gap: var(--space-1);
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-gray-500);
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  color: var(--color-gray-700);
+}
+
+.tab-btn--active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Today column highlight on calendar */
+.calendar-day-header.today {
+  background: var(--color-primary-lighter);
+  color: var(--color-primary);
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+}
+
+.time-slot.today-column {
+  background: rgba(79, 70, 229, 0.03);
+}
+
+/* Skeleton loader */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.skeleton {
+  background: var(--color-gray-200);
+  border-radius: var(--radius-md);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-text {
+  height: 1em;
+  border-radius: var(--radius-sm);
+  background: var(--color-gray-200);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-calendar {
+  display: grid;
+  gap: 1px;
+  background: var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-height: 400px;
+}
+
+.skeleton-calendar-cell {
+  background: white;
+  min-height: 60px;
 }

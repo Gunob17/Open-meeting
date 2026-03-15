@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { TourProvider } from '../context/TourContext';
@@ -13,11 +13,14 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const { user, logout, isAdmin, isCompanyAdmin, isSuperAdmin, isReceptionist, impersonatedUser, viewAsRole, viewAsReceptionist } = useAuth();
+  const { user, logout, isAdmin, isParkAdmin, isCompanyAdmin, isSuperAdmin, isReceptionist, impersonatedUser, viewAsRole, viewAsReceptionist } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [parks, setParks] = useState<Park[]>([]);
-  const [selectedParkId, setSelectedParkId] = useState<string>('');
+  const [selectedParkId, setSelectedParkId] = useState<string>(
+    () => localStorage.getItem('selectedParkId') || user?.parkId || ''
+  );
+  const [parksLoaded, setParksLoaded] = useState(false);
   const [currentPark, setCurrentPark] = useState<Park | null>(null);
 
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -32,6 +35,9 @@ export function Layout({ children }: LayoutProps) {
     return window.innerWidth > 768;
   });
 
+  // Dark mode is managed by SettingsContext (sets data-theme on <html>).
+  // Layout no longer needs to read the theme value directly.
+
   // System banner
   const [settings, setSettings] = useState<Settings | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
@@ -39,6 +45,15 @@ export function Layout({ children }: LayoutProps) {
   // Guided tour
   const [runTour, setRunTour] = useState(false);
   const tourSteps = getStepsForRole(user?.role ?? 'user');
+
+  // Sync the initial selectedParkId to localStorage before any child useEffect fires.
+  // useLayoutEffect runs synchronously after DOM commit but before child useEffects,
+  // so api.getSelectedParkId() will return the correct value when pages first fetch data.
+  useLayoutEffect(() => {
+    if (selectedParkId && !localStorage.getItem('selectedParkId')) {
+      localStorage.setItem('selectedParkId', selectedParkId);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadParks();
@@ -114,8 +129,10 @@ export function Layout({ children }: LayoutProps) {
       setSelectedParkId(storedParkId);
     } else if (user?.parkId) {
       setSelectedParkId(user.parkId);
+      localStorage.setItem('selectedParkId', user.parkId);
     } else if (parks.length > 0) {
       setSelectedParkId(parks[0].id);
+      localStorage.setItem('selectedParkId', parks[0].id);
     }
   }, [user, parks, isSuperAdmin]);
 
@@ -169,6 +186,8 @@ export function Layout({ children }: LayoutProps) {
       setParks(data);
     } catch (error) {
       console.error('Failed to load parks:', error);
+    } finally {
+      setParksLoaded(true);
     }
   };
 
@@ -195,6 +214,9 @@ export function Layout({ children }: LayoutProps) {
   return (
     <TourProvider startTour={startTour}>
       <div className="app-layout">
+        {/* Skip navigation link for keyboard/screen reader users */}
+        <a href="#main-content" className="skip-link">Skip to main content</a>
+
         {/* Guided tour overlay */}
         <TourGuide steps={tourSteps} run={runTour} onFinish={handleTourFinish} onStep={handleTourStep} />
 
@@ -277,6 +299,14 @@ export function Layout({ children }: LayoutProps) {
                     <span className="link-text">My Bookings</span>
                   </Link>
                 </li>
+                {(user?.deskBookingEnabled || isAdmin || isParkAdmin || isSuperAdmin) && (
+                  <li>
+                    <Link to="/desks" className={`sidebar-link ${isActive('/desks') ? 'active' : ''}`} data-tour="nav-desks">
+                      <span className="link-icon">&#128188;</span>
+                      <span className="link-text">Hot Desks</span>
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -335,6 +365,12 @@ export function Layout({ children }: LayoutProps) {
                     </Link>
                   </li>
                   <li>
+                    <Link to="/admin/desks" className={`sidebar-link ${isActive('/admin/desks') ? 'active' : ''}`} data-tour="nav-admin-desks">
+                      <span className="link-icon">&#128188;</span>
+                      <span className="link-text">Manage Desks</span>
+                    </Link>
+                  </li>
+                  <li>
                     <Link to="/admin/devices" className={`sidebar-link ${isActive('/admin/devices') ? 'active' : ''}`} data-tour="nav-admin-devices">
                       <span className="link-icon">&#128187;</span>
                       <span className="link-text">Devices</span>
@@ -370,6 +406,7 @@ export function Layout({ children }: LayoutProps) {
               </div>
             )}
           </nav>
+
 
           <div className="sidebar-footer" ref={userMenuRef}>
             {userMenuOpen && (
@@ -471,8 +508,8 @@ export function Layout({ children }: LayoutProps) {
             </div>
           )}
 
-          <main className="main-content">
-            {children}
+          <main className="main-content" id="main-content" tabIndex={-1}>
+            {(selectedParkId || parksLoaded) ? children : null}
           </main>
         </div>
 

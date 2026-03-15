@@ -1,22 +1,25 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { format, addDays, subDays, isSameDay, parseISO } from 'date-fns';
 import { api } from '../services/api';
 import { Booking, MeetingRoom, Settings } from '../types';
 import { BookingModal } from '../components/BookingModal';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { useSettings } from '../context/SettingsContext';
 import { formatTime, formatDateTime, formatHour } from '../utils/time';
 
-// Consistent color per booking derived from its ID
+// Accent colours for booking indicators — left border + tinted background.
+// Chosen for good visibility in both light and dark modes.
 const BOOKING_COLORS = [
-  '#3b82f6', // blue
-  '#22c55e', // green
-  '#a855f7', // purple
-  '#f97316', // orange
-  '#14b8a6', // teal
-  '#ec4899', // pink
-  '#6366f1', // indigo
-  '#eab308', // yellow
+  '#2563eb', // blue-600
+  '#16a34a', // green-600
+  '#9333ea', // purple-600
+  '#ea580c', // orange-600
+  '#0d9488', // teal-600
+  '#db2777', // pink-600
+  '#4f46e5', // indigo-600
+  '#b45309', // amber-700
 ];
 const getBookingColor = (id: string): string => {
   let hash = 0;
@@ -24,8 +27,35 @@ const getBookingColor = (id: string): string => {
   return BOOKING_COLORS[Math.abs(hash) % BOOKING_COLORS.length];
 };
 
+/**
+ * Assign a column index to each booking so overlapping meetings in the same
+ * slot render side-by-side instead of on top of each other.
+ * Returns a map of bookingId → { colIndex, totalCols }.
+ */
+const assignColumns = (slotBookings: Booking[]): Map<string, { colIndex: number; totalCols: number }> => {
+  const sorted = [...slotBookings].sort(
+    (a, b) => parseISO(a.startTime).getTime() - parseISO(b.startTime).getTime()
+  );
+  const colEnds: Date[] = []; // tracks the end-time of the last booking placed in each column
+  const result = new Map<string, { colIndex: number; totalCols: number }>();
+
+  for (const b of sorted) {
+    const start = parseISO(b.startTime);
+    const end   = parseISO(b.endTime);
+    let col = colEnds.findIndex(colEnd => colEnd <= start);
+    if (col === -1) col = colEnds.length;
+    colEnds[col] = end;
+    result.set(b.id, { colIndex: col, totalCols: 0 });
+  }
+
+  const totalCols = colEnds.length;
+  for (const [id, info] of result) result.set(id, { ...info, totalCols });
+  return result;
+};
+
 export function CalendarPage() {
   const { user, isAdmin } = useAuth();
+  const showConfirm = useConfirm();
   const { timeFormat } = useSettings();
   const [startDate, setStartDate] = useState(new Date());
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
@@ -43,9 +73,26 @@ export function CalendarPage() {
   const [moveTargetRoom, setMoveTargetRoom] = useState('');
   const [adminActionReason, setAdminActionReason] = useState('');
 
-  // Mobile responsiveness
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  // Mobile responsiveness — measured from the calendar container, not the window
+  const [isMobile, setIsMobile] = useState(false);
   const [selectedMobileRoomId, setSelectedMobileRoomId] = useState<string>('');
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  // Callback ref: fires whenever the calendar container mounts/unmounts.
+  // Using a callback ref (instead of useRef + useEffect) ensures the observer
+  // is attached even when the element first appears after the loading skeleton clears.
+  const containerRef = useCallback((el: HTMLDivElement | null) => {
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
+    }
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setIsMobile(entry.contentRect.width <= 750);
+    });
+    observer.observe(el);
+    resizeObserverRef.current = observer;
+  }, []);
 
   // Show 7 days starting from startDate
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate]);
@@ -99,12 +146,6 @@ export function CalendarPage() {
     }
   }, [rooms, selectedMobileRoomId]);
 
-  // Listen for resize to toggle mobile mode
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Rooms to render in the grid: single room on mobile, all rooms on desktop
   const displayRooms = isMobile
@@ -258,7 +299,7 @@ export function CalendarPage() {
       ? 'Are you sure you want to delete this booking?'
       : 'Are you sure you want to delete this booking? The organizer will be notified.';
 
-    if (window.confirm(message)) {
+    if (await showConfirm({ message, title: 'Delete Booking', confirmLabel: 'Delete' })) {
       try {
         await api.deleteBooking(selectedBooking.id, isOwn ? undefined : adminActionReason || undefined);
         setSelectedBooking(null);
@@ -282,7 +323,7 @@ export function CalendarPage() {
     if (!selectedBooking || !moveTargetRoom) return;
 
     const targetRoom = rooms.find(r => r.id === moveTargetRoom);
-    if (!window.confirm(`Move "${selectedBooking.title}" to ${targetRoom?.name}?`)) {
+    if (!await showConfirm({ message: `Move "${selectedBooking.title}" to ${targetRoom?.name}?`, title: 'Move Booking', confirmLabel: 'Move', variant: 'primary' })) {
       return;
     }
 
@@ -313,13 +354,26 @@ export function CalendarPage() {
   };
 
   if (loading) {
-    return <div className="loading">Loading calendar...</div>;
+    return (
+      <div className="page-container">
+        <div className="skeleton-calendar">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="skeleton-calendar-cell" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="calendar-page">
       <div className="calendar-header">
-        <h1>Meeting Room Calendar</h1>
+        <div className="calendar-header-top">
+          <h1>Meeting Room Calendar</h1>
+          <Link to="/rooms" className="btn btn-primary quick-book-btn">
+            Quick Book
+          </Link>
+        </div>
         <div className="calendar-nav">
           <button onClick={() => setStartDate(subDays(startDate, 7))} className="btn btn-secondary">
             {isMobile ? '\u25C0 7d' : 'Previous 7 Days'}
@@ -376,8 +430,8 @@ export function CalendarPage() {
         </div>
       </div>
 
-      <div className="calendar-container">
-        <div className="calendar-grid" style={{ gridTemplateColumns: `60px repeat(${displayRooms.length}, 1fr)` }}>
+      <div className="calendar-container" ref={containerRef}>
+        <div className="calendar-grid" style={{ gridTemplateColumns: `60px repeat(${displayRooms.length}, 1fr)`, minWidth: isMobile ? 0 : undefined }}>
           {/* Header row with room names */}
           <div className="calendar-corner">
             <div className="room-header">Time / Room</div>
@@ -393,7 +447,7 @@ export function CalendarPage() {
           {days.map(day => (
             <React.Fragment key={day.toISOString()}>
               {/* Day header spanning all room columns */}
-              <div className="day-header" style={{ gridColumn: `1 / span ${displayRooms.length + 1}` }}>
+              <div className={`day-header${isSameDay(day, new Date()) ? ' today' : ''}`} style={{ gridColumn: `1 / span ${displayRooms.length + 1}` }}>
                 {format(day, 'EEEE, MMM d')}
                 {isSameDay(day, new Date()) && <span className="today-badge">Today</span>}
               </div>
@@ -440,26 +494,42 @@ export function CalendarPage() {
                       title = `Book ${room.name} at ${formatHour(hour, timeFormat)}`;
                     }
 
+                    if (isSameDay(day, new Date())) slotClass += ' today-column';
+                    const isInteractive = !isPast && isAvailable && canBook;
                     return (
                       <div
                         key={`${room.id}-${day.toISOString()}-${hour}`}
                         className={slotClass}
                         onClick={() => !isPast && handleSlotClick(room, day, hour)}
+                        onKeyDown={isInteractive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleSlotClick(room, day, hour); } } : undefined}
+                        role={isInteractive ? 'button' : undefined}
+                        tabIndex={isInteractive ? 0 : undefined}
+                        aria-label={title}
                         title={title}
                       >
-                        {bookingsStartingHere.map(b => {
+                        {(() => {
+                          const cols = assignColumns(bookingsStartingHere);
+                          return bookingsStartingHere.map(b => {
                           const info = getBookingDisplayInfo(b, hour);
+                          const { colIndex, totalCols } = cols.get(b.id) ?? { colIndex: 0, totalCols: 1 };
+                          const colW = 100 / totalCols;
                           return (
                             <div
                               key={b.id}
-                              className="booking-indicator booking-span"
+                              className={`booking-indicator booking-span${totalCols > 1 || info.height <= 100 ? ' booking-indicator--compact' : ''}${info.height < 75 ? ' booking-indicator--silent' : ''}`}
                               style={{
                                 top: `calc(${info.topOffset}% + 2px)`,
                                 height: `calc(${info.height}% - 4px)`,
+                                left: `calc(${colIndex * colW}% + 2px)`,
+                                width: `calc(${colW}% - 4px)`,
                                 cursor: 'pointer',
-                                backgroundColor: getBookingColor(b.id)
+                                backgroundColor: getBookingColor(b.id),
                               }}
                               onClick={(e) => handleBookingClick(e, b)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleBookingClick(e as any, b); } }}
+                              role="button"
+                              tabIndex={0}
+                              aria-label={`${b.title} — ${formatTime(b.startTime, timeFormat)} to ${formatTime(b.endTime, timeFormat)}`}
                             >
                               <span className="booking-title">{b.title}</span>
                               <span className="booking-time">
@@ -467,7 +537,8 @@ export function CalendarPage() {
                               </span>
                             </div>
                           );
-                        })}
+                        });
+                        })()}
                         {(!hasBooking || partiallyBooked) && !isPast && !isRestricted && (
                           <div className="slot-available-indicator">
                             <span className="plus-icon">+</span>
@@ -519,7 +590,7 @@ export function CalendarPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{selectedBooking.title}</h2>
-              <button className="modal-close" onClick={() => setSelectedBooking(null)}>×</button>
+              <button className="modal-close" onClick={() => setSelectedBooking(null)} aria-label="Close">×</button>
             </div>
             <div className="modal-body">
               <p><strong>Room:</strong> {selectedBooking.room?.name}</p>
@@ -572,7 +643,7 @@ export function CalendarPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Move Booking to Another Room</h2>
-              <button className="modal-close" onClick={() => setShowMoveDialog(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowMoveDialog(false)} aria-label="Close">×</button>
             </div>
             <div className="modal-body">
               <p><strong>Meeting:</strong> {selectedBooking.title}</p>

@@ -307,8 +307,8 @@ export function LoginPage() {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <h1>Meeting Room Booking</h1>
-            <p>Enter your password</p>
+            <h1>Open Meeting</h1>
+            <p>Enter your password to continue</p>
           </div>
 
           {error && (
@@ -361,8 +361,8 @@ export function LoginPage() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>Meeting Room Booking</h1>
-          <p>Sign in to your account</p>
+          <h1>Open Meeting</h1>
+          <p>Sign in to your park</p>
         </div>
 
         {error && (

@@ -2,6 +2,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb } from './database';
 import { Company, CreateCompanyRequest, TwoFaLevelEnforcement } from '../types';
 
+type UpdateCompanyData = Partial<CreateCompanyRequest> & {
+  twofaEnforcement?: TwoFaLevelEnforcement;
+  deskBookingEnabled?: boolean;
+};
+
 export class CompanyModel {
   static async create(data: CreateCompanyRequest): Promise<Company> {
     const db = getDb();
@@ -48,20 +53,26 @@ export class CompanyModel {
     return rows.map(this.mapRowToCompany);
   }
 
-  static async update(id: string, data: Partial<CreateCompanyRequest> & { twofaEnforcement?: TwoFaLevelEnforcement }): Promise<Company | null> {
+  static async update(id: string, data: UpdateCompanyData): Promise<Company | null> {
     const existing = await this.findById(id);
     if (!existing) return null;
 
     const db = getDb();
     const now = new Date().toISOString();
 
-    await db('companies').where('id', id).update({
+    const updatePayload: any = {
       name: data.name ?? existing.name,
       address: data.address ?? existing.address,
       park_id: data.parkId !== undefined ? data.parkId : existing.parkId,
       twofa_enforcement: data.twofaEnforcement ?? existing.twofaEnforcement,
       updated_at: now,
-    });
+    };
+
+    if (data.deskBookingEnabled !== undefined) {
+      updatePayload.desk_booking_enabled = data.deskBookingEnabled;
+    }
+
+    await db('companies').where('id', id).update(updatePayload);
 
     return this.findById(id);
   }
@@ -81,6 +92,7 @@ export class CompanyModel {
       address: row.address,
       parkId: row.park_id,
       twofaEnforcement: row.twofa_enforcement || 'inherit',
+      deskBookingEnabled: Boolean(row.desk_booking_enabled),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

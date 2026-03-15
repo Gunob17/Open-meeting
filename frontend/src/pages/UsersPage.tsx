@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { User, Company, UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 
 export function UsersPage() {
   const { user: currentUser, isAdmin, isSuperAdmin } = useAuth();
+  const showConfirm = useConfirm();
   const [users, setUsers] = useState<User[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +118,7 @@ export function UsersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    if (!await showConfirm({ message: 'Are you sure you want to delete this user?', title: 'Delete User', confirmLabel: 'Delete' })) return;
 
     try {
       await api.deleteUser(id);
@@ -222,7 +224,7 @@ export function UsersPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingUser ? 'Edit User' : 'Add User'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowModal(false)} aria-label="Close">×</button>
             </div>
 
             <form onSubmit={handleSubmit}>

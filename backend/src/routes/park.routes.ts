@@ -1,7 +1,9 @@
 import { Router, Response, Request, NextFunction } from 'express';
 import { ParkModel } from '../models/park.model';
+import { UserDeskQuotaModel } from '../models/user-desk-quota.model';
+import { UserModel } from '../models/user.model';
 import { authenticate, AuthRequest } from '../middleware/auth.middleware';
-import { UserRole } from '../types';
+import { UserRole, DeskQuotaType } from '../types';
 import multer, { FileFilterCallback, MulterError } from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -471,6 +473,130 @@ router.delete('/:id/logo', authenticate, async (req: AuthRequest, res: Response)
   } catch (error) {
     console.error('Delete logo error:', error);
     res.status(500).json({ error: 'Failed to delete logo' });
+  }
+});
+
+// Helper: check that caller is super admin OR park admin of the specified park
+function canManageParkQuota(req: AuthRequest, parkId: string): boolean {
+  if (req.user?.role === UserRole.SUPER_ADMIN) return true;
+  return req.user?.role === UserRole.PARK_ADMIN && req.user?.parkId === parkId;
+}
+
+// GET /api/parks/:id/desk-quota — get park quota config + user overrides
+router.get('/:id/desk-quota', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!canManageParkQuota(req, req.params.id)) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    const park = await ParkModel.findById(req.params.id);
+    if (!park) { res.status(404).json({ error: 'Park not found' }); return; }
+
+    const overrides = park.deskQuotaType === 'per_user'
+      ? await UserDeskQuotaModel.findByPark(req.params.id)
+      : [];
+
+    res.json({
+      deskQuotaType: park.deskQuotaType,
+      monthlyDeskQuota: park.monthlyDeskQuota,
+      overrides,
+    });
+  } catch (err) {
+    console.error('Error getting park desk quota:', err);
+    res.status(500).json({ error: 'Failed to load desk quota settings' });
+  }
+});
+
+// PUT /api/parks/:id/desk-quota — update park-level quota defaults
+router.put('/:id/desk-quota', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!canManageParkQuota(req, req.params.id)) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    const { deskQuotaType, monthlyDeskQuota } = req.body;
+
+    if (deskQuotaType !== null && deskQuotaType !== undefined &&
+        !['per_user', 'per_company'].includes(deskQuotaType)) {
+      res.status(400).json({ error: 'deskQuotaType must be per_user, per_company, or null' });
+      return;
+    }
+    if (deskQuotaType && (!monthlyDeskQuota || !Number.isInteger(monthlyDeskQuota) || monthlyDeskQuota < 1)) {
+      res.status(400).json({ error: 'monthlyDeskQuota must be a positive integer when quota type is set' });
+      return;
+    }
+
+    const updated = await ParkModel.update(req.params.id, {
+      deskQuotaType: deskQuotaType as DeskQuotaType | null ?? null,
+      monthlyDeskQuota: deskQuotaType ? monthlyDeskQuota : null,
+    });
+    if (!updated) { res.status(404).json({ error: 'Park not found' }); return; }
+
+    res.json({ deskQuotaType: updated.deskQuotaType, monthlyDeskQuota: updated.monthlyDeskQuota });
+  } catch (err) {
+    console.error('Error updating park desk quota:', err);
+    res.status(500).json({ error: 'Failed to update desk quota settings' });
+  }
+});
+
+// GET /api/parks/:id/desk-quota/users — list per-user overrides
+router.get('/:id/desk-quota/users', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!canManageParkQuota(req, req.params.id)) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    const overrides = await UserDeskQuotaModel.findByPark(req.params.id);
+    res.json(overrides);
+  } catch (err) {
+    console.error('Error listing desk quota overrides:', err);
+    res.status(500).json({ error: 'Failed to load quota overrides' });
+  }
+});
+
+// PUT /api/parks/:id/desk-quota/users/:userId — set/update override for a specific user
+router.put('/:id/desk-quota/users/:userId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!canManageParkQuota(req, req.params.id)) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    const park = await ParkModel.findById(req.params.id);
+    if (!park) { res.status(404).json({ error: 'Park not found' }); return; }
+    if (park.deskQuotaType !== 'per_user') {
+      res.status(400).json({ error: 'Per-user overrides are only available when quota type is per_user' });
+      return;
+    }
+    const user = await UserModel.findById(req.params.userId);
+    if (!user || user.parkId !== req.params.id) {
+      res.status(404).json({ error: 'User not found in this park' });
+      return;
+    }
+    const { monthlyQuota } = req.body;
+    if (!Number.isInteger(monthlyQuota) || monthlyQuota < 1) {
+      res.status(400).json({ error: 'monthlyQuota must be a positive integer' });
+      return;
+    }
+    const quota = await UserDeskQuotaModel.upsert(req.params.id, req.params.userId, monthlyQuota);
+    res.json(quota);
+  } catch (err) {
+    console.error('Error setting desk quota override:', err);
+    res.status(500).json({ error: 'Failed to set quota override' });
+  }
+});
+
+// DELETE /api/parks/:id/desk-quota/users/:userId — remove override (user reverts to park default)
+router.delete('/:id/desk-quota/users/:userId', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!canManageParkQuota(req, req.params.id)) {
+      res.status(403).json({ error: 'Access denied' });
+      return;
+    }
+    await UserDeskQuotaModel.delete(req.params.id, req.params.userId);
+    res.status(204).send();
+  } catch (err) {
+    console.error('Error removing desk quota override:', err);
+    res.status(500).json({ error: 'Failed to remove quota override' });
   }
 });
 

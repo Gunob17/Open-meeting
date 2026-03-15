@@ -96,6 +96,13 @@ export const AuditAction = {
   // Guests (receptionist)
   GUEST_CHECKIN: 'guest.checkin',
   GUEST_CHECKOUT: 'guest.checkout',
+  // Hot desks
+  DESK_CREATE: 'desk.create',
+  DESK_UPDATE: 'desk.update',
+  DESK_DELETE: 'desk.delete',
+  DESK_BOOKING_CREATE: 'desk_booking.create',
+  DESK_BOOKING_CANCEL: 'desk_booking.cancel',
+  DESK_BOOKING_DELETE: 'desk_booking.delete',
   // System
   SYSTEM_SETUP: 'system.setup',
   // Dev

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { ConfirmProvider } from './context/ConfirmContext';
+import { ToastProvider } from './context/ToastContext';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { CalendarPage } from './pages/CalendarPage';
@@ -21,6 +23,8 @@ import { LdapConfigPage } from './pages/LdapConfigPage';
 import { SsoCallbackPage } from './pages/SsoCallbackPage';
 import { SsoConfigPage } from './pages/SsoConfigPage';
 import { CompleteInvitePage } from './pages/CompleteInvitePage';
+import { AdminDesksPage } from './pages/AdminDesksPage';
+import { DesksPage } from './pages/DesksPage';
 import { api } from './services/api';
 import './styles.css';
 
@@ -98,6 +102,14 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/desks"
+        element={
+          <PrivateRoute>
+            <DesksPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
         path="/account/settings"
         element={
           <PrivateRoute>
@@ -123,6 +135,14 @@ function AppRoutes() {
         element={
           <PrivateRoute adminOnly>
             <AdminRoomsPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/desks"
+        element={
+          <PrivateRoute adminOnly>
+            <AdminDesksPage />
           </PrivateRoute>
         }
       />
@@ -232,7 +252,11 @@ function AppWithSetup() {
   return (
     <AuthProvider>
       <SettingsProvider>
-        <AppRoutes />
+        <ConfirmProvider>
+          <ToastProvider>
+            <AppRoutes />
+          </ToastProvider>
+        </ConfirmProvider>
       </SettingsProvider>
     </AuthProvider>
   );

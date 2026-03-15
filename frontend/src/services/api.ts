@@ -1,4 +1,4 @@
-import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park, Firmware, TwoFaSetupResponse, TwoFaStatusResponse, TrustedDeviceInfo, ExternalGuest, GuestVisit, LdapConfig, LdapSyncResult, SsoConfig, SsoDiscoveryResult, CalendarToken, CalendarTokenCreated } from '../types';
+import { AuthResponse, User, Company, MeetingRoom, Booking, UserRole, Settings, Device, Park, Firmware, TwoFaSetupResponse, TwoFaStatusResponse, TrustedDeviceInfo, ExternalGuest, GuestVisit, LdapConfig, LdapSyncResult, SsoConfig, SsoDiscoveryResult, CalendarToken, CalendarTokenCreated, Desk, DeskBooking, DeskQuotaStatus, ParkDeskQuota, UserDeskQuota } from '../types';
 
 const API_BASE = process.env.REACT_APP_API_URL || '/api';
 
@@ -306,7 +306,7 @@ class ApiService {
     });
   }
 
-  async updateCompany(id: string, data: { name?: string; address?: string; twofaEnforcement?: string }): Promise<Company> {
+  async updateCompany(id: string, data: { name?: string; address?: string; twofaEnforcement?: string; deskBookingEnabled?: boolean }): Promise<Company> {
     return this.request<Company>(`/companies/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data)
@@ -1000,6 +1000,89 @@ class ApiService {
   async revokeCalendarToken(id: string): Promise<void> {
     await this.request<void>(`/calendar-tokens/${id}`, { method: 'DELETE' });
   }
+
+  // ── Hot Desks ──────────────────────────────────────────────────────────────
+
+  async getDesks(includeInactive = false): Promise<Desk[]> {
+    const params = new URLSearchParams();
+    if (includeInactive) params.append('includeInactive', 'true');
+    const selectedPark = this.getSelectedParkId();
+    if (selectedPark) params.append('parkId', selectedPark);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<Desk[]>(`/desks${query}`);
+  }
+
+  async createDesk(data: Partial<Desk> & { parkId?: string }): Promise<Desk> {
+    return this.request<Desk>('/desks', { method: 'POST', body: JSON.stringify(data) });
+  }
+
+  async updateDesk(id: string, data: Partial<Desk>): Promise<Desk> {
+    return this.request<Desk>(`/desks/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+  }
+
+  async deleteDesk(id: string): Promise<void> {
+    await this.request<void>(`/desks/${id}`, { method: 'DELETE' });
+  }
+
+  async getMyDeskBookings(): Promise<DeskBooking[]> {
+    return this.request<DeskBooking[]>('/desk-bookings/my');
+  }
+
+  async getDeskBookingsForPark(startDate: string, endDate: string): Promise<DeskBooking[]> {
+    const params = new URLSearchParams({ startDate, endDate });
+    const selectedPark = this.getSelectedParkId();
+    if (selectedPark) params.append('parkId', selectedPark);
+    return this.request<DeskBooking[]>(`/desk-bookings?${params.toString()}`);
+  }
+
+  async getDeskBookingsForDesk(deskId: string, startDate: string, endDate: string): Promise<DeskBooking[]> {
+    return this.request<DeskBooking[]>(`/desk-bookings/desk/${deskId}?startDate=${startDate}&endDate=${endDate}`);
+  }
+
+  async createDeskBooking(deskId: string, bookingDate: string): Promise<DeskBooking> {
+    return this.request<DeskBooking>('/desk-bookings', {
+      method: 'POST',
+      body: JSON.stringify({ deskId, bookingDate }),
+    });
+  }
+
+  async cancelDeskBooking(id: string): Promise<void> {
+    await this.request<void>(`/desk-bookings/${id}/cancel`, { method: 'POST' });
+  }
+
+  async deleteDeskBooking(id: string): Promise<void> {
+    await this.request<void>(`/desk-bookings/${id}`, { method: 'DELETE' });
+  }
+
+  async getDeskQuotaStatus(month: string): Promise<DeskQuotaStatus> {
+    const params = new URLSearchParams({ month });
+    const selectedPark = this.getSelectedParkId();
+    if (selectedPark) params.append('parkId', selectedPark);
+    return this.request<DeskQuotaStatus>(`/desk-bookings/quota?${params.toString()}`);
+  }
+
+  async getParkDeskQuota(parkId: string): Promise<ParkDeskQuota> {
+    return this.request<ParkDeskQuota>(`/parks/${parkId}/desk-quota`);
+  }
+
+  async updateParkDeskQuota(parkId: string, deskQuotaType: string | null, monthlyDeskQuota: number | null): Promise<void> {
+    return this.request<void>(`/parks/${parkId}/desk-quota`, {
+      method: 'PUT',
+      body: JSON.stringify({ deskQuotaType, monthlyDeskQuota }),
+    });
+  }
+
+  async setParkDeskQuotaUser(parkId: string, userId: string, monthlyQuota: number): Promise<UserDeskQuota> {
+    return this.request<UserDeskQuota>(`/parks/${parkId}/desk-quota/users/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ monthlyQuota }),
+    });
+  }
+
+  async deleteParkDeskQuotaUser(parkId: string, userId: string): Promise<void> {
+    return this.request<void>(`/parks/${parkId}/desk-quota/users/${userId}`, { method: 'DELETE' });
+  }
+
 }
 
 export const api = new ApiService();

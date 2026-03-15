@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { LdapConfig, LdapRoleMapping, LdapSyncResult, Company } from '../types';
+import { useConfirm } from '../context/ConfirmContext';
 
 export function LdapConfigPage() {
   const { companyId } = useParams<{ companyId: string }>();
   const navigate = useNavigate();
+  const showConfirm = useConfirm();
   const [company, setCompany] = useState<Company | null>(null);
   const [config, setConfig] = useState<LdapConfig | null>(null);
   const [loading, setLoading] = useState(true);
@@ -162,7 +164,7 @@ export function LdapConfigPage() {
 
   const handleDeleteConfig = async () => {
     if (!config) return;
-    if (!window.confirm('Delete LDAP configuration? LDAP users will no longer be able to log in.')) return;
+    if (!await showConfirm({ message: 'Delete LDAP configuration? LDAP users will no longer be able to log in.', title: 'Delete LDAP Config', confirmLabel: 'Delete' })) return;
     try {
       await api.deleteLdapConfig(config.id);
       setConfig(null);

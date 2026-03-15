@@ -4,9 +4,11 @@ import { api } from '../services/api';
 import { Booking } from '../types';
 import { useSettings } from '../context/SettingsContext';
 import { formatTime } from '../utils/time';
+import { useConfirm } from '../context/ConfirmContext';
 
 export function MyBookingsPage() {
   const { timeFormat } = useSettings();
+  const showConfirm = useConfirm();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function MyBookingsPage() {
   };
 
   const handleCancel = async (id: string) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+    if (!await showConfirm({ message: 'Are you sure you want to cancel this booking?', confirmLabel: 'Cancel Booking', variant: 'warning' })) return;
 
     setCancelling(id);
     try {
