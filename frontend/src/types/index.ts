@@ -308,6 +308,7 @@ export interface Desk {
   description: string | null;
   floor: string | null;
   isActive: boolean;
+  features?: string[];
   createdAt?: string;
   updatedAt?: string;
 }

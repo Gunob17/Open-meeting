@@ -465,6 +465,7 @@ export interface Desk {
   isActive: boolean;
   quotaType: DeskQuotaType | null;
   monthlyQuota: number | null;
+  features: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -491,6 +492,7 @@ export interface CreateDeskRequest {
   parkId: string;
   quotaType?: DeskQuotaType | null;
   monthlyQuota?: number | null;
+  features?: string[];
 }
 
 export interface CreateDeskBookingRequest {
