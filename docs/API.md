@@ -46,6 +46,11 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | POST | `/parks/:id/logo` | Super Admin | Upload park logo (multipart, max 2MB) |
 | GET | `/parks/:id/logo/:filename` | None | Get park logo image |
 | DELETE | `/parks/:id/logo` | Super Admin | Remove park logo |
+| GET | `/parks/:id/desk-quota` | Park Admin+ | Get park desk-booking quota settings |
+| PUT | `/parks/:id/desk-quota` | Park Admin+ | Update quota settings (`enabled`, `quotaType` user/company, `monthlyLimit`) |
+| GET | `/parks/:id/desk-quota/users` | Park Admin+ | List per-user quota overrides |
+| PUT | `/parks/:id/desk-quota/users/:userId` | Park Admin+ | Set per-user monthly desk quota override |
+| DELETE | `/parks/:id/desk-quota/users/:userId` | Park Admin+ | Remove per-user quota override |
 
 ---
 
@@ -104,6 +109,32 @@ All endpoints require JWT authentication unless noted otherwise. Include the tok
 | POST | `/bookings/:id/cancel` | Required | Cancel booking (own or admin) |
 | POST | `/bookings/:id/move` | Park Admin+ | Move booking to different room |
 | DELETE | `/bookings/:id` | Park Admin+ | Delete booking (notifies owner) |
+
+---
+
+## Hot Desks
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/desks` | Required | List desks for the user's park (with optional `search` query param) |
+| GET | `/desks/:id` | Required | Get desk details |
+| POST | `/desks` | Park Admin+ | Create desk |
+| PUT | `/desks/:id` | Park Admin+ | Update desk |
+| DELETE | `/desks/:id` | Park Admin+ | Delete desk |
+
+---
+
+## Desk Bookings
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/desk-bookings` | Park Admin+ | List desk bookings (optional `parkId`, `deskId`, `userId`, `startDate`, `endDate`) |
+| GET | `/desk-bookings/my` | Required | List current user's desk bookings |
+| GET | `/desk-bookings/quota` | Required | Get current user's quota usage for the month (`parkId` query param) |
+| GET | `/desk-bookings/desk/:deskId` | Required | List bookings for a specific desk |
+| POST | `/desk-bookings` | Required | Create desk booking(s) — accepts single date, date range, or array of dates; rate-limited |
+| POST | `/desk-bookings/:id/cancel` | Required | Cancel a desk booking (own or admin) |
+| DELETE | `/desk-bookings/:id` | Park Admin+ | Hard-delete a desk booking |
 
 ---
 

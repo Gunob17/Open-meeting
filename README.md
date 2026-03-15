@@ -38,7 +38,9 @@ No more double-bookings or scheduling chaos. The visual weekly calendar shows ev
 - Automatic conflict detection — overlapping bookings are impossible
 - Book partial time slots when rooms have gaps between meetings
 - Add attendees by email with automatic ICS calendar invitations
-- Browse rooms by capacity, amenities, and real-time availability
+- **Room Finder** — search for available rooms by date, time window, capacity, and amenities; pre-fills the booking form with your chosen slot
+- **Quick Book** — prominent shortcut in the calendar header opens the Room Finder for fast booking without navigating the sidebar
+- Browse rooms by capacity, amenities, and real-time availability; paginated search with keyword filter
 - Mobile-responsive design works on any device
 
 ### Multi-Site Management
@@ -75,8 +77,11 @@ Meet your organization's security and compliance requirements. Open Meeting is b
 - **GDPR data export** — users can download all their personal data (profile, bookings) via a self-service endpoint (Art. 15 right of access)
 - **GDPR soft-delete** — user deletion anonymizes PII and records a deletion audit trail rather than hard-deleting records (Art. 17 right to erasure)
 - **Data minimization** — booking list endpoints return only the fields required for display; full attendee details are restricted to booking owners and admins; organizer emails in iMIP audit events are stored as one-way hashes
-- Content Security Policy (CSP) headers via Helmet prevent cross-site scripting escalation
+- Content Security Policy (CSP) headers via Helmet prevent cross-site scripting escalation — `baseUri` and `formAction` directives included
 - All LDAP/SSO/IMAP credentials encrypted at rest using a dedicated `ENCRYPTION_KEY` (AES-256-GCM), separate from the JWT signing secret
+- **TOTP secrets encrypted at rest** — 2FA secrets stored using AES-256-GCM; backward-compatible decryption for any legacy plaintext secrets
+- **Trusted device tokens hashed** — SHA-256 hash stored in the database; raw token returned to the client once on creation only (analogous to API key handling)
+- **SAML assertion signing enforced** — `wantAssertionsSigned` and `wantAuthnResponseSigned` are always `true`; IdP certificate presence is validated before the SSO flow begins
 - **Global API rate limiting** — 300 requests per 15 minutes per IP globally; 20 requests per 15 minutes on authentication endpoints; 5 requests per minute on the invite-completion endpoint to prevent brute-force attacks
 - **Mandatory production secrets** — the production Docker Compose configuration uses Docker's `:?` syntax so `JWT_SECRET`, `DB_ROOT_PASSWORD`, and `DB_PASSWORD` must be set explicitly; the container will refuse to start if any are missing or empty
 - HTML email content is fully escaped before sending — booking titles, room names, guest data, and admin reasons cannot inject HTML into email clients
@@ -179,6 +184,20 @@ Subscribe to your bookings in any calendar app — Outlook, Google Calendar, App
 - Per-park and per-room opt-out for organizations that prefer not to expose feeds
 - Privacy: room feeds show your bookings with full titles; other users' bookings appear as "Booked"
 - Manage tokens in **Account Settings → Calendar** tab
+
+### Hot Desk Booking
+
+Manage flexible, hot-desk seating alongside your meeting room bookings. Parks can enable desk booking per-company, and users book desks by the day — single days, date ranges, or multiple non-consecutive days in one go. Monthly quotas keep utilization balanced and prevent any one team from hoarding space.
+
+- Book desks by day: single date, date range, or multi-select of non-consecutive dates
+- Visual calendar with booked-date dots and hover preview for date ranges
+- Quota card showing monthly usage with a progress bar and colour-coded states (green / amber / red / unlimited)
+- Monthly quotas enforced at the user level or company level, with per-user overrides set by admins
+- Desk features (tags) for filtering: standing, monitor, window, quiet zone, etc.
+- Search desks by name; paginated grid view (9 per page)
+- Park admins manage desks, set quotas, and override per-user limits from the admin panel
+- Company-level opt-in: each company can enable or disable desk booking independently
+- Audit-logged: desk create/update/delete and all booking actions
 
 ### Email-Based Room Booking (iMIP)
 
@@ -308,7 +327,7 @@ Demo data includes 3 sites, 7 companies, 12 users, and 10 meeting rooms with var
 
 Open Meeting is built with Node.js/Express (backend) and React 18 (frontend) in TypeScript, plus PlatformIO/Arduino C++ for the ESP32 firmware.
 
-- [API Reference](docs/API.md) — Complete REST API documentation with all 92+ endpoints
+- [API Reference](docs/API.md) — Complete REST API documentation with all 130+ endpoints
 - [Development Guide](docs/DEVELOPMENT.md) — Local setup, project structure, tech stack, and email configuration
 - [Backend Guide](backend/README.md) — Models, routes, services, migrations, and middleware
 - [Frontend Guide](frontend/README.md) — Pages, components, routing, and state management
