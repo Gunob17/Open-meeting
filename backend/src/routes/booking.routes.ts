@@ -125,15 +125,27 @@ router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
     // Strip attendee emails and external guest data from list response
     // (privacy: full details only available on the individual booking endpoint after auth check)
     // Return empty arrays rather than undefined to satisfy the Booking type contract.
-    const bookingsWithParsedData = bookings.map(b => ({
-      ...b,
-      attendees: [] as string[],
-      externalGuests: [] as ExternalGuest[],
-      room: b.room ? {
-        ...b.room,
-        amenities: safeParseArray(b.room!.amenities)
-      } : undefined
-    }));
+    const requesterUserId = req.user!.userId;
+    const requesterCompanyId = req.user!.companyId;
+    const requesterIsAdmin = req.user!.role === UserRole.SUPER_ADMIN || req.user!.role === UserRole.PARK_ADMIN;
+
+    const bookingsWithParsedData = bookings.map(b => {
+      const isOwner = b.userId === requesterUserId;
+      const isSameCompany = !!requesterCompanyId && b.user?.companyId === requesterCompanyId;
+      const showTitle = requesterIsAdmin || isOwner || isSameCompany;
+
+      return {
+        ...b,
+        title: showTitle ? b.title : 'Booked',
+        description: showTitle ? b.description : '',
+        attendees: [] as string[],
+        externalGuests: [] as ExternalGuest[],
+        room: b.room ? {
+          ...b.room,
+          amenities: safeParseArray(b.room!.amenities)
+        } : undefined
+      };
+    });
 
     res.json(bookingsWithParsedData);
   } catch (error) {
