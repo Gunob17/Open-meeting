@@ -1773,7 +1773,7 @@ body {
 }
 
 .time-slot.past {
-  background: #f3f4f6;
+  background: #d1d5db;
   cursor: not-allowed;
 }
 
@@ -1937,8 +1937,8 @@ body {
 }
 
 .legend-color.past {
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: #d1d5db;
+  border-color: #9ca3af;
 }
 
 .legend-color.unavailable {
@@ -5130,7 +5130,7 @@ body {
   border-radius: var(--radius-sm);
 }
 
-.time-slot.today-column {
+.time-slot.today-column:not(.past) {
   background: rgba(79, 70, 229, 0.03);
 }
 
