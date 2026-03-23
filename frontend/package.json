@@ -44,6 +44,6 @@
   },
   "proxy": "http://localhost:3001",
   "devDependencies": {
-    "yaml": "^2.8.2"
+    "yaml": "^2.8.3"
   }
 }
