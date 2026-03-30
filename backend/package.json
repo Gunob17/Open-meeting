@@ -25,7 +25,7 @@
     "ics": "^3.9.0",
     "imapflow": "^1.2.16",
     "jsonwebtoken": "^9.0.2",
-    "knex": "^3.2.3",
+    "knex": "^3.2.7",
     "ldapts": "^8.1.6",
     "mailauth": "^4.13.1",
     "mailparser": "^3.9.4",
