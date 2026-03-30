@@ -23,7 +23,7 @@
     "express-rate-limit": "^8.2.2",
     "helmet": "^8.1.0",
     "ics": "^3.9.0",
-    "imapflow": "^1.2.16",
+    "imapflow": "^1.2.18",
     "jsonwebtoken": "^9.0.2",
     "knex": "^3.2.7",
     "ldapts": "^8.1.6",
