@@ -16,7 +16,7 @@
     "@types/imapflow": "^1.0.189",
     "@types/mailparser": "^3.4.6",
     "@types/zxcvbn": "^4.4.5",
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.8.0",
     "cors": "^2.8.5",
     "express": "^5.2.1",
@@ -26,7 +26,7 @@
     "imapflow": "^1.2.18",
     "jsonwebtoken": "^9.0.2",
     "knex": "^3.2.9",
-    "ldapts": "^8.1.6",
+    "ldapts": "^8.1.7",
     "mailauth": "^4.13.1",
     "mailparser": "^3.9.6",
     "multer": "^2.1.1",
@@ -42,7 +42,7 @@
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
-    "@types/bcryptjs": "^2.4.6",
+    "@types/bcryptjs": "^3.0.0",
     "@types/better-sqlite3": "^7.6.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.6",
