@@ -47,6 +47,8 @@ export interface User {
   inviteToken?: boolean | string | null;
   hasSeenTour?: boolean;
   deskBookingEnabled?: boolean;
+  disabledUntil?: string | null;
+  disableReason?: string | null;
   createdAt?: string;
 }
 

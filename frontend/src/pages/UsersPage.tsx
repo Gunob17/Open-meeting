@@ -5,6 +5,14 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
 import { BulkImportModal } from '../components/BulkImportModal';
 
+const DISABLE_DURATION_OPTIONS = [
+  { label: '1 hour', hours: 1 },
+  { label: '24 hours', hours: 24 },
+  { label: '3 days', hours: 72 },
+  { label: '7 days', hours: 168 },
+  { label: '30 days', hours: 720 },
+];
+
 export function UsersPage() {
   const { user: currentUser, isAdmin, isSuperAdmin } = useAuth();
   const showConfirm = useConfirm();
@@ -24,6 +32,9 @@ export function UsersPage() {
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [disableTarget, setDisableTarget] = useState<User | null>(null);
+  const [disableHours, setDisableHours] = useState(24);
+  const [disableReason, setDisableReason] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -130,6 +141,39 @@ export function UsersPage() {
     }
   };
 
+  const handleOpenDisable = (user: User) => {
+    setDisableTarget(user);
+    setDisableHours(24);
+    setDisableReason('');
+  };
+
+  const handleDisableSubmit = async () => {
+    if (!disableTarget) return;
+    setSaving(true);
+    try {
+      const until = new Date(Date.now() + disableHours * 60 * 60 * 1000).toISOString();
+      await api.disableUser(disableTarget.id, until, disableReason || undefined);
+      setDisableTarget(null);
+      loadData();
+    } catch (err) {
+      console.error('Failed to disable user:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEnable = async (user: User) => {
+    try {
+      await api.enableUser(user.id);
+      loadData();
+    } catch (err) {
+      console.error('Failed to enable user:', err);
+    }
+  };
+
+  const isCurrentlyDisabled = (user: User) =>
+    !!user.disabledUntil && new Date(user.disabledUntil) > new Date();
+
   const getCompanyName = (companyId: string) => {
     return companies.find(c => c.id === companyId)?.name || 'Unknown';
   };
@@ -166,7 +210,7 @@ export function UsersPage() {
           </thead>
           <tbody>
             {users.map(user => (
-              <tr key={user.id} style={user.isActive === false ? { opacity: 0.5 } : undefined}>
+              <tr key={user.id} style={user.isActive === false || isCurrentlyDisabled(user) ? { opacity: 0.5 } : undefined}>
                 <td>
                   {user.name || <em style={{ color: 'var(--text-muted)' }}>Not set up</em>}
                   {user.isActive === false && user.inviteToken && (
@@ -174,6 +218,15 @@ export function UsersPage() {
                   )}
                   {user.isActive === false && !user.inviteToken && (
                     <span className="role-badge" style={{ marginLeft: '0.25rem', background: 'var(--danger)', color: '#fff' }}>disabled</span>
+                  )}
+                  {isCurrentlyDisabled(user) && (
+                    <span
+                      className="role-badge"
+                      style={{ marginLeft: '0.25rem', background: '#f59e0b', color: '#fff', cursor: 'help' }}
+                      title={`Suspended until ${new Date(user.disabledUntil!).toLocaleString()}${user.disableReason ? ` — ${user.disableReason}` : ''}`}
+                    >
+                      suspended
+                    </span>
                   )}
                 </td>
                 <td>{user.email}</td>
@@ -211,6 +264,23 @@ export function UsersPage() {
                     >
                       Edit
                     </button>
+                    {isAdmin && user.id !== currentUser?.id && user.isActive !== false && (
+                      isCurrentlyDisabled(user) ? (
+                        <button
+                          className="btn btn-small btn-secondary"
+                          onClick={() => handleEnable(user)}
+                        >
+                          Enable
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-small btn-warning"
+                          onClick={() => handleOpenDisable(user)}
+                        >
+                          Suspend
+                        </button>
+                      )
+                    )}
                     <button
                       className="btn btn-small btn-danger"
                       onClick={() => handleDelete(user.id)}
@@ -236,6 +306,53 @@ export function UsersPage() {
           onClose={() => setShowBulkModal(false)}
           onComplete={loadData}
         />
+      )}
+
+      {disableTarget && (
+        <div className="modal-overlay" onClick={() => setDisableTarget(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Suspend User</h2>
+              <button className="modal-close" onClick={() => setDisableTarget(null)} aria-label="Close">×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: '1rem' }}>
+                Suspending <strong>{disableTarget.name || disableTarget.email}</strong> will immediately revoke their active sessions and block email-based bookings for the selected period.
+              </p>
+              <div className="form-group">
+                <label htmlFor="disableDuration">Duration</label>
+                <select
+                  id="disableDuration"
+                  value={disableHours}
+                  onChange={e => setDisableHours(Number(e.target.value))}
+                >
+                  {DISABLE_DURATION_OPTIONS.map(opt => (
+                    <option key={opt.hours} value={opt.hours}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="disableReason">Reason (optional)</label>
+                <input
+                  type="text"
+                  id="disableReason"
+                  value={disableReason}
+                  onChange={e => setDisableReason(e.target.value)}
+                  placeholder="e.g. repeated misuse of booking system"
+                  maxLength={200}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setDisableTarget(null)}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-warning" onClick={handleDisableSubmit} disabled={saving}>
+                {saving ? 'Suspending...' : 'Suspend User'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showModal && (

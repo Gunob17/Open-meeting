@@ -848,3 +848,64 @@ export async function sendUserInviteEmail(toEmail: string, inviteLink: string): 
 
   console.log(`Invite email sent to: ${toEmail}`);
 }
+
+export async function sendUserSuspensionEmail(params: {
+  toEmail: string;
+  userName: string;
+  until: string;
+  reason: string | null;
+}): Promise<void> {
+  if (!isValidEmail(params.toEmail)) {
+    console.error('Invalid email address for suspension notice:', params.toEmail);
+    return;
+  }
+
+  const untilFormatted = new Date(params.until).toLocaleString('en-GB', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  });
+
+  const reasonRow = params.reason
+    ? `<p><strong>Reason:</strong> ${params.reason}</p>`
+    : '';
+
+  const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: #f59e0b; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+    .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+    .footer { margin-top: 20px; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin:0;">Your account has been suspended</h1>
+    </div>
+    <div class="content">
+      <p>Hi ${params.userName || params.toEmail},</p>
+      <p>Your Open Meeting account has been temporarily suspended by an administrator.</p>
+      ${reasonRow}
+      <p><strong>Suspended until:</strong> ${untilFormatted}</p>
+      <p>During this period you will not be able to log in or make room bookings. Your account will be restored automatically when the suspension ends.</p>
+      <p>If you believe this is a mistake, please contact your administrator.</p>
+      <p class="footer">This email was sent automatically from Open Meeting. Do not reply to this email.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || '"Open Meeting" <noreply@openmeeting.com>',
+    to: params.toEmail,
+    subject: 'Your Open Meeting account has been suspended',
+    html: htmlContent,
+  });
+
+  console.log(`Suspension email sent to: ${params.toEmail}`);
+}
