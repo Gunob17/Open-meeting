@@ -380,6 +380,17 @@ class ApiService {
     await this.request(`/users/${id}/resend-invite`, { method: 'POST' });
   }
 
+  async disableUser(id: string, until: string, reason?: string): Promise<void> {
+    await this.request(`/users/${id}/disable`, {
+      method: 'POST',
+      body: JSON.stringify({ until, reason: reason || null }),
+    });
+  }
+
+  async enableUser(id: string): Promise<void> {
+    await this.request(`/users/${id}/enable`, { method: 'POST' });
+  }
+
   async bulkImportUsers(users: Array<{ email: string; name?: string; role: string; companyId?: string; companyName?: string }>): Promise<{
     results: Array<{ email: string; status: 'created' | 'skipped'; error?: string; userId?: string; companyCreated?: boolean }>;
     created: number;

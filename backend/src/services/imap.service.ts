@@ -284,10 +284,11 @@ async function processMessage(rawBuffer: Buffer, room: MeetingRoom): Promise<voi
     }
   }
 
-  // 6. Sender must be an active user in the same park as the room
+  // 6. Sender must be an active, non-disabled user in the same park as the room
   const senderEmail = meeting.organizerEmail;
   const user = await UserModel.findByEmail(senderEmail);
-  if (!user || !user.isActive || user.parkId !== room.parkId) {
+  const isTemporarilyDisabled = user?.disabledUntil ? new Date(user.disabledUntil) > new Date() : false;
+  if (!user || !user.isActive || isTemporarilyDisabled || user.parkId !== room.parkId) {
     auditLog({
       action: AuditAction.BOOKING_EMAIL_REJECTED_USER,
       resourceType: 'room',

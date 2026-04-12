@@ -8,7 +8,7 @@ import { CompanyModel } from '../models/company.model';
 import { TrustedDeviceModel } from '../models/trusted-device.model';
 import { BookingModel } from '../models/booking.model';
 import { UserRole } from '../types';
-import { sendUserInviteEmail } from '../services/email.service';
+import { sendUserInviteEmail, sendUserSuspensionEmail } from '../services/email.service';
 import { auditLog, AuditAction, getClientIp } from '../services/audit.service';
 
 const router = Router();
@@ -57,7 +57,9 @@ router.get('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respon
       isActive: u.isActive,
       inviteToken: !!u.inviteToken,
       authSource: u.authSource,
-      createdAt: u.createdAt
+      createdAt: u.createdAt,
+      disabledUntil: u.disabledUntil,
+      disableReason: u.disableReason,
     })));
   } catch (error) {
     console.error('Get users error:', error);
@@ -94,7 +96,9 @@ router.get('/company/:companyId', authenticate, requireCompanyAdminOrAbove, asyn
       isActive: u.isActive,
       inviteToken: !!u.inviteToken,
       authSource: u.authSource,
-      createdAt: u.createdAt
+      createdAt: u.createdAt,
+      disabledUntil: u.disabledUntil,
+      disableReason: u.disableReason,
     })));
   } catch (error) {
     console.error('Get company users error:', error);
@@ -393,6 +397,79 @@ router.post('/:id/reset-2fa', authenticate, requireAdmin, async (req: AuthReques
   } catch (error) {
     console.error('Reset 2FA error:', error);
     res.status(500).json({ error: 'Failed to reset 2FA' });
+  }
+});
+
+// Temporarily disable a user (park admin+)
+router.post('/:id/disable', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { until, reason } = req.body;
+
+    if (!until || isNaN(Date.parse(until))) {
+      res.status(400).json({ error: 'A valid "until" ISO datetime is required' });
+      return;
+    }
+    if (new Date(until) <= new Date()) {
+      res.status(400).json({ error: '"until" must be in the future' });
+      return;
+    }
+
+    const user = await UserModel.findById(id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Cannot disable yourself
+    if (id === req.user!.userId) {
+      res.status(400).json({ error: 'Cannot disable your own account' });
+      return;
+    }
+
+    // Park admins can only disable users within their own park
+    if (req.user!.role === UserRole.PARK_ADMIN && user.parkId !== req.user!.parkId) {
+      res.status(403).json({ error: 'Park admins can only disable users within their own park' });
+      return;
+    }
+
+    await UserModel.disable(id, until, reason ?? null);
+    auditLog({ userId: req.user!.userId, action: AuditAction.USER_DISABLE, resourceType: 'user', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success', metadata: { until, reason: reason ?? null } });
+
+    // Notify the user by email (best-effort)
+    sendUserSuspensionEmail({ toEmail: user.email, userName: user.name, until, reason: reason ?? null })
+      .catch((err: unknown) => console.error('Failed to send suspension email:', err));
+
+    res.json({ message: 'User disabled', disabledUntil: until });
+  } catch (error) {
+    console.error('Disable user error:', error);
+    res.status(500).json({ error: 'Failed to disable user' });
+  }
+});
+
+// Re-enable a disabled user (park admin+)
+router.post('/:id/enable', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const user = await UserModel.findById(id);
+    if (!user) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // Park admins can only enable users within their own park
+    if (req.user!.role === UserRole.PARK_ADMIN && user.parkId !== req.user!.parkId) {
+      res.status(403).json({ error: 'Park admins can only enable users within their own park' });
+      return;
+    }
+
+    await UserModel.enable(id);
+    auditLog({ userId: req.user!.userId, action: AuditAction.USER_ENABLE, resourceType: 'user', resourceId: id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
+    res.json({ message: 'User enabled' });
+  } catch (error) {
+    console.error('Enable user error:', error);
+    res.status(500).json({ error: 'Failed to enable user' });
   }
 });
 

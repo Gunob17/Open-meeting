@@ -324,9 +324,29 @@ export class UserModel {
       inviteToken: row.invite_token || null,
       inviteTokenExpiry: row.invite_token_expiry || null,
       hasSeenTour: row.has_seen_tour !== undefined ? !!row.has_seen_tour : true,
+      disabledUntil: row.disabled_until || null,
+      disableReason: row.disable_reason || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  static async disable(userId: string, until: string, reason: string | null): Promise<void> {
+    const db = getDb();
+    await db('users').where('id', userId).update({
+      disabled_until: until,
+      disable_reason: reason ?? null,
+      updated_at: new Date().toISOString(),
+    });
+  }
+
+  static async enable(userId: string): Promise<void> {
+    const db = getDb();
+    await db('users').where('id', userId).update({
+      disabled_until: null,
+      disable_reason: null,
+      updated_at: new Date().toISOString(),
+    });
   }
 
   static async findByInviteToken(token: string): Promise<User | null> {

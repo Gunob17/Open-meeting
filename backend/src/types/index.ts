@@ -58,6 +58,8 @@ export interface User {
   inviteToken: string | null;
   inviteTokenExpiry: string | null;
   hasSeenTour: boolean;
+  disabledUntil: string | null;
+  disableReason: string | null;
   createdAt: string;
   updatedAt: string;
 }

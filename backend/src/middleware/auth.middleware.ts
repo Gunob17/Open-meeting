@@ -56,10 +56,14 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     return;
   }
 
-  // Verify user is still active
+  // Verify user is still active and not temporarily disabled
   const user = await UserModel.findById(payload.userId);
   if (!user || !user.isActive) {
     res.status(401).json({ error: 'Account is disabled or deleted' });
+    return;
+  }
+  if (user.disabledUntil && new Date(user.disabledUntil) > new Date()) {
+    res.status(401).json({ error: 'Account is temporarily disabled' });
     return;
   }
 

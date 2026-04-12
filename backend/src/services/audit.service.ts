@@ -55,6 +55,8 @@ export const AuditAction = {
   CALENDAR_TOKEN_REVOKE: 'calendar.token.revoke',
   // Users (additional)
   USER_2FA_RESET: 'user.2fa.reset',
+  USER_DISABLE: 'user.disable',
+  USER_ENABLE: 'user.enable',
   USER_BULK_IMPORT_START: 'user.bulk_import.start',
   USER_BULK_IMPORT_COMPLETE: 'user.bulk_import.complete',
   // Rooms
