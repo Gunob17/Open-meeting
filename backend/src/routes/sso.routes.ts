@@ -53,7 +53,7 @@ router.get('/discover', async (req: Request, res: Response) => {
 // GET /api/sso/init/:configId — Redirect to IdP
 router.get('/init/:configId', async (req: Request, res: Response) => {
   try {
-    const { configId } = req.params;
+    const { configId } = req.params as Record<string, string>;
     const config = await SsoConfigModel.findById(configId);
 
     if (!config || !config.isEnabled) {
@@ -124,7 +124,7 @@ router.post('/callback/saml', async (req: Request, res: Response) => {
 // GET /api/sso/saml/metadata/:configId — SP metadata XML
 router.get('/saml/metadata/:configId', async (req: Request, res: Response) => {
   try {
-    const metadata = await SsoService.generateSamlMetadata(req.params.configId);
+    const metadata = await SsoService.generateSamlMetadata(req.params['configId'] as string);
     res.type('application/xml').send(metadata);
   } catch (error: any) {
     res.status(404).json({ error: error.message });

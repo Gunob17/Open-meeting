@@ -14,6 +14,7 @@ const JWT_SECRET = process.env.JWT_SECRET || (() => {
 
 export interface AuthRequest extends Request {
   user?: JwtPayload;
+  params: Record<string, string>;
 }
 
 export function generateToken(payload: JwtPayload, keepLoggedIn?: boolean): string {
