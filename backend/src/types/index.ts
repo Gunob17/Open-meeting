@@ -28,6 +28,8 @@ export interface Park {
   calendarFeedEnabled: boolean;
   deskQuotaType: DeskQuotaType | null;
   monthlyDeskQuota: number | null;
+  blockedWeekdays: number[]; // 0=Sun … 6=Sat
+  weekStartDay: number;      // 0=Sun, 1=Mon (default) … 6=Sat
   createdAt: string;
   updatedAt: string;
 }
