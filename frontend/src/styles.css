@@ -2020,15 +2020,16 @@ body {
 
 .finder-row {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
+  align-items: flex-end;
 }
 
 .finder-field {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  min-width: 140px;
+  min-width: 0;
 }
 
 .finder-field label {
@@ -2052,6 +2053,42 @@ body {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.time-select-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.time-text-input {
+  width: 4.5rem;
+  padding: 0.5rem 0.5rem;
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-text);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  text-align: center;
+}
+
+.time-text-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+}
+
+.ampm-select {
+  padding: 0.5rem 0.25rem;
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-gray-300);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--color-text);
+  cursor: pointer;
 }
 
 .finder-amenities {
@@ -6119,3 +6156,414 @@ body {
 }
 
 /* ── End Desks page layout ──────────────────────────────────────────────── */
+
+/* ── Bulk Import Modal ──────────────────────────────────────────────────── */
+
+/* Wide modal variant */
+.modal.modal-bulk {
+  width: 90vw;
+  max-width: 860px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal.modal-bulk .modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+}
+
+/* Step indicator */
+.bulk-import-steps {
+  display: flex;
+  align-items: center;
+  padding: 0.875rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  gap: 0;
+}
+
+.bulk-import-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-muted);
+}
+
+.bulk-import-step__circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--bg-primary);
+  flex-shrink: 0;
+}
+
+.bulk-import-step__label {
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.bulk-import-step--active .bulk-import-step__circle {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.bulk-import-step--active .bulk-import-step__label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.bulk-import-step--complete .bulk-import-step__circle {
+  background: var(--success, #22c55e);
+  border-color: var(--success, #22c55e);
+  color: #fff;
+}
+
+.bulk-import-step--complete .bulk-import-step__label {
+  color: var(--text-secondary);
+}
+
+.bulk-import-step-connector {
+  flex: 1;
+  height: 2px;
+  background: var(--border-color);
+  margin: 0 0.5rem;
+  min-width: 24px;
+}
+
+.bulk-import-step-connector--done {
+  background: var(--success, #22c55e);
+}
+
+/* Input method tabs */
+.tab-nav {
+  display: flex;
+  border-bottom: 2px solid var(--border-color);
+  margin-bottom: 1.25rem;
+  gap: 0;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn--active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+
+/* Settings block (role + company selectors above the tab nav) */
+.bulk-import-settings {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.form-group--inline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.form-group--inline label {
+  white-space: nowrap;
+  font-weight: 500;
+  font-size: 0.875rem;
+  min-width: 100px;
+  margin: 0;
+}
+
+.form-group--inline select {
+  flex: 1;
+  max-width: 300px;
+}
+
+/* Info banner */
+.bulk-import-banner {
+  background: var(--bg-secondary);
+  border-left: 3px solid var(--primary);
+  border-radius: 4px;
+  padding: 0.625rem 0.875rem;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+/* Hint text */
+.bulk-import-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin-top: 0.625rem;
+}
+
+.bulk-import-hint code {
+  background: var(--bg-tertiary);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.8em;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+.btn-link:hover {
+  opacity: 0.8;
+}
+
+/* CSV drop zone */
+.csv-drop-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: border-color 0.15s, background 0.15s;
+  user-select: none;
+}
+
+.csv-drop-zone:hover,
+.csv-drop-zone--active {
+  border-color: var(--primary);
+  background: var(--bg-secondary);
+}
+
+.csv-drop-zone__icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+}
+
+.csv-drop-zone p {
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+/* Uploaded file chip */
+.csv-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Paste textarea */
+.bulk-import-paste {
+  width: 100%;
+  min-height: 160px;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.bulk-import-paste:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* Manual entry + review table wrapper */
+.bulk-import-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.bulk-import-manual-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.bulk-import-manual-table th,
+.bulk-import-manual-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.bulk-import-manual-table th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.bulk-import-manual-table__num {
+  color: var(--text-muted);
+  width: 2rem;
+  text-align: center;
+}
+
+/* Inline inputs inside tables */
+.manual-entry-input {
+  width: 100%;
+  min-width: 100px;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.manual-entry-input:hover,
+.manual-entry-input:focus {
+  border-color: var(--border-color);
+  background: var(--bg-primary);
+  outline: none;
+}
+
+.manual-entry-input:focus {
+  border-color: var(--primary);
+}
+
+.manual-entry-input.input-error {
+  border-color: var(--danger);
+  background: var(--bg-primary);
+}
+
+/* Row highlight states in review table */
+tr.row-error {
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+tr.row-warning {
+  background: color-mix(in srgb, #f59e0b 8%, transparent);
+}
+
+/* Review step summary bar */
+.bulk-import-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.875rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Results step */
+.bulk-import-results {
+  padding: 0.5rem 0;
+}
+
+.results-hero {
+  text-align: center;
+  padding: 1.5rem 0 1rem;
+}
+
+.results-hero__number {
+  font-size: 3.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.results-hero__label {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.results-error-list {
+  margin-top: 0.75rem;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0 0.75rem;
+}
+
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .csv-drop-zone {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .bulk-import-paste {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] tr.row-error {
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+[data-theme="dark"] tr.row-warning {
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .modal.modal-bulk {
+    width: 100vw;
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+
+  .bulk-import-step__label {
+    display: none;
+  }
+
+  .bulk-import-steps {
+    justify-content: center;
+  }
+}
+
+/* ── End Bulk Import Modal ──────────────────────────────────────────────── */

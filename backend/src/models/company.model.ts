@@ -5,10 +5,11 @@ import { Company, CreateCompanyRequest, TwoFaLevelEnforcement } from '../types';
 type UpdateCompanyData = Partial<CreateCompanyRequest> & {
   twofaEnforcement?: TwoFaLevelEnforcement;
   deskBookingEnabled?: boolean;
+  setupPending?: boolean;
 };
 
 export class CompanyModel {
-  static async create(data: CreateCompanyRequest): Promise<Company> {
+  static async create(data: CreateCompanyRequest & { setupPending?: boolean }): Promise<Company> {
     const db = getDb();
     const id = uuidv4();
     const now = new Date().toISOString();
@@ -18,11 +19,21 @@ export class CompanyModel {
       name: data.name,
       address: data.address,
       park_id: data.parkId,
+      setup_pending: data.setupPending ? true : false,
       created_at: now,
       updated_at: now,
     });
 
     return (await this.findById(id))!;
+  }
+
+  static async findByNameAndPark(name: string, parkId: string): Promise<Company | null> {
+    const db = getDb();
+    const row = await db('companies')
+      .whereRaw('LOWER(name) = LOWER(?)', [name.trim()])
+      .andWhere('park_id', parkId)
+      .first();
+    return row ? this.mapRowToCompany(row) : null;
   }
 
   static async findById(id: string): Promise<Company | null> {
@@ -72,6 +83,10 @@ export class CompanyModel {
       updatePayload.desk_booking_enabled = data.deskBookingEnabled;
     }
 
+    if (data.setupPending !== undefined) {
+      updatePayload.setup_pending = data.setupPending;
+    }
+
     await db('companies').where('id', id).update(updatePayload);
 
     return this.findById(id);
@@ -93,6 +108,7 @@ export class CompanyModel {
       parkId: row.park_id,
       twofaEnforcement: row.twofa_enforcement || 'inherit',
       deskBookingEnabled: Boolean(row.desk_booking_enabled),
+      setupPending: Boolean(row.setup_pending),
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

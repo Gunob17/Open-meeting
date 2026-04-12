@@ -67,6 +67,7 @@ export interface Company {
   parkId: string;
   twofaEnforcement: TwoFaLevelEnforcement;
   deskBookingEnabled: boolean;
+  setupPending: boolean;
   createdAt: string;
   updatedAt: string;
 }

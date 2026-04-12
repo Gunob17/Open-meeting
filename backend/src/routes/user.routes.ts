@@ -22,6 +22,16 @@ const userInviteLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Bulk import limiter: 3 requests per hour keyed by userId to prevent multi-IP bypass
+const bulkImportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  message: { error: 'Too many bulk import requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: AuthRequest) => req.user?.userId ?? req.ip ?? 'unknown',
+});
+
 // Get all users (admin only)
 router.get('/', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
@@ -504,6 +514,189 @@ router.delete('/:id', authenticate, requireCompanyAdminOrAbove, async (req: Auth
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Bulk import users (park admin+: can assign role/company or auto-create company for company_admin rows)
+router.post('/bulk-import', authenticate, requireCompanyAdminOrAbove, bulkImportLimiter, userInviteLimiter, async (req: AuthRequest, res: Response) => {
+  try {
+    const { users: rawUsers } = req.body;
+
+    if (!Array.isArray(rawUsers)) {
+      res.status(400).json({ error: 'Request body must contain a "users" array' });
+      return;
+    }
+    if (rawUsers.length === 0) {
+      res.status(400).json({ error: 'At least one user is required' });
+      return;
+    }
+    if (rawUsers.length > 50) {
+      res.status(400).json({ error: 'Maximum 50 users per import' });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    const seenEmails = new Set<string>();
+    for (let i = 0; i < rawUsers.length; i++) {
+      const row = rawUsers[i];
+      if (!row.email || typeof row.email !== 'string') {
+        res.status(400).json({ error: `Row ${i + 1}: email is required` });
+        return;
+      }
+      const normalizedEmail = row.email.toLowerCase().trim();
+      if (!emailRegex.test(normalizedEmail) || normalizedEmail.length > 254) {
+        res.status(400).json({ error: `Row ${i + 1}: invalid email format` });
+        return;
+      }
+      if (seenEmails.has(normalizedEmail)) {
+        res.status(400).json({ error: `Row ${i + 1}: duplicate email in batch (${normalizedEmail})` });
+        return;
+      }
+      seenEmails.add(normalizedEmail);
+      if (row.name && typeof row.name === 'string' && row.name.length > 100) {
+        res.status(400).json({ error: `Row ${i + 1}: name must be 100 characters or fewer` });
+        return;
+      }
+    }
+
+    const requesterRole = req.user!.role;
+    const frontendUrl = process.env.APP_URL || 'http://localhost';
+    const results: Array<{ email: string; status: 'created' | 'skipped'; error?: string; userId?: string; companyCreated?: boolean }> = [];
+    const createdUserIds: string[] = [];
+
+    auditLog({
+      userId: req.user!.userId,
+      action: AuditAction.USER_BULK_IMPORT_START,
+      resourceType: 'user',
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: 'success',
+      metadata: { requestedCount: rawUsers.length, importerRole: requesterRole, importerCompanyId: req.user!.companyId, importerParkId: req.user!.parkId },
+    });
+
+    for (const row of rawUsers) {
+      const email = row.email.toLowerCase().trim();
+      const name: string | undefined = row.name ? String(row.name).trim().slice(0, 100) : undefined;
+
+      let effectiveRole: UserRole;
+      let effectiveCompanyId: string;
+      let companyWasCreated = false;
+
+      if (requesterRole === UserRole.COMPANY_ADMIN) {
+        // Company admin: force USER role and own company — ignore submitted values
+        effectiveRole = UserRole.USER;
+        effectiveCompanyId = req.user!.companyId;
+      } else {
+        // Park admin / super admin
+        const submittedRole = row.role as UserRole;
+        if (!submittedRole || !Object.values(UserRole).includes(submittedRole)) {
+          effectiveRole = UserRole.USER;
+        } else if (submittedRole === UserRole.SUPER_ADMIN && requesterRole !== UserRole.SUPER_ADMIN) {
+          results.push({ email, status: 'skipped', error: 'Cannot create super admin users' });
+          continue;
+        } else {
+          effectiveRole = submittedRole;
+        }
+
+        // Resolve company: by ID, by name (find or auto-create for company_admin), or require ID for others
+        if (row.companyId && typeof row.companyId === 'string') {
+          effectiveCompanyId = row.companyId;
+        } else if (row.companyName && typeof row.companyName === 'string' && effectiveRole === UserRole.COMPANY_ADMIN) {
+          // Auto-resolve or auto-create company by name for company_admin imports
+          const parkId = req.user!.parkId!;
+          const existing = await CompanyModel.findByNameAndPark(row.companyName.trim(), parkId);
+          if (existing) {
+            effectiveCompanyId = existing.id;
+          } else {
+            const newCompany = await CompanyModel.create({
+              name: row.companyName.trim(),
+              address: '',
+              parkId,
+              setupPending: true,
+            });
+            effectiveCompanyId = newCompany.id;
+            companyWasCreated = true;
+            auditLog({
+              userId: req.user!.userId,
+              action: AuditAction.COMPANY_CREATE,
+              resourceType: 'company',
+              resourceId: newCompany.id,
+              ipAddress: getClientIp(req),
+              userAgent: req.headers['user-agent'],
+              outcome: 'success',
+              metadata: { bulkImport: true, setupPending: true },
+            });
+          }
+        } else {
+          results.push({ email, status: 'skipped', error: 'companyId or companyName is required' });
+          continue;
+        }
+      }
+
+      const company = await CompanyModel.findById(effectiveCompanyId);
+      if (!company) {
+        results.push({ email, status: 'skipped', error: 'Company not found' });
+        continue;
+      }
+      if (requesterRole === UserRole.PARK_ADMIN && company.parkId !== req.user!.parkId) {
+        results.push({ email, status: 'skipped', error: 'Company is not in your park' });
+        continue;
+      }
+
+      const existingUser = await UserModel.findByEmail(email);
+      if (existingUser) {
+        results.push({ email, status: 'skipped', error: 'already_exists' });
+        continue;
+      }
+
+      const rawInviteToken = crypto.randomBytes(32).toString('hex');
+      const inviteToken = crypto.createHash('sha256').update(rawInviteToken).digest('hex');
+      const inviteTokenExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+      const user = await UserModel.createInvited({
+        email,
+        role: effectiveRole,
+        companyId: effectiveCompanyId,
+        parkId: company.parkId,
+        addonRoles: [],
+        inviteToken,
+        inviteTokenExpiry,
+      });
+
+      if (name) {
+        const db = getDb();
+        await db('users').where('id', user.id).update({ name, updated_at: new Date().toISOString() });
+      }
+
+      const inviteLink = `${frontendUrl}/invite/${rawInviteToken}`;
+      sendUserInviteEmail(email, inviteLink).catch((err: unknown) =>
+        console.error('Failed to send bulk invite email:', err)
+      );
+
+      auditLog({ userId: req.user!.userId, action: AuditAction.USER_CREATE, resourceType: 'user', resourceId: user.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success', metadata: { role: effectiveRole, companyId: effectiveCompanyId, bulkImport: true } });
+      auditLog({ userId: req.user!.userId, action: AuditAction.USER_INVITE_SEND, resourceType: 'user', resourceId: user.id, ipAddress: getClientIp(req), userAgent: req.headers['user-agent'], outcome: 'success' });
+
+      results.push({ email, status: 'created', userId: user.id, companyCreated: companyWasCreated || undefined });
+      createdUserIds.push(user.id);
+    }
+
+    const created = results.filter(r => r.status === 'created').length;
+    const skipped = results.filter(r => r.status === 'skipped').length;
+
+    auditLog({
+      userId: req.user!.userId,
+      action: AuditAction.USER_BULK_IMPORT_COMPLETE,
+      resourceType: 'user',
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'],
+      outcome: skipped > 0 && created === 0 ? 'failure' : 'success',
+      metadata: { requestedCount: rawUsers.length, createdCount: created, skippedCount: skipped, createdUserIds, importerRole: requesterRole },
+    });
+
+    res.json({ results, created, skipped });
+  } catch (error) {
+    console.error('Bulk import error:', error);
+    res.status(500).json({ error: 'Failed to process bulk import' });
   }
 });
 

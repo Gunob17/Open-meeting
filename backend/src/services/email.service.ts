@@ -76,6 +76,7 @@ interface MeetingInviteParams {
   room: MeetingRoom;
   organizer: Omit<User, 'password'>;
   attendeeEmails: string[];
+  timezone: string;
 }
 
 function parseDateTime(isoString: string): [number, number, number, number, number] {
@@ -141,7 +142,7 @@ Organizer: ${organizer.name} (${organizer.email})`,
 }
 
 export async function sendMeetingInvite(params: MeetingInviteParams): Promise<void> {
-  const { booking, room, organizer, attendeeEmails } = params;
+  const { booking, room, organizer, attendeeEmails, timezone } = params;
 
   if (attendeeEmails.length === 0 && !organizer.email) {
     console.log('No recipients for meeting invite');
@@ -159,11 +160,13 @@ export async function sendMeetingInvite(params: MeetingInviteParams): Promise<vo
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: timezone
     };
     const timeOptions: Intl.DateTimeFormatOptions = {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: timezone
     };
 
     const htmlContent = `
@@ -256,7 +259,7 @@ export async function sendMeetingInvite(params: MeetingInviteParams): Promise<vo
 }
 
 export async function sendCancellationNotice(params: MeetingInviteParams): Promise<void> {
-  const { booking, room, organizer, attendeeEmails } = params;
+  const { booking, room, organizer, attendeeEmails, timezone } = params;
 
   if (attendeeEmails.length === 0 && !organizer.email) {
     return;
@@ -270,7 +273,8 @@ export async function sendCancellationNotice(params: MeetingInviteParams): Promi
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: timezone
     };
 
     const htmlContent = `
@@ -323,10 +327,11 @@ interface AdminActionParams {
   admin: Omit<User, 'password'>;
   attendeeEmails: string[];
   reason?: string;
+  timezone: string;
 }
 
 export async function sendAdminDeleteNotice(params: AdminActionParams): Promise<void> {
-  const { booking, room, bookingOwner, admin, attendeeEmails, reason } = params;
+  const { booking, room, bookingOwner, admin, attendeeEmails, reason, timezone } = params;
 
   if (!bookingOwner.email) {
     return;
@@ -339,11 +344,13 @@ export async function sendAdminDeleteNotice(params: AdminActionParams): Promise<
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: timezone
     };
     const timeOptions: Intl.DateTimeFormatOptions = {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: timezone
     };
 
     const htmlContent = `
@@ -408,6 +415,7 @@ interface ReceptionNotificationParams {
   receptionEmail: string;
   parkName: string;
   guestFields: string[];
+  timezone: string;
 }
 
 interface AdminMoveParams extends AdminActionParams {
@@ -416,7 +424,7 @@ interface AdminMoveParams extends AdminActionParams {
 }
 
 export async function sendAdminMoveNotice(params: AdminMoveParams): Promise<void> {
-  const { booking, oldRoom, newRoom, bookingOwner, admin, attendeeEmails, reason } = params;
+  const { booking, oldRoom, newRoom, bookingOwner, admin, attendeeEmails, reason, timezone } = params;
 
   if (!bookingOwner.email) {
     return;
@@ -429,11 +437,13 @@ export async function sendAdminMoveNotice(params: AdminMoveParams): Promise<void
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: timezone
     };
     const timeOptions: Intl.DateTimeFormatOptions = {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: timezone
     };
 
     const htmlContent = `
@@ -500,7 +510,7 @@ export async function sendAdminMoveNotice(params: AdminMoveParams): Promise<void
 }
 
 export async function sendReceptionNotification(params: ReceptionNotificationParams): Promise<void> {
-  const { booking, room, organizer, externalGuests, receptionEmail, parkName, guestFields } = params;
+  const { booking, room, organizer, externalGuests, receptionEmail, parkName, guestFields, timezone } = params;
 
   if (!receptionEmail || externalGuests.length === 0) {
     return;
@@ -513,11 +523,13 @@ export async function sendReceptionNotification(params: ReceptionNotificationPar
       weekday: 'long',
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: timezone
     };
     const timeOptions: Intl.DateTimeFormatOptions = {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: timezone
     };
 
     const showEmail = guestFields.includes('email');
@@ -642,6 +654,8 @@ interface ImipReplyParams {
   sequence: number;
   /** Meeting title from the original REQUEST (already sanitized) */
   title: string;
+  /** IANA timezone name for formatting dates in emails */
+  timezone: string;
 }
 
 /** Build a minimal iCal REPLY string (PARTSTAT=ACCEPTED or DECLINED). */
@@ -681,9 +695,9 @@ export async function sendImipAccept(params: ImipReplyParams): Promise<void> {
   const startTime = new Date(params.startTime);
   const endTime   = new Date(params.endTime);
   const dateOptions: Intl.DateTimeFormatOptions = {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: params.timezone,
   };
-  const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit' };
+  const timeOptions: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', timeZone: params.timezone };
 
   const icsContent = buildImipReply(params, true);
 

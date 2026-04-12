@@ -12,8 +12,9 @@ const MAX_TOKENS_PER_USER = 20;
 
 /** Build the complete ICS subscription URL for a token. */
 function buildFeedUrl(req: AuthRequest, scope: CalendarTokenScope, roomId: string | null, rawToken: string): string {
+  const proto = (req.get('x-forwarded-proto') ?? req.protocol).split(',')[0].trim();
   const base = process.env.API_BASE_URL?.replace(/\/$/, '')
-    ?? `${req.protocol}://${req.get('host')}/api`;
+    ?? `${proto}://${req.get('host')}/api`;
   if (scope === 'room') {
     return `${base}/ical/room/${roomId}?token=${rawToken}`;
   }

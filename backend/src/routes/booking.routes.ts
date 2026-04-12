@@ -319,6 +319,7 @@ router.post('/', authenticate, bookingCreateLimiter, async (req: AuthRequest, re
 
     // Get user for email
     const user = await UserModel.findById(req.user!.userId);
+    const settings = await SettingsModel.getGlobal();
 
     // Send meeting invite email
     if (user) {
@@ -326,7 +327,8 @@ router.post('/', authenticate, bookingCreateLimiter, async (req: AuthRequest, re
         booking,
         room,
         organizer: { ...user, password: undefined } as any,
-        attendeeEmails: attendees || []
+        attendeeEmails: attendees || [],
+        timezone: settings.timezone
       });
     }
 
@@ -341,7 +343,8 @@ router.post('/', authenticate, bookingCreateLimiter, async (req: AuthRequest, re
           externalGuests,
           receptionEmail: park.receptionEmail,
           parkName: park.name,
-          guestFields: park.receptionGuestFields
+          guestFields: park.receptionGuestFields,
+          timezone: settings.timezone
         });
       }
     }
@@ -416,6 +419,7 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     const room = await RoomModel.findById(booking.roomId);
     const user = await UserModel.findById(booking.userId);
+    const settings = await SettingsModel.getGlobal();
 
     // Send updated meeting invite
     if (room && user) {
@@ -423,7 +427,8 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
         booking,
         room,
         organizer: { ...user, password: undefined } as any,
-        attendeeEmails: attendees || safeParseArray(booking.attendees)
+        attendeeEmails: attendees || safeParseArray(booking.attendees),
+        timezone: settings.timezone
       });
     }
 
@@ -439,7 +444,8 @@ router.put('/:id', authenticate, async (req: AuthRequest, res: Response) => {
           externalGuests: parsedExternalGuests,
           receptionEmail: park.receptionEmail,
           parkName: park.name,
-          guestFields: park.receptionGuestFields
+          guestFields: park.receptionGuestFields,
+          timezone: settings.timezone
         });
       }
     }
@@ -486,13 +492,15 @@ router.post('/:id/cancel', authenticate, async (req: AuthRequest, res: Response)
     // Send cancellation notice
     const room = await RoomModel.findById(booking.roomId);
     const user = await UserModel.findById(booking.userId);
+    const settings = await SettingsModel.getGlobal();
 
     if (room && user) {
       sendCancellationNotice({
         booking,
         room,
         organizer: { ...user, password: undefined } as any,
-        attendeeEmails: safeParseArray(booking.attendees)
+        attendeeEmails: safeParseArray(booking.attendees),
+        timezone: settings.timezone
       });
     }
 
@@ -535,13 +543,15 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
 
     // If admin deleted someone else's booking, send notification
     if (isAdmin && !isOwner && room && bookingOwner && admin) {
+      const settings = await SettingsModel.getGlobal();
       await sendAdminDeleteNotice({
         booking,
         room,
         bookingOwner: { ...bookingOwner, password: undefined } as any,
         admin: { ...admin, password: undefined } as any,
         attendeeEmails: safeParseArray(booking.attendees),
-        reason
+        reason,
+        timezone: settings.timezone
       });
     }
 
@@ -612,6 +622,7 @@ router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) =
     const admin = await UserModel.findById(req.user!.userId);
 
     if (oldRoom && newRoom && bookingOwner && admin) {
+      const settings = await SettingsModel.getGlobal();
       await sendAdminMoveNotice({
         booking: updatedBooking,
         room: newRoom,
@@ -620,7 +631,8 @@ router.post('/:id/move', authenticate, async (req: AuthRequest, res: Response) =
         bookingOwner: { ...bookingOwner, password: undefined } as any,
         admin: { ...admin, password: undefined } as any,
         attendeeEmails: safeParseArray(booking.attendees),
-        reason
+        reason,
+        timezone: settings.timezone
       });
     }
 

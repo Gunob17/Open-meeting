@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
@@ -25,7 +25,9 @@ import { SsoConfigPage } from './pages/SsoConfigPage';
 import { CompleteInvitePage } from './pages/CompleteInvitePage';
 import { AdminDesksPage } from './pages/AdminDesksPage';
 import { DesksPage } from './pages/DesksPage';
+import { CompanySetupPage } from './pages/CompanySetupPage';
 import { api } from './services/api';
+import { UserRole } from './types';
 import './styles.css';
 
 function PrivateRoute({ children, adminOnly = false, companyAdminOnly = false, superAdminOnly = false, receptionistOnly = false }: {
@@ -66,9 +68,31 @@ function PrivateRoute({ children, adminOnly = false, companyAdminOnly = false, s
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const [companySetupPending, setCompanySetupPending] = useState(false);
+  const checkedUserRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!user || user.role !== UserRole.COMPANY_ADMIN) return;
+    if (checkedUserRef.current === user.id) return;
+    checkedUserRef.current = user.id;
+    api.getCompany(user.companyId)
+      .then(company => { if (company.setupPending) setCompanySetupPending(true); })
+      .catch(() => {});
+  }, [user]);
 
   if (loading) {
     return <div className="loading">Loading...</div>;
+  }
+
+  if (companySetupPending) {
+    return (
+      <CompanySetupPage
+        onComplete={() => {
+          checkedUserRef.current = null;
+          setCompanySetupPending(false);
+        }}
+      />
+    );
   }
 
   return (

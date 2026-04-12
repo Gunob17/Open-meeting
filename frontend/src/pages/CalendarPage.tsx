@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { format, addDays, subDays, isSameDay, parseISO } from 'date-fns';
+import { format, addDays, subDays, isSameDay, parseISO, startOfWeek } from 'date-fns';
 import { api } from '../services/api';
 import { Booking, MeetingRoom, Settings } from '../types';
 import { BookingModal } from '../components/BookingModal';
@@ -56,7 +56,7 @@ const assignColumns = (slotBookings: Booking[]): Map<string, { colIndex: number;
 export function CalendarPage() {
   const { user, isAdmin } = useAuth();
   const showConfirm = useConfirm();
-  const { timeFormat } = useSettings();
+  const { timeFormat, calendarViewMode, setCalendarViewMode } = useSettings();
   const [startDate, setStartDate] = useState(new Date());
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -94,9 +94,14 @@ export function CalendarPage() {
     resizeObserverRef.current = observer;
   }, []);
 
-  // Show 7 days starting from startDate
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(startDate, i)), [startDate]);
-  const endDate = useMemo(() => addDays(startDate, 7), [startDate]);
+  // Show 7 days: rolling from startDate, or full Mon–Sun week
+  const days = useMemo(() => {
+    const base = calendarViewMode === 'weekly'
+      ? startOfWeek(startDate, { weekStartsOn: 1 })
+      : startDate;
+    return Array.from({ length: 7 }, (_, i) => addDays(base, i));
+  }, [startDate, calendarViewMode]);
+  const endDate = useMemo(() => addDays(days[0], 7), [days]);
 
   // Generate hours based on global settings
   const hours = useMemo(() => {
@@ -376,16 +381,35 @@ export function CalendarPage() {
         </div>
         <div className="calendar-nav">
           <button onClick={() => setStartDate(subDays(startDate, 7))} className="btn btn-secondary">
-            {isMobile ? '\u25C0 7d' : 'Previous 7 Days'}
+            {isMobile
+              ? (calendarViewMode === 'weekly' ? '\u25C0 Wk' : '\u25C0 7d')
+              : (calendarViewMode === 'weekly' ? '\u25C0 Week' : 'Previous 7 Days')}
           </button>
           <button onClick={() => setStartDate(new Date())} className="btn btn-secondary">
             Today
           </button>
           <button onClick={() => setStartDate(addDays(startDate, 7))} className="btn btn-secondary">
-            {isMobile ? '7d \u25B6' : 'Next 7 Days'}
+            {isMobile
+              ? (calendarViewMode === 'weekly' ? 'Wk \u25B6' : '7d \u25B6')
+              : (calendarViewMode === 'weekly' ? 'Week \u25B6' : 'Next 7 Days')}
+          </button>
+          <button
+            onClick={() => {
+              if (calendarViewMode === 'rolling') {
+                setCalendarViewMode('weekly');
+                setStartDate(startOfWeek(new Date(), { weekStartsOn: 1 }));
+              } else {
+                setCalendarViewMode('rolling');
+                setStartDate(new Date());
+              }
+            }}
+            className="btn btn-secondary"
+            title={calendarViewMode === 'rolling' ? 'Switch to full week view' : 'Switch to rolling 7-day view'}
+          >
+            {calendarViewMode === 'rolling' ? (isMobile ? 'Wk' : 'Week View') : (isMobile ? '7d' : '7-Day View')}
           </button>
         </div>
-        <h2>{format(startDate, 'MMM d')} - {format(addDays(startDate, 6), 'MMM d, yyyy')}</h2>
+        <h2>{format(days[0], 'MMM d')} – {format(days[6], 'MMM d, yyyy')}</h2>
         {isMobile && rooms.length > 0 && (
           <div className="mobile-room-selector">
             <label htmlFor="mobile-room-select">Room:</label>
