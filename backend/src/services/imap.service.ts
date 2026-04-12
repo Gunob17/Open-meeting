@@ -38,6 +38,7 @@ import { getDb } from '../models/database';
 import { RoomModel } from '../models/room.model';
 import { UserModel } from '../models/user.model';
 import { BookingModel } from '../models/booking.model';
+import { SettingsModel } from '../models/settings.model';
 import { MeetingRoom } from '../types';
 import { parseMeetingRequest } from './ical-parser.service';
 import { sendImipAccept, sendImipDecline } from './email.service';
@@ -310,6 +311,7 @@ async function processMessage(rawBuffer: Buffer, room: MeetingRoom): Promise<voi
     return;
   }
 
+  const settings = await SettingsModel.getGlobal();
   const replyParams = {
     organizerEmail: senderEmail,
     room,
@@ -318,6 +320,7 @@ async function processMessage(rawBuffer: Buffer, room: MeetingRoom): Promise<voi
     uid: meeting.uid,
     sequence: meeting.sequence,
     title: meeting.title,
+    timezone: settings.timezone,
   };
 
   // 8. iCal UID tracking: check if this is an update to an existing booking

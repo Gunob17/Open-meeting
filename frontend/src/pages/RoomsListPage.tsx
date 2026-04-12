@@ -5,7 +5,77 @@ import { BookingModal } from '../components/BookingModal';
 import { DatePicker } from '../components/DatePicker';
 import { parseISO, isAfter, isBefore } from 'date-fns';
 import { useSettings } from '../context/SettingsContext';
-import { formatTime } from '../utils/time';
+import { formatTime, TimeFormat } from '../utils/time';
+
+function toTimeDisplay(hhmm: string, timeFormat: TimeFormat): string {
+  const [hStr, mStr] = hhmm.split(':');
+  const h = parseInt(hStr, 10);
+  if (timeFormat === '24h') return hhmm;
+  const h12 = h % 12 || 12;
+  return `${h12}:${mStr}`;
+}
+
+function parseTimeInput(text: string, timeFormat: TimeFormat, ampm: string): string | null {
+  const match = text.trim().match(/^(\d{1,2}):?(\d{2})?$/);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  const m = match[2] !== undefined ? parseInt(match[2], 10) : 0;
+  if (m < 0 || m > 59) return null;
+  if (timeFormat === '12h') {
+    if (h < 1 || h > 12) return null;
+    h = ampm === 'PM' ? (h === 12 ? 12 : h + 12) : (h === 12 ? 0 : h);
+  } else {
+    if (h < 0 || h > 23) return null;
+  }
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+function TimeSelect({ value, onChange, timeFormat }: { value: string; onChange: (v: string) => void; timeFormat: TimeFormat }) {
+  const [text, setText] = useState(() => toTimeDisplay(value, timeFormat));
+  const [ampm, setAmpm] = useState<'AM' | 'PM'>(() => parseInt(value.split(':')[0], 10) >= 12 ? 'PM' : 'AM');
+
+  useEffect(() => {
+    setText(toTimeDisplay(value, timeFormat));
+    setAmpm(parseInt(value.split(':')[0], 10) >= 12 ? 'PM' : 'AM');
+  }, [value, timeFormat]);
+
+  const commit = (t: string, ap: string) => {
+    const parsed = parseTimeInput(t, timeFormat, ap);
+    if (parsed) {
+      onChange(parsed);
+    } else {
+      setText(toTimeDisplay(value, timeFormat));
+    }
+  };
+
+  return (
+    <div className="time-select-group">
+      <input
+        type="text"
+        className="time-text-input"
+        value={text}
+        placeholder={timeFormat === '24h' ? 'HH:MM' : 'H:MM'}
+        onChange={e => setText(e.target.value)}
+        onBlur={() => commit(text, ampm)}
+        onKeyDown={e => { if (e.key === 'Enter') commit(text, ampm); }}
+      />
+      {timeFormat === '12h' && (
+        <select
+          value={ampm}
+          className="ampm-select"
+          onChange={e => {
+            const ap = e.target.value as 'AM' | 'PM';
+            setAmpm(ap);
+            commit(text, ap);
+          }}
+        >
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </select>
+      )}
+    </div>
+  );
+}
 
 const ROOMS_PER_PAGE = 9;
 
@@ -193,19 +263,11 @@ export function RoomsListPage() {
               </div>
               <div className="finder-field">
                 <label>From</label>
-                <input
-                  type="time"
-                  value={finderStart}
-                  onChange={e => setFinderStart(e.target.value)}
-                />
+                <TimeSelect value={finderStart} onChange={setFinderStart} timeFormat={timeFormat} />
               </div>
               <div className="finder-field">
                 <label>To</label>
-                <input
-                  type="time"
-                  value={finderEnd}
-                  onChange={e => setFinderEnd(e.target.value)}
-                />
+                <TimeSelect value={finderEnd} onChange={setFinderEnd} timeFormat={timeFormat} />
               </div>
               <div className="finder-field">
                 <label>People</label>
@@ -266,7 +328,7 @@ export function RoomsListPage() {
             {finderActive && (
               <p className="finder-status">
                 Showing <strong>{filteredRooms.length}</strong> room{filteredRooms.length !== 1 ? 's' : ''} available on{' '}
-                {finderDate} from {finderStart}–{finderEnd} for {finderPeople}+ {finderPeople === 1 ? 'person' : 'people'}
+                {finderDate} from {formatTime(new Date(`${finderDate}T${finderStart}`), timeFormat)}–{formatTime(new Date(`${finderDate}T${finderEnd}`), timeFormat)} for {finderPeople}+ {finderPeople === 1 ? 'person' : 'people'}
                 {finderAmenities.length > 0 && ` · ${finderAmenities.join(', ')}`}
               </p>
             )}

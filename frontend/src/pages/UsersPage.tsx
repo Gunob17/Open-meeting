@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { User, Company, UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../context/ConfirmContext';
+import { BulkImportModal } from '../components/BulkImportModal';
 
 export function UsersPage() {
   const { user: currentUser, isAdmin, isSuperAdmin } = useAuth();
@@ -11,6 +12,7 @@ export function UsersPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState({
     email: '',
@@ -140,9 +142,14 @@ export function UsersPage() {
     <div className="users-page">
       <div className="page-header">
         <h1>User Management</h1>
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          Add User
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-secondary" onClick={() => setShowBulkModal(true)}>
+            Add Multiple Users
+          </button>
+          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+            Add User
+          </button>
+        </div>
       </div>
 
       <div className="table-container">
@@ -218,6 +225,18 @@ export function UsersPage() {
           </tbody>
         </table>
       </div>
+
+      {showBulkModal && (
+        <BulkImportModal
+          companies={companies}
+          currentUserCompanyId={currentUser?.companyId || ''}
+          currentUserCompanyName={companies.find(c => c.id === currentUser?.companyId)?.name || ''}
+          isAdmin={isAdmin}
+          isSuperAdmin={isSuperAdmin}
+          onClose={() => setShowBulkModal(false)}
+          onComplete={loadData}
+        />
+      )}
 
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>

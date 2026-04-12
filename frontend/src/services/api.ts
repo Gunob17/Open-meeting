@@ -380,6 +380,24 @@ class ApiService {
     await this.request(`/users/${id}/resend-invite`, { method: 'POST' });
   }
 
+  async bulkImportUsers(users: Array<{ email: string; name?: string; role: string; companyId?: string; companyName?: string }>): Promise<{
+    results: Array<{ email: string; status: 'created' | 'skipped'; error?: string; userId?: string; companyCreated?: boolean }>;
+    created: number;
+    skipped: number;
+  }> {
+    return this.request('/users/bulk-import', {
+      method: 'POST',
+      body: JSON.stringify({ users }),
+    });
+  }
+
+  async completeCompanySetup(id: string, data: { name: string; address: string }): Promise<Company> {
+    return this.request<Company>(`/companies/${id}/setup`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   // Rooms
   async getRooms(includeInactive = false, parkId?: string): Promise<MeetingRoom[]> {
     const selectedPark = parkId || this.getSelectedParkId();

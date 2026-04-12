@@ -917,14 +917,14 @@ function PasswordTab() {
 // ---------------------------------------------------------------------------
 
 function AppearanceTab() {
-  const { theme, toggleTheme } = useSettings();
+  const { theme, toggleTheme, calendarViewMode, setCalendarViewMode } = useSettings();
 
   return (
     <div className="card">
       <h2>Appearance</h2>
       <p className="section-description">Choose how Open Meeting looks to you.</p>
 
-      <div className="settings-section" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 0 }}>
+      <div className="settings-section">
         <h3 style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, marginBottom: 'var(--space-2)' }}>
           Color theme
         </h3>
@@ -948,6 +948,34 @@ function AppearanceTab() {
             aria-pressed={theme === 'dark'}
           >
             Dark
+          </button>
+        </div>
+      </div>
+
+      <div className="settings-section" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 0 }}>
+        <h3 style={{ fontSize: 'var(--font-size-base)', fontWeight: 600, marginBottom: 'var(--space-2)' }}>
+          Default calendar view
+        </h3>
+        <p className="section-description">
+          Choose whether the calendar starts in rolling 7-day view or full week (Mon–Sun) view. This preference is saved to this browser.
+        </p>
+
+        <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className={`btn ${calendarViewMode === 'rolling' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setCalendarViewMode('rolling')}
+            aria-pressed={calendarViewMode === 'rolling'}
+          >
+            Rolling 7 Days
+          </button>
+          <button
+            type="button"
+            className={`btn ${calendarViewMode === 'weekly' ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setCalendarViewMode('weekly')}
+            aria-pressed={calendarViewMode === 'weekly'}
+          >
+            Full Week (Mon–Sun)
           </button>
         </div>
       </div>

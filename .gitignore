@@ -45,3 +45,4 @@ coverage/
 *.log
 /backend-data
 /.claude
+/backend/.env

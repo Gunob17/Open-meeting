@@ -130,6 +130,48 @@ router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Res
   }
 });
 
+// Complete company setup — company admin fills in their own company details on first login
+// Also accessible to park/super admins so they can clear setup_pending manually
+router.put('/:id/setup', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, address } = req.body;
+
+    // Company admin can only complete setup for their own company
+    if (req.user?.role === UserRole.COMPANY_ADMIN && req.user?.companyId !== id) {
+      res.status(403).json({ error: 'Access denied to this company' });
+      return;
+    }
+
+    if (!name) {
+      res.status(400).json({ error: 'Company name is required' });
+      return;
+    }
+
+    const company = await CompanyModel.update(id, { name, address, setupPending: false });
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+
+    auditLog({
+      userId: req.user?.userId ?? null,
+      action: AuditAction.COMPANY_UPDATE,
+      resourceType: 'company',
+      resourceId: id,
+      ipAddress: getClientIp(req),
+      userAgent: req.headers['user-agent'] as string | undefined ?? null,
+      outcome: 'success',
+      metadata: { setupCompleted: true },
+    });
+
+    res.json(company);
+  } catch (error) {
+    console.error('Complete company setup error:', error);
+    res.status(500).json({ error: 'Failed to complete company setup' });
+  }
+});
+
 // Update company 2FA enforcement (company admin for own company, park admin for any in their park, super admin for any)
 router.put('/:id/twofa', authenticate, requireCompanyAdminOrAbove, async (req: AuthRequest, res: Response) => {
   try {
