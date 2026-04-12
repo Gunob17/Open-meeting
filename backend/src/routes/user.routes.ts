@@ -603,7 +603,12 @@ router.post('/bulk-import', authenticate, requireCompanyAdminOrAbove, bulkImport
           effectiveCompanyId = row.companyId;
         } else if (row.companyName && typeof row.companyName === 'string' && effectiveRole === UserRole.COMPANY_ADMIN) {
           // Auto-resolve or auto-create company by name for company_admin imports
-          const parkId = req.user!.parkId!;
+          const parkId = req.user!.parkId;
+          if (!parkId) {
+            // Super admins have no park — they must supply an explicit companyId
+            results.push({ email, status: 'skipped', error: 'companyId required — specify an existing company when importing as super admin' });
+            continue;
+          }
           const existing = await CompanyModel.findByNameAndPark(row.companyName.trim(), parkId);
           if (existing) {
             effectiveCompanyId = existing.id;

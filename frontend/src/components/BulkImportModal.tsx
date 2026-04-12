@@ -19,6 +19,7 @@ interface Props {
   currentUserCompanyId: string;
   currentUserCompanyName: string;
   isAdmin: boolean; // park admin or above
+  isSuperAdmin?: boolean; // super admins have no park — company auto-creation is unavailable
   onClose: () => void;
   onComplete: () => void;
 }
@@ -47,7 +48,7 @@ function companyNameFromEmail(email: string): string {
 }
 
 export function BulkImportModal({
-  companies, currentUserCompanyId, currentUserCompanyName, isAdmin, onClose, onComplete,
+  companies, currentUserCompanyId, currentUserCompanyName, isAdmin, isSuperAdmin, onClose, onComplete,
 }: Props) {
   const [step, setStep] = useState<ImportStep>('input');
   const [method, setMethod] = useState<InputMethod>('upload');
@@ -268,7 +269,7 @@ export function BulkImportModal({
                       value={globalRole}
                       onChange={e => { setGlobalRole(e.target.value as UserRole); setGlobalCompanyId(''); }}>
                       <option value={UserRole.USER}>User</option>
-                      <option value={UserRole.COMPANY_ADMIN}>Company Admin</option>
+                      {!isSuperAdmin && <option value={UserRole.COMPANY_ADMIN}>Company Admin</option>}
                       <option value={UserRole.PARK_ADMIN}>Park Admin</option>
                     </select>
                   </div>

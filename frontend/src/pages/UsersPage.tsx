@@ -232,6 +232,7 @@ export function UsersPage() {
           currentUserCompanyId={currentUser?.companyId || ''}
           currentUserCompanyName={companies.find(c => c.id === currentUser?.companyId)?.name || ''}
           isAdmin={isAdmin}
+          isSuperAdmin={isSuperAdmin}
           onClose={() => setShowBulkModal(false)}
           onComplete={loadData}
         />

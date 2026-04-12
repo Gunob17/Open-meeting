@@ -143,8 +143,8 @@ router.put('/:id/setup', authenticate, requireCompanyAdminOrAbove, async (req: A
       return;
     }
 
-    if (!name || !address) {
-      res.status(400).json({ error: 'Company name and address are required' });
+    if (!name) {
+      res.status(400).json({ error: 'Company name is required' });
       return;
     }
 
