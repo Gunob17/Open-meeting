@@ -26,6 +26,12 @@ function todayDateString(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function maxBookingDateString(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 3);
+  return d.toISOString().slice(0, 10);
+}
+
 // GET /api/desk-bookings — all confirmed bookings for user's park (startDate + endDate required)
 router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -111,7 +117,14 @@ router.get('/quota', authenticate, async (req: AuthRequest, res: Response) => {
 
     const park = await ParkModel.findById(parkId);
     if (!park || !park.monthlyDeskQuota || !park.deskQuotaType) {
-      res.json({ quotaType: null, monthlyQuota: null, usedThisMonth: 0, remainingThisMonth: null });
+      res.json({
+        quotaType: null,
+        monthlyQuota: null,
+        usedThisMonth: 0,
+        remainingThisMonth: null,
+        blockedWeekdays: park?.blockedWeekdays ?? [],
+        weekStartDay: park?.weekStartDay ?? 1,
+      });
       return;
     }
 
@@ -134,6 +147,8 @@ router.get('/quota', authenticate, async (req: AuthRequest, res: Response) => {
       monthlyQuota: effectiveQuota,
       usedThisMonth: used,
       remainingThisMonth: Math.max(0, effectiveQuota - used),
+      blockedWeekdays: park.blockedWeekdays,
+      weekStartDay: park.weekStartDay,
     });
   } catch (err) {
     console.error('Error checking desk quota:', err);
@@ -198,6 +213,10 @@ router.post('/', authenticate, deskBookingCreateLimiter, async (req: AuthRequest
       res.status(400).json({ error: 'Cannot book a desk in the past' });
       return;
     }
+    if (bookingDate > maxBookingDateString()) {
+      res.status(400).json({ error: 'Desk bookings cannot be made more than 3 months in advance' });
+      return;
+    }
 
     // Load desk
     const desk = await DeskModel.findById(deskId);
@@ -223,8 +242,17 @@ router.post('/', authenticate, deskBookingCreateLimiter, async (req: AuthRequest
       return;
     }
 
-    // Quota check (park-level)
+    // Blocked-weekday + quota checks (park-level)
     const park = await ParkModel.findById(desk.parkId);
+    if (park && park.blockedWeekdays.length > 0) {
+      // Parse date parts directly to avoid timezone shifting
+      const [y, m, d] = bookingDate.split('-').map(Number);
+      const weekday = new Date(y, m - 1, d).getDay(); // 0=Sun … 6=Sat
+      if (park.blockedWeekdays.includes(weekday)) {
+        res.status(400).json({ error: 'The park is closed on that day' });
+        return;
+      }
+    }
     if (park && park.monthlyDeskQuota && park.deskQuotaType) {
       const month = bookingDate.substring(0, 7); // 'YYYY-MM'
 

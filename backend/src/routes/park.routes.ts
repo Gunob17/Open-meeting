@@ -499,6 +499,8 @@ router.get('/:id/desk-quota', authenticate, async (req: AuthRequest, res: Respon
     res.json({
       deskQuotaType: park.deskQuotaType,
       monthlyDeskQuota: park.monthlyDeskQuota,
+      blockedWeekdays: park.blockedWeekdays,
+      weekStartDay: park.weekStartDay,
       overrides,
     });
   } catch (err) {
@@ -514,7 +516,7 @@ router.put('/:id/desk-quota', authenticate, async (req: AuthRequest, res: Respon
       res.status(403).json({ error: 'Access denied' });
       return;
     }
-    const { deskQuotaType, monthlyDeskQuota } = req.body;
+    const { deskQuotaType, monthlyDeskQuota, blockedWeekdays, weekStartDay } = req.body;
 
     if (deskQuotaType !== null && deskQuotaType !== undefined &&
         !['per_user', 'per_company'].includes(deskQuotaType)) {
@@ -525,14 +527,34 @@ router.put('/:id/desk-quota', authenticate, async (req: AuthRequest, res: Respon
       res.status(400).json({ error: 'monthlyDeskQuota must be a positive integer when quota type is set' });
       return;
     }
+    if (blockedWeekdays !== undefined) {
+      if (!Array.isArray(blockedWeekdays) || blockedWeekdays.some((d: any) => !Number.isInteger(d) || d < 0 || d > 6)) {
+        res.status(400).json({ error: 'blockedWeekdays must be an array of integers 0–6' });
+        return;
+      }
+    }
+
+    if (weekStartDay !== undefined) {
+      if (!Number.isInteger(weekStartDay) || weekStartDay < 0 || weekStartDay > 6) {
+        res.status(400).json({ error: 'weekStartDay must be an integer 0–6' });
+        return;
+      }
+    }
 
     const updated = await ParkModel.update(req.params.id, {
       deskQuotaType: deskQuotaType as DeskQuotaType | null ?? null,
       monthlyDeskQuota: deskQuotaType ? monthlyDeskQuota : null,
+      ...(blockedWeekdays !== undefined && { blockedWeekdays }),
+      ...(weekStartDay !== undefined && { weekStartDay }),
     });
     if (!updated) { res.status(404).json({ error: 'Park not found' }); return; }
 
-    res.json({ deskQuotaType: updated.deskQuotaType, monthlyDeskQuota: updated.monthlyDeskQuota });
+    res.json({
+      deskQuotaType: updated.deskQuotaType,
+      monthlyDeskQuota: updated.monthlyDeskQuota,
+      blockedWeekdays: updated.blockedWeekdays,
+      weekStartDay: updated.weekStartDay,
+    });
   } catch (err) {
     console.error('Error updating park desk quota:', err);
     res.status(500).json({ error: 'Failed to update desk quota settings' });

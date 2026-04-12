@@ -1065,10 +1065,15 @@ class ApiService {
     return this.request<ParkDeskQuota>(`/parks/${parkId}/desk-quota`);
   }
 
-  async updateParkDeskQuota(parkId: string, deskQuotaType: string | null, monthlyDeskQuota: number | null): Promise<void> {
+  async updateParkDeskQuota(parkId: string, deskQuotaType: string | null, monthlyDeskQuota: number | null, blockedWeekdays?: number[], weekStartDay?: number): Promise<void> {
     return this.request<void>(`/parks/${parkId}/desk-quota`, {
       method: 'PUT',
-      body: JSON.stringify({ deskQuotaType, monthlyDeskQuota }),
+      body: JSON.stringify({
+        deskQuotaType,
+        monthlyDeskQuota,
+        ...(blockedWeekdays !== undefined && { blockedWeekdays }),
+        ...(weekStartDay !== undefined && { weekStartDay }),
+      }),
     });
   }
 

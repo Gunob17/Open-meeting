@@ -47,7 +47,7 @@ export class ParkModel {
     return rows.map((row: any) => this.mapRowToPark(row));
   }
 
-  static async update(id: string, data: Partial<CreateParkRequest> & { isActive?: boolean; twofaEnforcement?: TwoFaLevelEnforcement; calendarFeedEnabled?: boolean; deskQuotaType?: DeskQuotaType | null; monthlyDeskQuota?: number | null }): Promise<Park | null> {
+  static async update(id: string, data: Partial<CreateParkRequest> & { isActive?: boolean; twofaEnforcement?: TwoFaLevelEnforcement; calendarFeedEnabled?: boolean; deskQuotaType?: DeskQuotaType | null; monthlyDeskQuota?: number | null; blockedWeekdays?: number[]; weekStartDay?: number }): Promise<Park | null> {
     const existing = await this.findById(id);
     if (!existing) return null;
 
@@ -75,6 +75,12 @@ export class ParkModel {
     }
     if (data.monthlyDeskQuota !== undefined) {
       updateObj.monthly_desk_quota = data.monthlyDeskQuota ?? null;
+    }
+    if (data.blockedWeekdays !== undefined) {
+      updateObj.blocked_weekdays = JSON.stringify(data.blockedWeekdays);
+    }
+    if (data.weekStartDay !== undefined) {
+      updateObj.week_start_day = data.weekStartDay;
     }
 
     await db('parks').where('id', id).update(updateObj);
@@ -126,6 +132,8 @@ export class ParkModel {
       calendarFeedEnabled: row.calendar_feed_enabled !== undefined ? !!row.calendar_feed_enabled : true,
       deskQuotaType: (row.desk_quota_type as DeskQuotaType) || null,
       monthlyDeskQuota: row.monthly_desk_quota ? Number(row.monthly_desk_quota) : null,
+      blockedWeekdays: JSON.parse(row.blocked_weekdays || '[]'),
+      weekStartDay: row.week_start_day !== undefined ? Number(row.week_start_day) : 1,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };

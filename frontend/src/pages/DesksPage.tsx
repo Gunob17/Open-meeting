@@ -25,6 +25,8 @@ export function DesksPage() {
   const [myBookings, setMyBookings] = useState<DeskBooking[]>([]);
   const [quota, setQuota] = useState<DeskQuotaStatus | null>(null);
   const [quotaNextMonth, setQuotaNextMonth] = useState<DeskQuotaStatus | null>(null);
+  const [blockedWeekdays, setBlockedWeekdays] = useState<number[]>([]);
+  const [weekStartDay, setWeekStartDay] = useState<number>(1);
   const [loading, setLoading] = useState(true);
   const [accessDenied, setAccessDenied] = useState(false);
   const [bookingDeskId, setBookingDeskId] = useState<string | null>(null);
@@ -41,10 +43,13 @@ export function DesksPage() {
 
   // ─── Derived values ───────────────────────────────────────────────────────
 
-  const currentMonth = rangeStart.slice(0, 7);
+  // Track the month the user is currently viewing in the calendar (independent
+  // of rangeStart so navigating months updates the quota display immediately).
+  const [calendarViewMonth, setCalendarViewMonth] = useState<string>(() => todayISO().slice(0, 7));
+  const currentMonth = calendarViewMonth;
 
   const nextMonthKey = (() => {
-    const d = new Date(rangeStart + 'T00:00:00');
+    const d = new Date(calendarViewMonth + '-02');
     d.setMonth(d.getMonth() + 1);
     return d.toISOString().slice(0, 7);
   })();
@@ -57,15 +62,25 @@ export function DesksPage() {
     const cursor = new Date(rangeStart + 'T00:00:00');
     const end = new Date(rangeEnd + 'T00:00:00');
     while (cursor <= end) {
-      dates.push(cursor.toISOString().slice(0, 10));
+      const y = cursor.getFullYear();
+      const mo = String(cursor.getMonth() + 1).padStart(2, '0');
+      const d = String(cursor.getDate()).padStart(2, '0');
+      dates.push(`${y}-${mo}-${d}`);
       cursor.setDate(cursor.getDate() + 1);
     }
     return dates;
   }, [dateMode, rangeStart, rangeEnd, multiDates]);
 
-  const totalSelectedDays = selectedDates.length;
-  const selectedDaysThisMonth = selectedDates.filter(d => d.slice(0, 7) === currentMonth).length;
-  const selectedDaysNextMonth = selectedDates.filter(d => d.slice(0, 7) === nextMonthKey).length;
+  // In range/multi mode, skip closed days — they can't be booked and shouldn't
+  // inflate quota counts or the "Book N Days" button label.
+  const bookableDates = selectedDates.filter(date => {
+    const [y, m, d] = date.split('-').map(Number);
+    return !blockedWeekdays.includes(new Date(y, m - 1, d).getDay());
+  });
+
+  const totalSelectedDays = bookableDates.length;
+  const selectedDaysThisMonth = bookableDates.filter(d => d.slice(0, 7) === currentMonth).length;
+  const selectedDaysNextMonth = bookableDates.filter(d => d.slice(0, 7) === nextMonthKey).length;
 
   const effectiveEnd = dateMode === 'range' && rangeEnd && rangeEnd >= rangeStart ? rangeEnd : rangeStart;
 
@@ -123,6 +138,9 @@ export function DesksPage() {
     try {
       const status = await api.getDeskQuotaStatus(month);
       setQuota(status);
+      // blockedWeekdays is park-level (same regardless of month) — keep in sync
+      setBlockedWeekdays(status.blockedWeekdays ?? []);
+      setWeekStartDay(status.weekStartDay ?? 1);
     } catch {
       setQuota(null);
     }
@@ -179,6 +197,13 @@ export function DesksPage() {
     }
   }, [rangeStart, rangeEnd, dateMode, multiDates]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Reload quota whenever the calendar view month changes (user navigates months).
+  useEffect(() => {
+    if (!loading) {
+      loadQuota(calendarViewMonth).catch(console.error);
+    }
+  }, [calendarViewMonth]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ─── Event handlers ───────────────────────────────────────────────────────
 
   const handleBook = async (desk: Desk) => {
@@ -186,7 +211,7 @@ export function DesksPage() {
     setBookingErrors((prev) => ({ ...prev, [desk.id]: '' }));
     setBookingResult(null);
 
-    const datesToBook = selectedDates.length > 0 ? selectedDates : [rangeStart];
+    const datesToBook = bookableDates.length > 0 ? bookableDates : [rangeStart];
     const succeeded: string[] = [];
     const failed: Array<{ date: string; error: string }> = [];
 
@@ -211,6 +236,16 @@ export function DesksPage() {
       loadQuota(currentMonth),
       ...(selectedDaysNextMonth > 0 ? [loadQuotaNextMonth(nextMonthKey)] : []),
     ]);
+
+    // Clear selection after booking so old picks don't carry over to the next booking
+    if (succeeded.length > 0) {
+      if (dateMode === 'multi') {
+        setMultiDates([]);
+      } else if (dateMode === 'range') {
+        setRangeEnd('');
+      }
+    }
+
     setBookingDeskId(null);
   };
 
@@ -299,6 +334,9 @@ export function DesksPage() {
             myBookedDates={myBookings.filter(b => b.status === 'confirmed').map(b => b.bookingDate)}
             quota={quota}
             quotaNextMonth={quotaNextMonth}
+            blockedWeekdays={blockedWeekdays}
+            weekStartDay={weekStartDay}
+            onViewMonthChange={(month) => setCalendarViewMonth(month)}
           />
 
           {/* Desk search */}
@@ -317,7 +355,9 @@ export function DesksPage() {
           {quota && quota.monthlyQuota !== null && quota.remainingThisMonth !== null && (
             <div className="desks-quota-card">
               <div className="desks-quota-card__header">
-                <span className="desks-quota-card__title">This Month's Quota</span>
+                <span className="desks-quota-card__title">
+                  {new Date(currentMonth + '-02').toLocaleString('default', { month: 'long', year: 'numeric' })} Quota
+                </span>
                 {quota.quotaType === 'per_company' && (
                   <span className="desks-quota-card__badge">Shared</span>
                 )}

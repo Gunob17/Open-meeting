@@ -329,6 +329,8 @@ export interface DeskQuotaStatus {
   monthlyQuota: number | null;
   usedThisMonth: number;
   remainingThisMonth: number | null; // null = unlimited
+  blockedWeekdays: number[]; // 0=Sun … 6=Sat
+  weekStartDay: number;      // 0=Sun, 1=Mon …
 }
 
 export interface UserDeskQuota {
@@ -344,5 +346,7 @@ export interface UserDeskQuota {
 export interface ParkDeskQuota {
   deskQuotaType: DeskQuotaType | null;
   monthlyDeskQuota: number | null;
+  blockedWeekdays: number[]; // 0=Sun … 6=Sat
+  weekStartDay: number;      // 0=Sun, 1=Mon …
   overrides: UserDeskQuota[];
 }

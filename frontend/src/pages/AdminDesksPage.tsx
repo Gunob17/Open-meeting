@@ -52,6 +52,8 @@ export function AdminDesksPage() {
   const [parkQuota, setParkQuota] = useState<ParkDeskQuota | null>(null);
   const [quotaType, setQuotaType] = useState<DeskQuotaType | ''>('');
   const [monthlyLimit, setMonthlyLimit] = useState('');
+  const [blockedWeekdays, setBlockedWeekdays] = useState<number[]>([]);
+  const [weekStartDay, setWeekStartDay] = useState<number>(1);
   const [savingQuota, setSavingQuota] = useState(false);
   const [quotaError, setQuotaError] = useState('');
   const [quotaSuccess, setQuotaSuccess] = useState('');
@@ -88,6 +90,8 @@ export function AdminDesksPage() {
       setParkQuota(quotaData);
       setQuotaType(quotaData.deskQuotaType ?? '');
       setMonthlyLimit(quotaData.monthlyDeskQuota !== null ? String(quotaData.monthlyDeskQuota) : '');
+      setBlockedWeekdays(quotaData.blockedWeekdays ?? []);
+      setWeekStartDay(quotaData.weekStartDay ?? 1);
       setParkUsers(usersData.filter((u) => u.isActive));
       setCompanies(companiesData);
     } catch {
@@ -191,11 +195,13 @@ export function AdminDesksPage() {
 
     setSavingQuota(true);
     try {
-      await api.updateParkDeskQuota(parkId, type, limit);
+      await api.updateParkDeskQuota(parkId, type, limit, blockedWeekdays, weekStartDay);
       const updated = await api.getParkDeskQuota(parkId);
       setParkQuota(updated);
       setQuotaType(updated.deskQuotaType ?? '');
       setMonthlyLimit(updated.monthlyDeskQuota !== null ? String(updated.monthlyDeskQuota) : '');
+      setBlockedWeekdays(updated.blockedWeekdays ?? []);
+      setWeekStartDay(updated.weekStartDay ?? 1);
       setQuotaSuccess('Quota settings saved');
       setTimeout(() => setQuotaSuccess(''), 3000);
     } catch (err: any) {
@@ -421,6 +427,72 @@ export function AdminDesksPage() {
               </button>
             </div>
           </form>
+
+          {/* Calendar & closed days */}
+          <div style={{ marginTop: '2rem', borderTop: '1px solid #e5e7eb', paddingTop: '1.5rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.2rem' }}>Calendar Settings</h2>
+            <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1rem' }}>
+              Configure how the booking calendar is displayed and which days are unavailable.
+            </p>
+
+            <div className="form-group" style={{ maxWidth: '220px', marginBottom: '1.5rem' }}>
+              <label htmlFor="weekStartDay">Week starts on</label>
+              <select
+                id="weekStartDay"
+                value={weekStartDay}
+                onChange={(e) => setWeekStartDay(Number(e.target.value))}
+              >
+                <option value={0}>Sunday</option>
+                <option value={1}>Monday</option>
+                <option value={2}>Tuesday</option>
+                <option value={3}>Wednesday</option>
+                <option value={4}>Thursday</option>
+                <option value={5}>Friday</option>
+                <option value={6}>Saturday</option>
+              </select>
+            </div>
+
+            <p style={{ fontWeight: 500, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Closed days</p>
+            <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
+              Users will not be able to book desks on the selected days of the week.
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const).map((label, idx) => {
+                const checked = blockedWeekdays.includes(idx);
+                return (
+                  <label
+                    key={idx}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.35rem',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '6px',
+                      border: `1px solid ${checked ? '#6366f1' : '#d1d5db'}`,
+                      background: checked ? '#eef2ff' : 'transparent',
+                      cursor: 'pointer',
+                      fontSize: '0.875rem',
+                      fontWeight: checked ? 600 : 400,
+                      userSelect: 'none',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        setBlockedWeekdays(prev =>
+                          prev.includes(idx) ? prev.filter(d => d !== idx) : [...prev, idx].sort((a, b) => a - b)
+                        )
+                      }
+                      style={{ display: 'none' }}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
+            <p style={{ color: '#9ca3af', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+              Click "Save Quota" above to apply closed-day changes.
+            </p>
+          </div>
 
           {/* User exceptions — only shown when quota type is per_user */}
           {parkQuota?.deskQuotaType === 'per_user' && (

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { DeskQuotaStatus } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -14,6 +14,9 @@ interface DeskDatePickerProps {
   myBookedDates: string[];     // YYYY-MM-DD[] – user's confirmed bookings
   quota: DeskQuotaStatus | null;
   quotaNextMonth: DeskQuotaStatus | null;
+  blockedWeekdays?: number[];  // 0=Sun … 6=Sat — days the park is closed
+  weekStartDay?: number;       // 0=Sun, 1=Mon (default) … 6=Sat
+  onViewMonthChange?: (month: string) => void; // YYYY-MM, fired when user navigates months
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -32,22 +35,33 @@ function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-/** Day-of-week (0 = Sun) for the 1st of the month. */
-function firstDayOfWeek(year: number, month: number): number {
-  return new Date(year, month, 1).getDay();
+/**
+ * Returns the 0-based column position of the 1st of the month given a week
+ * start day.  e.g. weekStart=1 (Mon) → Monday occupies column 0.
+ */
+function firstDayOfWeek(year: number, month: number, weekStart: number): number {
+  const raw = new Date(year, month, 1).getDay(); // 0=Sun … 6=Sat
+  return (raw - weekStart + 7) % 7;
 }
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const ALL_DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 /** Short human-readable label for a YYYY-MM-DD string. */
 function formatDateLabel(iso: string): string {
   const [year, month, day] = iso.split('-').map(Number);
   const d = new Date(year, month - 1, day);
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** Returns the max bookable date as YYYY-MM-DD (3 months from today, same day). */
+function maxBookableDate(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + 3);
+  return d.toISOString().slice(0, 10);
 }
 
 /** Number of calendar days between two ISO strings (inclusive). */
@@ -70,12 +84,22 @@ export function DeskDatePicker({
   myBookedDates,
   quota,
   quotaNextMonth,
+  blockedWeekdays = [],
+  weekStartDay = 1,
+  onViewMonthChange,
 }: DeskDatePickerProps) {
 
   // ── View month state ──────────────────────────────────────────────────────
   const initialISO = rangeStart || todayISO();
   const [viewYear, setViewYear]   = useState(() => parseInt(initialISO.slice(0, 4), 10));
   const [viewMonth, setViewMonth] = useState(() => parseInt(initialISO.slice(5, 7), 10) - 1);
+
+  // Notify parent whenever the displayed month changes (skip initial render)
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) { didMountRef.current = true; return; }
+    onViewMonthChange?.(`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`);
+  }, [viewYear, viewMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Hover preview state (range mode only) ────────────────────────────────
   const [hoverDate, setHoverDate] = useState<string | null>(null);
@@ -148,7 +172,11 @@ export function DeskDatePicker({
   };
 
   // ── Cell classifier ───────────────────────────────────────────────────────
-  const today = todayISO();
+  const today   = todayISO();
+  const maxDate = maxBookableDate();
+
+  // Derived: YYYY-MM of the max bookable date — used to cap navigation
+  const maxViewMonth = maxDate.slice(0, 7);
 
   const visualEnd: string | null = (() => {
     if (dateMode === 'range' && rangeStart && !rangeEnd && hoverDate && hoverDate >= rangeStart) {
@@ -170,7 +198,9 @@ export function DeskDatePicker({
     isBooked: boolean;
     isHoverPreview: boolean;
   } {
-    const isPast  = iso < today;
+    const [y, mo, d] = iso.split('-').map(Number);
+    const weekday = new Date(y, mo - 1, d).getDay();
+    const isPast  = iso < today || iso > maxDate || blockedWeekdays.includes(weekday);
     const isToday = iso === today;
 
     // In multi mode each selected date is a "start" (gets the filled circle)
@@ -194,7 +224,8 @@ export function DeskDatePicker({
 
   // ── Calendar grid construction ────────────────────────────────────────────
   const totalDays = daysInMonth(viewYear, viewMonth);
-  const startPad  = firstDayOfWeek(viewYear, viewMonth);
+  const startPad  = firstDayOfWeek(viewYear, viewMonth, weekStartDay);
+  const DAY_LABELS = [...ALL_DAY_LABELS.slice(weekStartDay), ...ALL_DAY_LABELS.slice(0, weekStartDay)];
 
   // ── Selected date summary line ────────────────────────────────────────────
   const summaryLine: string | null = (() => {
@@ -286,6 +317,7 @@ export function DeskDatePicker({
           type="button"
           className="ddp__nav-btn"
           onClick={nextMonth}
+          disabled={`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}` >= maxViewMonth}
           aria-label="Next month"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
