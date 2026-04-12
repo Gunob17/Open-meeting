@@ -439,7 +439,7 @@ router.get('/firmware/check', authenticateDevice, async (req: DeviceRequest, res
 router.get('/firmware/download/:version', authenticateDevice, async (req: DeviceRequest, res: Response) => {
   try {
     const device = req.device!;
-    const { version } = req.params;
+    const { version } = req.params as Record<string, string>;
 
     console.log('Firmware download request from device:', device.name, '| Requesting version:', version, '| Device type:', device.deviceType);
 

@@ -383,7 +383,7 @@ router.post('/:id/logo', authenticate, logoUploadMiddleware, async (req: MulterA
 // Serve park logo (public)
 router.get('/:id/logo/:filename', (req: Request, res: Response) => {
   try {
-    const { filename } = req.params;
+    const { filename } = req.params as Record<string, string>;
 
     // Validate filename to prevent path traversal
     if (!/^[a-zA-Z0-9_-]+\.(png|jpg|jpeg|gif|svg|webp)$/i.test(filename)) {
