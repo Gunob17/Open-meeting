@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import Joyride, { CallBackProps, EVENTS, STATUS, Step } from 'react-joyride';
+import { useTranslation } from 'react-i18next';
 
 interface TourGuideProps {
   steps: Step[];
@@ -9,6 +10,7 @@ interface TourGuideProps {
 }
 
 export function TourGuide({ steps, run, onFinish, onStep }: TourGuideProps) {
+  const { t } = useTranslation();
   const handleCallback = useCallback((data: CallBackProps) => {
     if (data.type === EVENTS.STEP_BEFORE && onStep) {
       onStep(data.index);
@@ -27,6 +29,14 @@ export function TourGuide({ steps, run, onFinish, onStep }: TourGuideProps) {
       showProgress
       disableScrolling={false}
       callback={handleCallback}
+      locale={{
+        back: t('tour.buttons.back'),
+        close: t('tour.buttons.close'),
+        last: t('tour.buttons.last'),
+        next: t('tour.buttons.next'),
+        nextLabelWithProgress: t('tour.buttons.nextWithProgress'),
+        skip: t('tour.buttons.skip'),
+      }}
       styles={{
         options: {
           primaryColor: '#4f46e5',

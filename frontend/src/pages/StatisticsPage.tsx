@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { format, subDays } from 'date-fns';
 import { useSettings } from '../context/SettingsContext';
@@ -51,6 +52,7 @@ interface Summary {
 }
 
 export function StatisticsPage() {
+  const { t } = useTranslation();
   const { timeFormat } = useSettings();
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState({
@@ -109,16 +111,16 @@ export function StatisticsPage() {
   const maxDailyBookings = Math.max(...dailyStats.map(d => d.bookingCount), 1);
 
   if (loading) {
-    return <div className="loading">Loading statistics...</div>;
+    return <div className="loading">{t('statistics.loading')}</div>;
   }
 
   return (
     <div className="statistics-page">
       <div className="page-header">
-        <h1>Room Statistics</h1>
+        <h1>{t('statistics.title')}</h1>
         <div className="date-range-picker">
           <label>
-            From:
+            {t('statistics.from')}:
             <input
               type="date"
               value={dateRange.start}
@@ -126,7 +128,7 @@ export function StatisticsPage() {
             />
           </label>
           <label>
-            To:
+            {t('statistics.to')}:
             <input
               type="date"
               value={dateRange.end}
@@ -134,7 +136,7 @@ export function StatisticsPage() {
             />
           </label>
           <button className="btn btn-primary" onClick={loadData}>
-            Update
+            {t('statistics.update')}
           </button>
         </div>
       </div>
@@ -144,27 +146,27 @@ export function StatisticsPage() {
         <div className="stats-summary-grid">
           <div className="stat-card highlight">
             <div className="stat-value">{summary.today.bookings}</div>
-            <div className="stat-label">Bookings Today</div>
+            <div className="stat-label">{t('statistics.bookingsToday')}</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{summary.thisWeek.bookings}</div>
-            <div className="stat-label">This Week</div>
+            <div className="stat-label">{t('statistics.thisWeek')}</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{summary.thisMonth.bookings}</div>
-            <div className="stat-label">This Month</div>
+            <div className="stat-label">{t('statistics.thisMonth')}</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{summary.totals.activeRooms}</div>
-            <div className="stat-label">Active Rooms</div>
+            <div className="stat-label">{t('statistics.activeRooms')}</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{summary.totals.activeUsers}</div>
-            <div className="stat-label">Active Users</div>
+            <div className="stat-label">{t('statistics.activeUsers')}</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{roomSummary.averageUtilization}%</div>
-            <div className="stat-label">Avg Utilization</div>
+            <div className="stat-label">{t('statistics.avgUtilization')}</div>
           </div>
         </div>
       )}
@@ -175,9 +177,9 @@ export function StatisticsPage() {
         <div className="stats-column">
           {/* Hourly Distribution */}
           <div className="stats-section">
-            <h2>Booking Times Distribution</h2>
+            <h2>{t('statistics.bookingTimesTitle')}</h2>
             <p className="stats-subtitle">
-              Peak hour: <strong>{formatHour(peakHour.hour, timeFormat)}</strong> ({peakHour.bookings} bookings)
+              {t('statistics.peakHour', { hour: formatHour(peakHour.hour, timeFormat), count: peakHour.bookings })}
             </p>
             <div className="hourly-chart">
               {hourlyStats.filter(h => h.hour >= 6 && h.hour <= 20).map(stat => (
@@ -199,7 +201,7 @@ export function StatisticsPage() {
 
           {/* Daily Trend */}
           <div className="stats-section">
-            <h2>Daily Booking Trend</h2>
+            <h2>{t('statistics.dailyTrend')}</h2>
             <div className="daily-chart">
               {dailyStats.slice(-14).map(stat => (
                 <div key={stat.date} className="day-bar-container">
@@ -219,7 +221,7 @@ export function StatisticsPage() {
 
           {/* Amenity Popularity */}
           <div className="stats-section">
-            <h2>Amenity Popularity</h2>
+            <h2>{t('statistics.amenityPopularity')}</h2>
             <div className="amenity-stats">
               {amenityStats.slice(0, 8).map(stat => (
                 <div key={stat.amenity} className="amenity-stat-row">
@@ -243,15 +245,15 @@ export function StatisticsPage() {
         <div className="stats-column">
           {/* Room Performance */}
           <div className="stats-section">
-            <h2>Room Performance</h2>
+            <h2>{t('statistics.roomPerformance')}</h2>
             <div className="table-container compact">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Room</th>
-                    <th>Bookings</th>
-                    <th>Hours</th>
-                    <th>Utilization</th>
+                    <th>{t('statistics.room')}</th>
+                    <th>{t('statistics.bookings')}</th>
+                    <th>{t('statistics.hours')}</th>
+                    <th>{t('statistics.utilization')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -259,7 +261,7 @@ export function StatisticsPage() {
                     <tr key={room.roomId}>
                       <td>
                         <div className="room-name">{room.roomName}</div>
-                        <div className="room-floor">Floor {room.floor}</div>
+                        <div className="room-floor">{t('common.floor')} {room.floor}</div>
                       </td>
                       <td>{room.totalBookings}</td>
                       <td>{room.totalHoursBooked}h</td>
@@ -286,15 +288,15 @@ export function StatisticsPage() {
 
           {/* Top Bookers */}
           <div className="stats-section">
-            <h2>Top Bookers</h2>
+            <h2>{t('statistics.topBookers')}</h2>
             <div className="table-container compact">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>User ID</th>
-                    <th>Company</th>
-                    <th>Bookings</th>
-                    <th>Hours</th>
+                    <th>{t('statistics.userId')}</th>
+                    <th>{t('statistics.company')}</th>
+                    <th>{t('statistics.bookings')}</th>
+                    <th>{t('statistics.hours')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -315,8 +317,8 @@ export function StatisticsPage() {
 
           {/* Low Utilization Rooms */}
           <div className="stats-section">
-            <h2>Underutilized Rooms</h2>
-            <p className="stats-subtitle">Rooms with less than 30% utilization</p>
+            <h2>{t('statistics.underutilized')}</h2>
+            <p className="stats-subtitle">{t('statistics.underutilizedDesc')}</p>
             <div className="underutilized-rooms">
               {roomStats
                 .filter(r => r.utilizationRate < 30)
@@ -325,11 +327,11 @@ export function StatisticsPage() {
                   <div key={room.roomId} className="underutilized-room-card">
                     <div className="room-info">
                       <strong>{room.roomName}</strong>
-                      <span>Floor {room.floor} | Capacity: {room.capacity}</span>
+                      <span>{t('common.floor')} {room.floor} | {t('common.capacity')}: {room.capacity}</span>
                     </div>
                     <div className="room-stats">
                       <span className="utilization-low">{room.utilizationRate}%</span>
-                      <span>{room.totalBookings} bookings</span>
+                      <span>{room.totalBookings} {t('statistics.bookings').toLowerCase()}</span>
                     </div>
                     <div className="room-amenities">
                       {room.amenities.slice(0, 3).map(a => (
@@ -339,7 +341,7 @@ export function StatisticsPage() {
                   </div>
                 ))}
               {roomStats.filter(r => r.utilizationRate < 30).length === 0 && (
-                <p className="no-data">All rooms have good utilization!</p>
+                <p className="no-data">{t('statistics.allGoodUtilization')}</p>
               )}
             </div>
           </div>

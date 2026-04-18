@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, CSSProperties } from 'react';
 import ReactDOM from 'react-dom';
+import { useTranslation } from 'react-i18next';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,27 +29,26 @@ function firstDayOfWeek(year: number, month: number): number {
   return new Date(year, month, 1).getDay();
 }
 
-function formatDisplay(iso: string): string {
+function formatDisplay(iso: string, locale: string): string {
   const [year, month, day] = iso.split('-').map(Number);
-  return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+  return new Date(year, month - 1, day).toLocaleDateString(locale, {
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   });
 }
-
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function DatePicker({
   value,
   onChange,
-  placeholder = 'Select date',
+  placeholder,
   min,
 }: DatePickerProps) {
+  const { t, i18n } = useTranslation();
+
+  const MONTH_NAMES = Array.from({ length: 12 }, (_, i) => t(`dates.months.${i}`));
+  const DAY_LABELS = Array.from({ length: 7 }, (_, i) => t(`dates.daysShort.${i}`));
+
   const earliest = min || todayISO();
   const today    = todayISO();
 
@@ -150,16 +150,16 @@ export function DatePicker({
   const startPad  = firstDayOfWeek(viewYear, viewMonth);
 
   const popup = open ? (
-    <div className="dp__popup" style={popupStyle} role="dialog" aria-label="Date picker" aria-modal="true">
+    <div className="dp__popup" style={popupStyle} role="dialog" aria-label={t('datePicker.dialog')} aria-modal="true">
       {/* Month header — reuses ddp styles */}
       <div className="ddp__header">
-        <button type="button" className="ddp__nav-btn" onClick={prevMonth} aria-label="Previous month">
+        <button type="button" className="ddp__nav-btn" onClick={prevMonth} aria-label={t('datePicker.prevMonth')}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
         <span className="ddp__month-label">{MONTH_NAMES[viewMonth]} {viewYear}</span>
-        <button type="button" className="ddp__nav-btn" onClick={nextMonth} aria-label="Next month">
+        <button type="button" className="ddp__nav-btn" onClick={nextMonth} aria-label={t('datePicker.nextMonth')}>
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
@@ -220,7 +220,7 @@ export function DatePicker({
         type="button"
         className={`dp__trigger${open ? ' dp__trigger--open' : ''}`}
         onClick={handleToggle}
-        aria-label="Pick a date"
+        aria-label={t('datePicker.pickDate')}
         aria-expanded={open}
         aria-haspopup="dialog"
       >
@@ -230,7 +230,7 @@ export function DatePicker({
           <path d="M1.5 7h13" stroke="currentColor" strokeWidth="1.5"/>
         </svg>
         <span className={value ? '' : 'dp__placeholder'}>
-          {value ? formatDisplay(value) : placeholder}
+          {value ? formatDisplay(value, i18n.language) : (placeholder ?? t('datePicker.selectDate'))}
         </span>
       </button>
 

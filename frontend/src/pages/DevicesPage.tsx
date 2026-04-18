@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { Device, Firmware } from '../types';
 import { formatDistanceToNow } from 'date-fns';
 import { useConfirm } from '../context/ConfirmContext';
 
 export function DevicesPage() {
+  const { t } = useTranslation();
   const showConfirm = useConfirm();
   const [devices, setDevices] = useState<Device[]>([]);
   const [firmware, setFirmware] = useState<Firmware[]>([]);
@@ -66,7 +68,7 @@ export function DevicesPage() {
   };
 
   const handleDeleteFirmware = async (id: string) => {
-    if (!await showConfirm({ message: 'Are you sure you want to delete this firmware version?', title: 'Delete Firmware', confirmLabel: 'Delete' })) return;
+    if (!await showConfirm({ message: t('devices.deleteFirmwareConfirm'), title: t('devices.deleteFirmwareTitle'), confirmLabel: t('common.delete') })) return;
 
     try {
       await api.deleteFirmware(id);
@@ -135,7 +137,7 @@ export function DevicesPage() {
   };
 
   const formatLastSeen = (lastSeenAt: string | null) => {
-    if (!lastSeenAt) return 'Never';
+    if (!lastSeenAt) return t('common.never');
     try {
       return formatDistanceToNow(new Date(lastSeenAt), { addSuffix: true });
     } catch {
@@ -175,13 +177,13 @@ export function DevicesPage() {
   };
 
   if (loading) {
-    return <div className="loading">Loading devices...</div>;
+    return <div className="loading">{t('devices.loading')}</div>;
   }
 
   return (
     <div className="devices-page">
       <div className="page-header">
-        <h1>Devices & Firmware</h1>
+        <h1>{t('devices.title')}</h1>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -189,7 +191,7 @@ export function DevicesPage() {
       {/* Selection Bar */}
       {selectedDevices.size > 0 && (
         <div className="selection-bar">
-          <span>{selectedDevices.size} device(s) selected</span>
+          <span>{t('devices.selected', { count: selectedDevices.size })}</span>
           <button
             className="btn btn-primary"
             onClick={() => {
@@ -198,13 +200,13 @@ export function DevicesPage() {
             }}
             disabled={activeFirmware.length === 0}
           >
-            Schedule Update
+            {t('devices.scheduleUpdate')}
           </button>
           <button
             className="btn btn-secondary"
             onClick={() => setSelectedDevices(new Set())}
           >
-            Clear Selection
+            {t('devices.clearSelection')}
           </button>
         </div>
       )}
@@ -214,13 +216,13 @@ export function DevicesPage() {
         {/* Firmware Section - Left Side */}
         <div className="firmware-panel">
           <div className="panel-header">
-            <h2>Firmware</h2>
+            <h2>{t('devices.firmware')}</h2>
             <button className="btn btn-sm btn-primary" onClick={() => setShowUploadModal(true)}>
-              + Upload
+              {t('devices.upload')}
             </button>
           </div>
           {firmware.length === 0 ? (
-            <p className="empty-state">No firmware uploaded yet.</p>
+            <p className="empty-state">{t('devices.noFirmware')}</p>
           ) : (
             <div className="firmware-compact-list">
               {firmware.map(fw => (
@@ -242,13 +244,13 @@ export function DevicesPage() {
                       className="btn btn-xs btn-secondary"
                       onClick={() => handleToggleFirmwareActive(fw)}
                     >
-                      {fw.isActive ? 'Deactivate' : 'Activate'}
+                      {fw.isActive ? t('devices.deactivate') : t('devices.activate')}
                     </button>
                     <button
                       className="btn btn-xs btn-danger"
                       onClick={() => handleDeleteFirmware(fw.id)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </div>
@@ -260,7 +262,7 @@ export function DevicesPage() {
         {/* Devices Section - Right Side */}
         <div className="devices-panel">
           <div className="panel-header">
-            <h2>Devices</h2>
+            <h2>{t('devices.devicesTitle')}</h2>
             {devices.length > 0 && (
               <label className="checkbox-label">
                 <input
@@ -268,12 +270,12 @@ export function DevicesPage() {
                   checked={selectedDevices.size === devices.length && devices.length > 0}
                   onChange={toggleSelectAll}
                 />
-                Select All
+                {t('devices.selectAll')}
               </label>
             )}
           </div>
           {devices.length === 0 ? (
-            <p className="empty-state">No devices registered in this park.</p>
+            <p className="empty-state">{t('devices.noDevices')}</p>
           ) : (
             <div className="devices-by-type">
               {deviceTypes.map(deviceType => {
@@ -315,12 +317,12 @@ export function DevicesPage() {
                               )}
                             </div>
                             <div className="device-room">
-                              {device.room?.name || 'No room assigned'}
+                              {device.room?.name || t('devices.noRoomAssigned')}
                             </div>
                             <div className="device-info">
                               <div className="device-version">
-                                <strong>Version:</strong>{' '}
-                                {device.firmwareVersion || 'Unknown'}
+                                <strong>{t('common.version')}:</strong>{' '}
+                                {device.firmwareVersion || t('common.unknown')}
                                 {device.pendingFirmwareVersion && (
                                   <span className="version-pending"> → v{device.pendingFirmwareVersion}</span>
                                 )}
@@ -329,13 +331,13 @@ export function DevicesPage() {
                                 )}
                               </div>
                               <div className="device-status">
-                                <strong>Status:</strong>{' '}
+                                <strong>{t('common.status')}:</strong>{' '}
                                 <span className={device.isActive ? 'status-active' : 'status-inactive'}>
-                                  {device.isActive ? 'Active' : 'Inactive'}
+                                  {device.isActive ? t('common.active') : t('common.inactive')}
                                 </span>
                               </div>
                               <div className="device-last-seen">
-                                <strong>Last Seen:</strong> {formatLastSeen(device.lastSeenAt)}
+                                <strong>{t('devices.lastSeen')}:</strong> {formatLastSeen(device.lastSeenAt)}
                               </div>
                             </div>
                           </div>
@@ -361,38 +363,38 @@ export function DevicesPage() {
             <div className="modal-body">
               <div className="device-detail-grid">
                 <div className="detail-item">
-                  <label>Room</label>
-                  <span>{selectedDevice.room?.name || 'No room assigned'}</span>
+                  <label>{t('calendar.room')}</label>
+                  <span>{selectedDevice.room?.name || t('devices.noRoomAssigned')}</span>
                 </div>
                 <div className="detail-item">
-                  <label>Status</label>
+                  <label>{t('common.status')}</label>
                   <span className={selectedDevice.isActive ? 'status-active' : 'status-inactive'}>
-                    {selectedDevice.isActive ? 'Active' : 'Inactive'}
+                    {selectedDevice.isActive ? t('common.active') : t('common.inactive')}
                   </span>
                 </div>
                 <div className="detail-item">
-                  <label>Current Firmware</label>
-                  <span>{selectedDevice.firmwareVersion || 'Unknown'}</span>
+                  <label>{t('devices.currentFirmware')}</label>
+                  <span>{selectedDevice.firmwareVersion || t('common.unknown')}</span>
                 </div>
                 <div className="detail-item">
-                  <label>Latest Available</label>
-                  <span>{latestFirmware?.version || 'None'}</span>
+                  <label>{t('devices.latestAvailable')}</label>
+                  <span>{latestFirmware?.version || '-'}</span>
                 </div>
                 <div className="detail-item">
-                  <label>Last Seen</label>
+                  <label>{t('devices.lastSeen')}</label>
                   <span>{formatLastSeen(selectedDevice.lastSeenAt)}</span>
                 </div>
                 <div className="detail-item">
-                  <label>Update Status</label>
+                  <label>{t('devices.updateStatus')}</label>
                   <span>
                     {selectedDevice.pendingFirmwareVersion ? (
                       <span className="update-pending">
-                        Update to v{selectedDevice.pendingFirmwareVersion} scheduled
+                        {t('devices.updateScheduled', { version: selectedDevice.pendingFirmwareVersion })}
                       </span>
                     ) : selectedDevice.hasUpdate ? (
-                      <span className="update-available">Update available</span>
+                      <span className="update-available">{t('devices.updateAvailable')}</span>
                     ) : (
-                      <span className="up-to-date">Up to date</span>
+                      <span className="up-to-date">{t('devices.upToDate')}</span>
                     )}
                   </span>
                 </div>
@@ -400,9 +402,9 @@ export function DevicesPage() {
 
               {selectedDevice.pendingFirmwareVersion && (
                 <div className="update-info pending">
-                  <h3>Pending Update: v{selectedDevice.pendingFirmwareVersion}</h3>
+                  <h3>{t('devices.pendingUpdate', { version: selectedDevice.pendingFirmwareVersion })}</h3>
                   <p className="update-note">
-                    This device will download and install this update on its next check-in.
+                    {t('devices.pendingUpdateDesc')}
                   </p>
                   <button
                     className="btn btn-danger"
@@ -411,17 +413,17 @@ export function DevicesPage() {
                       setSelectedDevice(null);
                     }}
                   >
-                    Cancel Update
+                    {t('devices.cancelUpdate')}
                   </button>
                 </div>
               )}
 
               {!selectedDevice.pendingFirmwareVersion && selectedDevice.hasUpdate && latestFirmware && (
                 <div className="update-info">
-                  <h3>Available Update: v{latestFirmware.version}</h3>
+                  <h3>{t('devices.availableUpdate', { version: latestFirmware.version })}</h3>
                   {latestFirmware.releaseNotes && (
                     <div className="release-notes">
-                      <strong>Release Notes:</strong>
+                      <strong>{t('devices.releaseNotes')}:</strong>
                       <p>{latestFirmware.releaseNotes}</p>
                     </div>
                   )}
@@ -434,7 +436,7 @@ export function DevicesPage() {
                       setSelectedDevice(null);
                     }}
                   >
-                    Schedule Update
+                    {t('devices.scheduleUpdate')}
                   </button>
                 </div>
               )}
@@ -463,29 +465,28 @@ export function DevicesPage() {
           <div className="modal-overlay" onClick={() => setShowUpgradeModal(false)}>
             <div className="modal modal-large" onClick={e => e.stopPropagation()}>
               <div className="modal-header">
-                <h2>Schedule Firmware Update</h2>
-                <button className="modal-close" onClick={() => setShowUpgradeModal(false)} aria-label="Close">&times;</button>
+                <h2>{t('devices.scheduleUpdateTitle')}</h2>
+                <button className="modal-close" onClick={() => setShowUpgradeModal(false)} aria-label={t('common.close')}>&times;</button>
               </div>
               <div className="modal-body">
                 <p className="upgrade-info">
-                  Schedule a firmware update for <strong>{selectedDevices.size} device(s)</strong>.
-                  The devices will download and install the update on their next check-in.
+                  {t('devices.scheduleUpdateDesc', { count: selectedDevices.size })}
                 </p>
 
                 {hasMixedTypes && (
                   <div className="alert alert-error">
-                    Warning: You have selected devices of different types. Please select devices of the same type to schedule an update.
+                    {t('devices.mixedTypesWarning')}
                   </div>
                 )}
 
                 {!hasMixedTypes && commonDeviceType && (
                   <div className="info-box">
-                    Device Type: <strong>{commonDeviceType}</strong>
+                    {t('devices.deviceType')}: <strong>{commonDeviceType}</strong>
                   </div>
                 )}
 
                 <div className="form-group">
-                  <label htmlFor="firmware-version">Select Firmware Version</label>
+                  <label htmlFor="firmware-version">{t('devices.selectFirmwareVersion')}</label>
                   <select
                     id="firmware-version"
                     value={selectedFirmwareVersion}
@@ -493,7 +494,7 @@ export function DevicesPage() {
                     className="form-control"
                     disabled={hasMixedTypes}
                   >
-                    <option value="">-- Select Version --</option>
+                    <option value="">{t('devices.selectVersion')}</option>
                     {availableFirmware.map(fw => (
                       <option key={fw.id} value={fw.version}>
                         v{fw.version} ({formatFileSize(fw.size)})
@@ -517,7 +518,7 @@ export function DevicesPage() {
               )}
 
                 <div className="selected-devices-list">
-                  <h4>Devices to Update:</h4>
+                  <h4>{t('devices.devicesToUpdate')}:</h4>
                   <ul>
                     {selectedDevicesList.map(device => (
                       <li key={device.id}>
@@ -533,7 +534,7 @@ export function DevicesPage() {
                   className="btn btn-secondary"
                   onClick={() => setShowUpgradeModal(false)}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="button"
@@ -541,7 +542,7 @@ export function DevicesPage() {
                   disabled={scheduling || !selectedFirmwareVersion || hasMixedTypes}
                   onClick={handleScheduleUpdate}
                 >
-                  {scheduling ? 'Scheduling...' : 'Schedule Update'}
+                  {scheduling ? t('devices.scheduling') : t('devices.scheduleUpdate')}
                 </button>
               </div>
             </div>
@@ -554,13 +555,13 @@ export function DevicesPage() {
         <div className="modal-overlay" onClick={() => setShowUploadModal(false)}>
           <div className="modal modal-large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Upload Firmware</h2>
-              <button className="modal-close" onClick={() => setShowUploadModal(false)} aria-label="Close">&times;</button>
+              <h2>{t('devices.uploadFirmware')}</h2>
+              <button className="modal-close" onClick={() => setShowUploadModal(false)} aria-label={t('common.close')}>&times;</button>
             </div>
             <form onSubmit={handleUploadFirmware}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label htmlFor="device-type">Device Type *</label>
+                  <label htmlFor="device-type">{t('devices.uploadDeviceType')}</label>
                   <select
                     id="device-type"
                     value={uploadDeviceType}
@@ -575,18 +576,18 @@ export function DevicesPage() {
                   </select>
                 </div>
                 <div className="form-group">
-                  <label htmlFor="version">Version *</label>
+                  <label htmlFor="version">{t('devices.uploadVersion')}</label>
                   <input
                     type="text"
                     id="version"
                     value={uploadVersion}
                     onChange={e => setUploadVersion(e.target.value)}
-                    placeholder="e.g., 1.0.0"
+                    placeholder={t('devices.uploadVersionPlaceholder')}
                     required
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="firmware-file">Firmware File (.bin) *</label>
+                  <label htmlFor="firmware-file">{t('devices.uploadFile')}</label>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -597,12 +598,12 @@ export function DevicesPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="release-notes">Release Notes</label>
+                  <label htmlFor="release-notes">{t('devices.uploadNotes')}</label>
                   <textarea
                     id="release-notes"
                     value={uploadNotes}
                     onChange={e => setUploadNotes(e.target.value)}
-                    placeholder="What's new in this version?"
+                    placeholder={t('devices.uploadNotesPlaceholder')}
                     rows={3}
                   />
                 </div>
@@ -613,10 +614,10 @@ export function DevicesPage() {
                   className="btn btn-secondary"
                   onClick={() => setShowUploadModal(false)}
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={uploading}>
-                  {uploading ? 'Uploading...' : 'Upload'}
+                  {uploading ? t('devices.uploading') : t('devices.upload')}
                 </button>
               </div>
             </form>

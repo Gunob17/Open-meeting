@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { MeetingRoom, Booking } from '../types';
 import { BookingModal } from '../components/BookingModal';
@@ -185,6 +186,7 @@ export function RoomsListPage() {
     setFinderBookings([]);
   };
 
+  const { t } = useTranslation();
   const { timeFormat } = useSettings();
 
   const allAmenities = [...new Set(rooms.flatMap(r => r.amenities))].sort();
@@ -240,37 +242,37 @@ export function RoomsListPage() {
   return (
     <div className="rooms-page">
       <div className="page-header">
-        <h1>Meeting Rooms</h1>
+        <h1>{t('rooms.title')}</h1>
       </div>
 
       <div className="room-finder-panel">
         <button className="finder-toggle" onClick={() => setFinderOpen(o => !o)}>
           <span className="finder-toggle-icon">{finderOpen ? '▲' : '▼'}</span>
-          Find an Available Room
-          {finderActive && <span className="finder-active-badge">Search active</span>}
+          {t('rooms.findAvailable')}
+          {finderActive && <span className="finder-active-badge">{t('rooms.searchActive')}</span>}
         </button>
 
         {finderOpen && (
           <div className="finder-form">
             <div className="finder-row">
               <div className="finder-field">
-                <label>Date</label>
+                <label>{t('common.date')}</label>
                 <DatePicker
                   value={finderDate}
                   onChange={setFinderDate}
-                  placeholder="Pick a date"
+                  placeholder={t('rooms.finderPickDate')}
                 />
               </div>
               <div className="finder-field">
-                <label>From</label>
+                <label>{t('rooms.from')}</label>
                 <TimeSelect value={finderStart} onChange={setFinderStart} timeFormat={timeFormat} />
               </div>
               <div className="finder-field">
-                <label>To</label>
+                <label>{t('rooms.to')}</label>
                 <TimeSelect value={finderEnd} onChange={setFinderEnd} timeFormat={timeFormat} />
               </div>
               <div className="finder-field">
-                <label>People</label>
+                <label>{t('rooms.people')}</label>
                 <input
                   type="number"
                   min={1}
@@ -290,7 +292,7 @@ export function RoomsListPage() {
 
             {finderAmenitiesAvailable.length > 0 && (
               <div className="finder-amenities">
-                <label>Amenities needed:</label>
+                <label>{t('rooms.amenitiesNeeded')}:</label>
                 <div className="amenity-checkboxes">
                   {finderAmenitiesAvailable.map(amenity => (
                     <label key={amenity} className="amenity-checkbox-label">
@@ -316,11 +318,11 @@ export function RoomsListPage() {
                 onClick={handleFinderSearch}
                 disabled={!finderDate || finderLoading}
               >
-                {finderLoading ? 'Searching...' : 'Find Available Rooms'}
+                {finderLoading ? t('rooms.searching') : t('rooms.findAvailableRooms')}
               </button>
               {finderActive && (
                 <button className="btn btn-secondary" onClick={handleFinderClear}>
-                  Clear Search
+                  {t('rooms.clearSearch')}
                 </button>
               )}
             </div>
@@ -343,10 +345,10 @@ export function RoomsListPage() {
             <input
               type="search"
               className="form-input"
-              placeholder="Search by name, floor or address…"
+              placeholder={t('rooms.searchPlaceholder')}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              aria-label="Search rooms"
+              aria-label={t('common.search')}
             />
           </div>
         </div>
@@ -355,20 +357,20 @@ export function RoomsListPage() {
         {!finderActive && (
           <>
             <div className="filter-group">
-              <label>Min Capacity:</label>
+              <label>{t('rooms.minCapacity')}:</label>
               <select value={filterCapacity} onChange={e => setFilterCapacity(Number(e.target.value))}>
-                <option value={0}>Any</option>
-                <option value={4}>4+ people</option>
-                <option value={8}>8+ people</option>
-                <option value={12}>12+ people</option>
-                <option value={20}>20+ people</option>
+                <option value={0}>{t('rooms.any')}</option>
+                <option value={4}>{t('rooms.peopleMin', { count: 4 })}</option>
+                <option value={8}>{t('rooms.peopleMin', { count: 8 })}</option>
+                <option value={12}>{t('rooms.peopleMin', { count: 12 })}</option>
+                <option value={20}>{t('rooms.peopleMin', { count: 20 })}</option>
               </select>
             </div>
 
             <div className="filter-group">
-              <label>Amenity:</label>
+              <label>{t('rooms.amenity')}:</label>
               <select value={filterAmenity} onChange={e => setFilterAmenity(e.target.value)}>
-                <option value="">Any</option>
+                <option value="">{t('rooms.any')}</option>
                 {allAmenities.map(amenity => (
                   <option key={amenity} value={amenity}>{amenity}</option>
                 ))}
@@ -389,19 +391,19 @@ export function RoomsListPage() {
               <div className="room-card-header">
                 <h3>{room.name}</h3>
                 <span className={`status-badge ${finderActive ? 'available' : (isAvailable ? 'available' : 'occupied')}`}>
-                  {finderActive ? 'Available' : (isAvailable ? 'Available' : 'Occupied')}
+                  {finderActive ? t('rooms.availableLabel') : (isAvailable ? t('rooms.availableLabel') : t('rooms.occupiedLabel'))}
                 </span>
               </div>
 
               <div className="room-card-body">
                 <div className="room-info">
-                  <p><strong>Capacity:</strong> {room.capacity} people</p>
-                  <p><strong>Floor:</strong> {room.floor}</p>
-                  <p><strong>Address:</strong> {room.address}</p>
+                  <p><strong>{t('common.capacity')}:</strong> {t('calendar.capacityPeople', { count: room.capacity })}</p>
+                  <p><strong>{t('common.floor')}:</strong> {room.floor}</p>
+                  <p><strong>{t('common.address')}:</strong> {room.address}</p>
                 </div>
 
                 <div className="room-amenities">
-                  <strong>Amenities:</strong>
+                  <strong>{t('common.amenities')}:</strong>
                   <div className="amenities-list">
                     {room.amenities.map(amenity => (
                       <span key={amenity} className="amenity-tag">{amenity}</span>
@@ -415,23 +417,23 @@ export function RoomsListPage() {
 
                 {room.bookingEmail && (
                   <p style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.5rem' }}>
-                    <strong>Book by email:</strong> <a href={`mailto:${room.bookingEmail}`}>{room.bookingEmail}</a>
+                    <strong>{t('rooms.bookByEmail')}:</strong> <a href={`mailto:${room.bookingEmail}`}>{room.bookingEmail}</a>
                   </p>
                 )}
 
                 {!finderActive && currentBooking && (
                   <div className="current-booking">
-                    <strong>Current Meeting:</strong>
+                    <strong>{t('rooms.currentMeeting')}:</strong>
                     <p>{currentBooking.title}</p>
                     <p className="booking-time">
-                      Until {formatTime(currentBooking.endTime, timeFormat)}
+                      {t('rooms.until', { time: formatTime(currentBooking.endTime, timeFormat) })}
                     </p>
                   </div>
                 )}
 
                 {!finderActive && isAvailable && nextBooking && (
                   <div className="next-booking">
-                    <strong>Next Booking:</strong>
+                    <strong>{t('rooms.nextBooking')}:</strong>
                     <p>{nextBooking.title}</p>
                     <p className="booking-time">
                       {formatTime(nextBooking.startTime, timeFormat)} - {formatTime(nextBooking.endTime, timeFormat)}
@@ -446,7 +448,7 @@ export function RoomsListPage() {
                   onClick={() => setSelectedRoom(room)}
                   disabled={finderActive ? false : !isAvailable}
                 >
-                  {finderActive ? 'Book This Room' : (isAvailable ? 'Book Now' : 'View Schedule')}
+                  {finderActive ? t('rooms.bookThisRoom') : (isAvailable ? t('rooms.bookNow') : t('rooms.viewSchedule'))}
                 </button>
               </div>
             </div>
@@ -458,10 +460,10 @@ export function RoomsListPage() {
         <div className="empty-state">
           <p>
             {finderActive
-              ? 'No rooms available for this time slot matching your criteria.'
+              ? t('rooms.noRoomsTimeSlot')
               : searchQuery.trim()
-              ? 'No rooms match your search.'
-              : 'No rooms match your filters.'}
+              ? t('rooms.noRoomsSearch')
+              : t('rooms.noRoomsFilter')}
           </p>
         </div>
       )}
@@ -473,7 +475,7 @@ export function RoomsListPage() {
             className="btn btn-secondary desks-pagination__btn"
             disabled={safePage <= 1}
             onClick={() => setCurrentPage(p => p - 1)}
-            aria-label="Previous page"
+            aria-label={t('rooms.prevPage')}
           >
             ‹
           </button>
@@ -491,7 +493,7 @@ export function RoomsListPage() {
             className="btn btn-secondary desks-pagination__btn"
             disabled={safePage >= totalPages}
             onClick={() => setCurrentPage(p => p + 1)}
-            aria-label="Next page"
+            aria-label={t('rooms.nextPage')}
           >
             ›
           </button>

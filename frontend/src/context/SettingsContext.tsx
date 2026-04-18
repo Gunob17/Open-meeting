@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '../services/api';
 import { TimeFormat } from '../utils/time';
+import { changeLanguage as i18nChangeLanguage } from 'i18next';
 
 type Theme = 'light' | 'dark';
 type CalendarViewMode = 'rolling' | 'weekly';
+export type Language = 'en' | 'da' | 'de' | 'fr' | 'it' | 'es';
 
 interface SettingsContextType {
   timeFormat: TimeFormat;
@@ -12,6 +14,8 @@ interface SettingsContextType {
   toggleTheme: () => void;
   calendarViewMode: CalendarViewMode;
   setCalendarViewMode: (mode: CalendarViewMode) => void;
+  language: Language;
+  setLanguage: (lang: Language) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType>({
@@ -21,6 +25,8 @@ const SettingsContext = createContext<SettingsContextType>({
   toggleTheme: () => {},
   calendarViewMode: 'rolling',
   setCalendarViewMode: () => {},
+  language: 'en',
+  setLanguage: () => {},
 });
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -57,6 +63,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setCalendarViewModeState(mode);
   };
 
+  const [language, setLanguageState] = useState<Language>(() => {
+    const stored = localStorage.getItem('language');
+    const supported: Language[] = ['en', 'da', 'de', 'fr', 'it', 'es'];
+    return supported.includes(stored as Language) ? (stored as Language) : 'en';
+  });
+
+  const setLanguage = (lang: Language) => {
+    localStorage.setItem('language', lang);
+    setLanguageState(lang);
+    i18nChangeLanguage(lang);
+  };
+
   useEffect(() => {
     api.getSettings()
       .then(s => setTimeFormat(s.timeFormat === '24h' ? '24h' : '12h'))
@@ -64,7 +82,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <SettingsContext.Provider value={{ timeFormat, setTimeFormat, theme, toggleTheme, calendarViewMode, setCalendarViewMode }}>
+    <SettingsContext.Provider value={{ timeFormat, setTimeFormat, theme, toggleTheme, calendarViewMode, setCalendarViewMode, language, setLanguage }}>
       {children}
     </SettingsContext.Provider>
   );

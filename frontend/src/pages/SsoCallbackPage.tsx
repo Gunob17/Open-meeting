@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 
 export function SsoCallbackPage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState('');
@@ -49,14 +51,14 @@ export function SsoCallbackPage() {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <h1>SSO Login Failed</h1>
+            <h1>{t('ssoCallback.failed')}</h1>
             <p>{error}</p>
           </div>
           <button
             className="btn btn-primary btn-block"
             onClick={() => navigate('/login', { replace: true })}
           >
-            Back to Login
+            {t('ssoCallback.backToLogin')}
           </button>
         </div>
       </div>
@@ -67,8 +69,8 @@ export function SsoCallbackPage() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>Completing SSO Login...</h1>
-          <p>Please wait while we sign you in.</p>
+          <h1>{t('ssoCallback.completing')}</h1>
+          <p>{t('ssoCallback.pleaseWait')}</p>
         </div>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { Park, Settings, TwoFaLevelEnforcement } from '../types';
 import { useConfirm } from '../context/ConfirmContext';
 
 export function ParksPage() {
+  const { t } = useTranslation();
   const showConfirm = useConfirm();
   const [parks, setParks] = useState<Park[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +118,7 @@ export function ParksPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!await showConfirm({ message: 'Are you sure you want to delete this park? All companies, users, and rooms in this park will also be affected.', title: 'Delete Park', confirmLabel: 'Delete' })) return;
+    if (!await showConfirm({ message: t('parks.deleteConfirm'), title: t('parks.deleteTitle'), confirmLabel: t('common.delete') })) return;
 
     try {
       await api.deletePark(id, false);
@@ -151,7 +153,7 @@ export function ParksPage() {
   };
 
   const handleDeleteLogo = async (parkId: string) => {
-    if (!await showConfirm({ message: 'Are you sure you want to remove this logo?', title: 'Remove Logo', confirmLabel: 'Remove' })) return;
+    if (!await showConfirm({ message: t('parks.removeLogoConfirm'), title: t('parks.removeLogoTitle'), confirmLabel: t('common.remove') })) return;
 
     try {
       await api.deleteParkLogo(parkId);
@@ -163,15 +165,15 @@ export function ParksPage() {
   };
 
   if (loading) {
-    return <div className="loading">Loading parks...</div>;
+    return <div className="loading">{t('parks.loading')}</div>;
   }
 
   return (
     <div className="parks-page">
       <div className="page-header">
-        <h1>Park Management</h1>
+        <h1>{t('parks.title')}</h1>
         <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          Add Park
+          {t('parks.addPark')}
         </button>
       </div>
 
@@ -188,12 +190,12 @@ export function ParksPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th style={{ width: '80px' }}>Logo</th>
-              <th>Name</th>
-              <th>Address</th>
-              <th>Description</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th style={{ width: '80px' }}>{t('parks.logo')}</th>
+              <th>{t('parks.name')}</th>
+              <th>{t('parks.address')}</th>
+              <th>{t('parks.description')}</th>
+              <th>{t('parks.status')}</th>
+              <th>{t('parks.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -212,16 +214,16 @@ export function ParksPage() {
                           <button
                             className="btn btn-tiny"
                             onClick={() => handleLogoClick(park.id)}
-                            title="Change logo"
+                            title={t('parks.changeLogo')}
                           >
-                            Change
+                            {t('parks.changeLogo')}
                           </button>
                           <button
                             className="btn btn-tiny btn-danger"
                             onClick={() => handleDeleteLogo(park.id)}
-                            title="Remove logo"
+                            title={t('parks.removeLogo')}
                           >
-                            Remove
+                            {t('parks.removeLogo')}
                           </button>
                         </div>
                       </div>
@@ -230,7 +232,7 @@ export function ParksPage() {
                         className="btn btn-small btn-secondary park-logo-upload"
                         onClick={() => handleLogoClick(park.id)}
                       >
-                        + Logo
+                        {t('parks.addLogo')}
                       </button>
                     )}
                   </div>
@@ -240,7 +242,7 @@ export function ParksPage() {
                 <td>{park.description || '-'}</td>
                 <td>
                   <span className={`status-badge ${park.isActive ? 'active' : 'inactive'}`}>
-                    {park.isActive ? 'Active' : 'Inactive'}
+                    {park.isActive ? t('parks.active') : t('parks.inactive')}
                   </span>
                 </td>
                 <td>
@@ -249,20 +251,20 @@ export function ParksPage() {
                       className="btn btn-small btn-secondary"
                       onClick={() => handleOpenModal(park)}
                     >
-                      Edit
+                      {t('common.edit')}
                     </button>
                     <button
                       className={`btn btn-small ${park.isActive ? 'btn-warning' : 'btn-success'}`}
                       onClick={() => handleToggleActive(park)}
                     >
-                      {park.isActive ? 'Deactivate' : 'Activate'}
+                      {park.isActive ? t('parks.deactivate') : t('parks.activate')}
                     </button>
                     {park.id !== 'default' && (
                       <button
                         className="btn btn-small btn-danger"
                         onClick={() => handleDelete(park.id)}
                       >
-                        Delete
+                        {t('common.delete')}
                       </button>
                     )}
                   </div>
@@ -277,8 +279,8 @@ export function ParksPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingPark ? 'Edit Park' : 'Add Park'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)} aria-label="Close">×</button>
+              <h2>{editingPark ? t('parks.editTitle') : t('parks.addTitle')}</h2>
+              <button className="modal-close" onClick={() => setShowModal(false)} aria-label={t('common.close')}>×</button>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -286,60 +288,60 @@ export function ParksPage() {
                 {error && <div className="alert alert-error">{error}</div>}
 
                 <div className="form-group">
-                  <label htmlFor="name">Park Name *</label>
+                  <label htmlFor="name">{t('parks.parkName')}</label>
                   <input
                     type="text"
                     id="name"
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     required
-                    placeholder="Enter park name"
+                    placeholder={t('parks.parkNamePlaceholder')}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="address">Address *</label>
+                  <label htmlFor="address">{t('common.address')} *</label>
                   <textarea
                     id="address"
                     value={formData.address}
                     onChange={e => setFormData({ ...formData, address: e.target.value })}
                     required
-                    placeholder="Enter park address"
+                    placeholder={t('parks.addressPlaceholder')}
                     rows={3}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="description">Description</label>
+                  <label htmlFor="description">{t('common.description')}</label>
                   <textarea
                     id="description"
                     value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Enter park description (optional)"
+                    placeholder={t('parks.descriptionPlaceholder')}
                     rows={3}
                   />
                 </div>
 
                 {editingPark && (
                   <div className="form-group">
-                    <label htmlFor="receptionEmail">Reception Email</label>
+                    <label htmlFor="receptionEmail">{t('parks.receptionEmail')}</label>
                     <input
                       type="email"
                       id="receptionEmail"
                       value={formData.receptionEmail}
                       onChange={e => setFormData({ ...formData, receptionEmail: e.target.value })}
-                      placeholder="reception@example.com (optional)"
+                      placeholder={t('parks.receptionEmailPlaceholder')}
                     />
-                    <small>When set, users can add external guests to bookings. The reception will be notified to prepare guest passes.</small>
+                    <small>{t('parks.receptionEmailDesc')}</small>
 
                     {formData.receptionEmail && (
                       <div className="mt-4">
-                        <label>Guest Information Fields</label>
-                        <small>Choose which information to collect from external guests.</small>
+                        <label>{t('parks.guestFields')}</label>
+                        <small>{t('parks.guestFieldsDesc')}</small>
                         <div className="checkbox-row">
                           <label>
                             <input type="checkbox" checked disabled />
-                            Name (always required)
+                            {t('parks.guestName')}
                           </label>
                           <label>
                             <input
@@ -352,7 +354,7 @@ export function ParksPage() {
                                 setFormData({ ...formData, receptionGuestFields: fields });
                               }}
                             />
-                            Email
+                            {t('parks.guestEmail')}
                           </label>
                           <label>
                             <input
@@ -365,7 +367,7 @@ export function ParksPage() {
                                 setFormData({ ...formData, receptionGuestFields: fields });
                               }}
                             />
-                            Company / Organization
+                            {t('parks.guestCompany')}
                           </label>
                         </div>
                       </div>
@@ -375,17 +377,17 @@ export function ParksPage() {
 
                 {editingPark && settings?.twofaEnforcement === 'optional' && (
                   <div className="form-group">
-                    <label htmlFor="parkTwofaEnforcement">Two-Factor Authentication</label>
+                    <label htmlFor="parkTwofaEnforcement">{t('parks.twofa')}</label>
                     <select
                       id="parkTwofaEnforcement"
                       value={parkTwofaEnforcement}
                       onChange={e => setParkTwofaEnforcement(e.target.value as TwoFaLevelEnforcement)}
                     >
-                      <option value="inherit">Inherit from System (Optional)</option>
-                      <option value="optional">Optional - Users can enable 2FA</option>
-                      <option value="required">Required - All users in this park must use 2FA</option>
+                      <option value="inherit">{t('parks.twofaOptions.inherit')}</option>
+                      <option value="optional">{t('parks.twofaOptions.optional')}</option>
+                      <option value="required">{t('parks.twofaOptions.required')}</option>
                     </select>
-                    <small>Override system 2FA enforcement for this park</small>
+                    <small>{t('parks.twofaDesc')}</small>
                   </div>
                 )}
 
@@ -397,19 +399,19 @@ export function ParksPage() {
                         checked={parkCalendarFeedEnabled}
                         onChange={e => setParkCalendarFeedEnabled(e.target.checked)}
                       />
-                      Allow calendar feed subscriptions (ICS)
+                      {t('parks.calendarFeed')}
                     </label>
-                    <small>When disabled, all existing ICS feed URLs for rooms in this park will stop working (returns 410 Gone).</small>
+                    <small>{t('parks.calendarFeedDesc')}</small>
                   </div>
                 )}
               </div>
 
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save'}
+                  {saving ? t('common.saving') : t('common.save')}
                 </button>
               </div>
             </form>

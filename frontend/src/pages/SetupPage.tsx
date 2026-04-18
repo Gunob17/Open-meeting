@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface SetupPageProps {
   onSetupComplete: () => void;
@@ -29,6 +30,7 @@ interface DemoResponse {
 const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 export function SetupPage({ onSetupComplete }: SetupPageProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<SetupMode>('select');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -71,12 +73,12 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
     setError('');
 
     if (adminPassword !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('invite.passwordMismatch'));
       return;
     }
 
     if (adminPassword.length < 6) {
-      setError('Password must be at least 6 characters');
+      setError(t('setup.passwordMinLength'));
       return;
     }
 
@@ -115,33 +117,33 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
       <div className="setup-container">
         <div className="setup-card">
           <div className="setup-header">
-            <h1>Welcome to Open Meeting</h1>
-            <p>Let's get started by setting up your system</p>
+            <h1>{t('setup.title')}</h1>
+            <p>{t('setup.subtitle')}</p>
           </div>
 
           <div className="setup-options">
             <div className="setup-option" onClick={() => setMode('demo')}>
               <div className="option-icon">🎮</div>
-              <h2>Demo Mode</h2>
-              <p>Try out the system with pre-configured sample data including multiple parks, companies, and meeting rooms.</p>
+              <h2>{t('setup.demoMode')}</h2>
+              <p>{t('setup.demoDesc')}</p>
               <ul>
-                <li>3 sample parks with rooms</li>
-                <li>Multiple companies per park</li>
-                <li>Various user roles to test</li>
+                <li>{t('setup.demoFeature1')}</li>
+                <li>{t('setup.demoFeature2')}</li>
+                <li>{t('setup.demoFeature3')}</li>
               </ul>
-              <button className="btn btn-secondary">Start Demo</button>
+              <button className="btn btn-secondary">{t('setup.startDemo')}</button>
             </div>
 
             <div className="setup-option" onClick={() => setMode('production')}>
               <div className="option-icon">🏢</div>
-              <h2>Production Mode</h2>
-              <p>Set up a fresh system for your organization with your own admin account.</p>
+              <h2>{t('setup.productionMode')}</h2>
+              <p>{t('setup.productionDesc')}</p>
               <ul>
-                <li>Create your organization</li>
-                <li>Set up super admin account</li>
-                <li>Start from scratch</li>
+                <li>{t('setup.productionFeature1')}</li>
+                <li>{t('setup.productionFeature2')}</li>
+                <li>{t('setup.productionFeature3')}</li>
               </ul>
-              <button className="btn btn-primary">Get Started</button>
+              <button className="btn btn-primary">{t('setup.getStarted')}</button>
             </div>
           </div>
         </div>
@@ -155,12 +157,12 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
       <div className="setup-container">
         <div className="setup-card setup-card-wide">
           <div className="setup-header">
-            <h1>Demo Setup Complete!</h1>
-            <p>Your demo environment is ready with {demoData.parks.length} parks</p>
+            <h1>{t('setup.demoComplete')}</h1>
+            <p>{t('setup.demoCompleteDesc', { count: demoData.parks.length })}</p>
           </div>
 
           <div className="demo-parks">
-            <h3>Created Parks</h3>
+            <h3>{t('setup.createdParks')}</h3>
             <div className="parks-list">
               {demoData.parks.map(park => (
                 <span key={park.id} className="park-badge">{park.name}</span>
@@ -169,50 +171,50 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
           </div>
 
           <div className="demo-credentials">
-            <h3>Demo Accounts</h3>
-            <p>Use these credentials to log in and explore different role capabilities:</p>
+            <h3>{t('setup.demoAccounts')}</h3>
+            <p>{t('setup.demoAccountsDesc')}</p>
 
             <div className="credentials-grid">
               <div className="credential-card credential-super">
-                <div className="credential-role">Super Admin</div>
+                <div className="credential-role">{t('setup.superAdmin')}</div>
                 <p className="credential-desc">{demoData.credentials.superAdmin.description}</p>
                 <div className="credential-details">
-                  <div><strong>Email:</strong> {demoData.credentials.superAdmin.email}</div>
-                  <div><strong>Password:</strong> {demoData.credentials.superAdmin.password}</div>
+                  <div><strong>{t('common.email')}:</strong> {demoData.credentials.superAdmin.email}</div>
+                  <div><strong>{t('common.password')}:</strong> {demoData.credentials.superAdmin.password}</div>
                 </div>
               </div>
 
               <div className="credential-card credential-park">
-                <div className="credential-role">Park Admin</div>
+                <div className="credential-role">{t('setup.parkAdmin')}</div>
                 <p className="credential-desc">{demoData.credentials.parkAdmin.description}</p>
                 <div className="credential-details">
-                  <div><strong>Email:</strong> {demoData.credentials.parkAdmin.email}</div>
-                  <div><strong>Password:</strong> {demoData.credentials.parkAdmin.password}</div>
+                  <div><strong>{t('common.email')}:</strong> {demoData.credentials.parkAdmin.email}</div>
+                  <div><strong>{t('common.password')}:</strong> {demoData.credentials.parkAdmin.password}</div>
                 </div>
               </div>
 
               <div className="credential-card credential-company">
-                <div className="credential-role">Company Admin</div>
+                <div className="credential-role">{t('setup.companyAdmin')}</div>
                 <p className="credential-desc">{demoData.credentials.companyAdmin.description}</p>
                 <div className="credential-details">
-                  <div><strong>Email:</strong> {demoData.credentials.companyAdmin.email}</div>
-                  <div><strong>Password:</strong> {demoData.credentials.companyAdmin.password}</div>
+                  <div><strong>{t('common.email')}:</strong> {demoData.credentials.companyAdmin.email}</div>
+                  <div><strong>{t('common.password')}:</strong> {demoData.credentials.companyAdmin.password}</div>
                 </div>
               </div>
 
               <div className="credential-card credential-user">
-                <div className="credential-role">Regular User</div>
+                <div className="credential-role">{t('setup.regularUser')}</div>
                 <p className="credential-desc">{demoData.credentials.user.description}</p>
                 <div className="credential-details">
-                  <div><strong>Email:</strong> {demoData.credentials.user.email}</div>
-                  <div><strong>Password:</strong> {demoData.credentials.user.password}</div>
+                  <div><strong>{t('common.email')}:</strong> {demoData.credentials.user.email}</div>
+                  <div><strong>{t('common.password')}:</strong> {demoData.credentials.user.password}</div>
                 </div>
               </div>
             </div>
           </div>
 
           <button className="btn btn-primary btn-block" onClick={onSetupComplete}>
-            Continue to Login
+            {t('setup.continueToLogin')}
           </button>
         </div>
       </div>
@@ -225,19 +227,19 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
       <div className="setup-container">
         <div className="setup-card">
           <div className="setup-header">
-            <h1>Demo Mode Setup</h1>
-            <p>This will create sample data for testing</p>
+            <h1>{t('setup.demoSetupTitle')}</h1>
+            <p>{t('setup.demoSetupSubtitle')}</p>
           </div>
 
           {error && <div className="alert alert-error">{error}</div>}
 
           <div className="demo-info">
-            <h3>What will be created:</h3>
+            <h3>{t('setup.whatWillBeCreated')}:</h3>
             <ul>
-              <li><strong>3 parks:</strong> Downtown Business Park, Tech Innovation Hub, Creative Arts Center</li>
-              <li><strong>7 companies</strong> across all parks</li>
-              <li><strong>12 users</strong> with different roles (super admin, park admins, company admins, users)</li>
-              <li><strong>10 meeting rooms</strong> with various capacities and amenities</li>
+              <li>{t('setup.demoItem1')}</li>
+              <li>{t('setup.demoItem2')}</li>
+              <li>{t('setup.demoItem3')}</li>
+              <li>{t('setup.demoItem4')}</li>
             </ul>
           </div>
 
@@ -247,14 +249,14 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
               onClick={() => setMode('select')}
               disabled={loading}
             >
-              Back
+              {t('common.back')}
             </button>
             <button
               className="btn btn-primary"
               onClick={handleDemoSetup}
               disabled={loading}
             >
-              {loading ? 'Setting up...' : 'Create Demo Data'}
+              {loading ? t('setup.creating') : t('setup.createDemoData')}
             </button>
           </div>
         </div>
@@ -267,70 +269,70 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
     <div className="setup-container">
       <div className="setup-card">
         <div className="setup-header">
-          <h1>Production Setup</h1>
-          <p>Create your organization and super admin account</p>
+          <h1>{t('setup.productionTitle')}</h1>
+          <p>{t('setup.productionSubtitle')}</p>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
 
         <form onSubmit={handleProductionSetup} className="setup-form">
           <div className="form-section">
-            <h3>Organization Details</h3>
+            <h3>{t('setup.orgDetails')}</h3>
 
             <div className="form-group">
-              <label htmlFor="companyName">Organization Name *</label>
+              <label htmlFor="companyName">{t('setup.orgName')}</label>
               <input
                 type="text"
                 id="companyName"
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 required
-                placeholder="Your Company Name"
+                placeholder={t('setup.orgNamePlaceholder')}
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="companyAddress">Address *</label>
+              <label htmlFor="companyAddress">{t('common.address')} *</label>
               <textarea
                 id="companyAddress"
                 value={companyAddress}
                 onChange={(e) => setCompanyAddress(e.target.value)}
                 required
-                placeholder="123 Business St, City, Country"
+                placeholder={t('setup.addressPlaceholder')}
                 rows={2}
               />
             </div>
           </div>
 
           <div className="form-section">
-            <h3>Super Administrator Account</h3>
+            <h3>{t('setup.superAdminAccount')}</h3>
 
             <div className="form-group">
-              <label htmlFor="adminName">Full Name *</label>
+              <label htmlFor="adminName">{t('setup.fullName')}</label>
               <input
                 type="text"
                 id="adminName"
                 value={adminName}
                 onChange={(e) => setAdminName(e.target.value)}
                 required
-                placeholder="John Doe"
+                placeholder={t('setup.fullNamePlaceholder')}
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="adminEmail">Email Address *</label>
+              <label htmlFor="adminEmail">{t('setup.emailAddress')}</label>
               <input
                 type="email"
                 id="adminEmail"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
                 required
-                placeholder="admin@yourcompany.com"
+                placeholder={t('setup.emailPlaceholder')}
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="adminPassword">Password *</label>
+              <label htmlFor="adminPassword">{t('setup.passwordLabel')}</label>
               <input
                 type="password"
                 id="adminPassword"
@@ -338,12 +340,12 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
                 onChange={(e) => setAdminPassword(e.target.value)}
                 required
                 minLength={6}
-                placeholder="Minimum 6 characters"
+                placeholder={t('setup.passwordPlaceholder')}
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password *</label>
+              <label htmlFor="confirmPassword">{t('setup.confirmPassword')}</label>
               <input
                 type="password"
                 id="confirmPassword"
@@ -351,7 +353,7 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 minLength={6}
-                placeholder="Confirm your password"
+                placeholder={t('setup.confirmPlaceholder')}
               />
             </div>
           </div>
@@ -363,14 +365,14 @@ export function SetupPage({ onSetupComplete }: SetupPageProps) {
               onClick={() => setMode('select')}
               disabled={loading}
             >
-              Back
+              {t('common.back')}
             </button>
             <button
               type="submit"
               className="btn btn-primary"
               disabled={loading}
             >
-              {loading ? 'Creating...' : 'Complete Setup'}
+              {loading ? t('setup.completing') : t('setup.completeSetup')}
             </button>
           </div>
         </form>

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DeskQuotaStatus } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,17 +45,11 @@ function firstDayOfWeek(year: number, month: number, weekStart: number): number 
   return (raw - weekStart + 7) % 7;
 }
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const ALL_DAY_LABELS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-
 /** Short human-readable label for a YYYY-MM-DD string. */
-function formatDateLabel(iso: string): string {
+function formatDateLabel(iso: string, locale: string): string {
   const [year, month, day] = iso.split('-').map(Number);
   const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 /** Returns the max bookable date as YYYY-MM-DD (3 months from today, same day). */
@@ -88,6 +83,10 @@ export function DeskDatePicker({
   weekStartDay = 1,
   onViewMonthChange,
 }: DeskDatePickerProps) {
+  const { t, i18n } = useTranslation();
+
+  const ALL_DAY_LABELS_RAW = Array.from({ length: 7 }, (_, i) => t(`dates.daysShort.${i}`));
+  const MONTH_NAMES = Array.from({ length: 12 }, (_, i) => t(`dates.months.${i}`));
 
   // ── View month state ──────────────────────────────────────────────────────
   const initialISO = rangeStart || todayISO();
@@ -225,30 +224,30 @@ export function DeskDatePicker({
   // ── Calendar grid construction ────────────────────────────────────────────
   const totalDays = daysInMonth(viewYear, viewMonth);
   const startPad  = firstDayOfWeek(viewYear, viewMonth, weekStartDay);
-  const DAY_LABELS = [...ALL_DAY_LABELS.slice(weekStartDay), ...ALL_DAY_LABELS.slice(0, weekStartDay)];
+  const DAY_LABELS = [...ALL_DAY_LABELS_RAW.slice(weekStartDay), ...ALL_DAY_LABELS_RAW.slice(0, weekStartDay)];
 
   // ── Selected date summary line ────────────────────────────────────────────
   const summaryLine: string | null = (() => {
     if (dateMode === 'multi') {
       if (multiDates.length === 0) return null;
-      if (multiDates.length === 1) return formatDateLabel(multiDates[0]);
-      return `${multiDates.length} days selected`;
+      if (multiDates.length === 1) return formatDateLabel(multiDates[0], i18n.language);
+      return t('deskDatePicker.daysSelected', { count: multiDates.length });
     }
     if (!rangeStart) return null;
-    if (dateMode === 'single') return formatDateLabel(rangeStart);
+    if (dateMode === 'single') return formatDateLabel(rangeStart, i18n.language);
     if (rangeStart && rangeEnd && rangeEnd >= rangeStart) {
       const count = daysBetween(rangeStart, rangeEnd);
-      return `${formatDateLabel(rangeStart)} – ${formatDateLabel(rangeEnd)} · ${count} day${count !== 1 ? 's' : ''}`;
+      return `${formatDateLabel(rangeStart, i18n.language)} \u2013 ${formatDateLabel(rangeEnd, i18n.language)} \u00b7 ${t('deskDatePicker.rangeCount', { count })}`;
     }
-    if (rangeStart && !rangeEnd) return `${formatDateLabel(rangeStart)} – pick an end date`;
+    if (rangeStart && !rangeEnd) return `${formatDateLabel(rangeStart, i18n.language)}${t('deskDatePicker.pickEndDate')}`;
     return null;
   })();
 
   // ── Quota warning for this view-month ─────────────────────────────────────
   const quotaWarning: string | null = (() => {
     if (remaining === null || remaining === undefined) return null;
-    if (remaining <= 0) return `0 days remaining this month`;
-    if (remaining <= 3) return `${remaining} day${remaining !== 1 ? 's' : ''} left this month`;
+    if (remaining <= 0) return t('deskDatePicker.remainingZero');
+    if (remaining <= 3) return t('deskDatePicker.remainingLow', { count: remaining });
     return null;
   })();
 
@@ -262,27 +261,27 @@ export function DeskDatePicker({
 
       {/* ── Mode toggle ─────────────────────────────────────────────────── */}
       <div className="ddp__mode-row">
-        <div className="ddp__mode-toggle" role="group" aria-label="Date selection mode">
+        <div className="ddp__mode-toggle" role="group" aria-label={t('deskDatePicker.modeGroup')}>
           <button
             type="button"
             className={`ddp__mode-btn${dateMode === 'single' ? ' ddp__mode-btn--active' : ''}`}
             onClick={() => handleModeChange('single')}
           >
-            Single
+            {t('deskDatePicker.single')}
           </button>
           <button
             type="button"
             className={`ddp__mode-btn${dateMode === 'range' ? ' ddp__mode-btn--active' : ''}`}
             onClick={() => handleModeChange('range')}
           >
-            Range
+            {t('deskDatePicker.range')}
           </button>
           <button
             type="button"
             className={`ddp__mode-btn${dateMode === 'multi' ? ' ddp__mode-btn--active' : ''}`}
             onClick={() => handleModeChange('multi')}
           >
-            Multi-day
+            {t('deskDatePicker.multiDay')}
           </button>
         </div>
 
@@ -290,8 +289,8 @@ export function DeskDatePicker({
         {quota && quota.monthlyQuota !== null && remaining !== undefined && remaining !== null && (
           <span className={`ddp__quota-pill${remaining <= 0 ? ' ddp__quota-pill--empty' : remaining <= 3 ? ' ddp__quota-pill--low' : ''}`}>
             {remaining <= 0
-              ? 'Quota full'
-              : `${remaining} / ${quota.monthlyQuota} left`}
+              ? t('deskDatePicker.quotaFull')
+              : t('deskDatePicker.quotaLeft', { remaining, total: quota.monthlyQuota })}
           </span>
         )}
       </div>
@@ -302,7 +301,7 @@ export function DeskDatePicker({
           type="button"
           className="ddp__nav-btn"
           onClick={prevMonth}
-          aria-label="Previous month"
+          aria-label={t('deskDatePicker.prevMonth')}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
@@ -318,7 +317,7 @@ export function DeskDatePicker({
           className="ddp__nav-btn"
           onClick={nextMonth}
           disabled={`${viewYear}-${String(viewMonth + 1).padStart(2, '0')}` >= maxViewMonth}
-          aria-label="Next month"
+          aria-label={t('deskDatePicker.nextMonth')}
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
@@ -388,7 +387,7 @@ export function DeskDatePicker({
               }
             >
               <span className="ddp__day-inner">{day}</span>
-              {isBooked && <span className="ddp__booked-dot" aria-label="You have a booking on this day" />}
+              {isBooked && <span className="ddp__booked-dot" aria-label={t('deskDatePicker.bookedDot')} />}
             </div>
           );
         })}
@@ -422,7 +421,7 @@ export function DeskDatePicker({
                 }
               }}
             >
-              Clear
+              {t('deskDatePicker.clear')}
             </button>
           )}
         </div>

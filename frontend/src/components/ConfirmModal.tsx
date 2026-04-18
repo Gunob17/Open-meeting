@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ConfirmModalProps {
   title?: string;
@@ -10,14 +11,17 @@ interface ConfirmModalProps {
 }
 
 export function ConfirmModal({
-  title = 'Are you sure?',
+  title,
   message,
-  confirmLabel = 'Confirm',
+  confirmLabel,
   variant = 'danger',
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const { t } = useTranslation();
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const resolvedTitle = title ?? t('confirmModal.defaultTitle');
+  const resolvedConfirmLabel = confirmLabel ?? t('common.confirm');
 
   // Focus confirm button on open
   useEffect(() => {
@@ -44,22 +48,22 @@ export function ConfirmModal({
         aria-describedby="confirm-message"
       >
         <div className="modal-header">
-          <h2 id="confirm-title">{title}</h2>
-          <button className="modal-close" onClick={onCancel} aria-label="Close">×</button>
+          <h2 id="confirm-title">{resolvedTitle}</h2>
+          <button className="modal-close" onClick={onCancel} aria-label={t('common.close')}>×</button>
         </div>
         <div className="modal-body">
           <p id="confirm-message">{message}</p>
         </div>
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onCancel}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             ref={confirmBtnRef}
             className={`btn btn-${variant}`}
             onClick={onConfirm}
           >
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </button>
         </div>
       </div>
