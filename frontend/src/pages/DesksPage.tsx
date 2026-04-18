@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { api } from '../services/api';
 import { Desk, DeskBooking, DeskQuotaStatus } from '../types';
@@ -15,6 +16,7 @@ type DateSelectionMode = 'single' | 'range' | 'multi';
 const DESKS_PER_PAGE = 9;
 
 export function DesksPage() {
+  const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const showConfirm = useConfirm();
   const [desks, setDesks] = useState<Desk[]>([]);
@@ -256,7 +258,7 @@ export function DesksPage() {
   };
 
   const handleCancel = async (bookingId: string) => {
-    if (!await showConfirm({ message: 'Are you sure you want to cancel this desk booking?', confirmLabel: 'Cancel Booking', variant: 'warning' })) return;
+    if (!await showConfirm({ message: t('desks.cancelConfirm'), confirmLabel: t('desks.cancelConfirmLabel'), variant: 'warning' })) return;
     setCancellingId(bookingId);
     try {
       await api.cancelDeskBooking(bookingId);
@@ -279,15 +281,15 @@ export function DesksPage() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   if (loading) {
-    return <div className="loading">Loading hot desks...</div>;
+    return <div className="loading">{t('desks.loading')}</div>;
   }
 
   if (accessDenied) {
     return (
       <div className="rooms-page">
-        <div className="page-header"><h1>Hot Desks</h1></div>
+        <div className="page-header"><h1>{t('desks.title')}</h1></div>
         <div className="empty-state">
-          <p>Hot desk booking is not available for your company. Contact your park administrator.</p>
+          <p>{t('desks.notAvailable')}</p>
         </div>
       </div>
     );
@@ -296,7 +298,7 @@ export function DesksPage() {
   return (
     <div className="rooms-page">
       <div className="page-header">
-        <h1>Hot Desks</h1>
+        <h1>{t('desks.title')}</h1>
       </div>
 
       <div className="desks-layout">
@@ -344,10 +346,10 @@ export function DesksPage() {
             <input
               type="search"
               className="form-input"
-              placeholder="Search by name or location…"
+              placeholder={t('desks.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              aria-label="Search desks"
+              aria-label={t('desks.searchAriaLabel')}
             />
           </div>
 
@@ -356,10 +358,10 @@ export function DesksPage() {
             <div className="desks-quota-card">
               <div className="desks-quota-card__header">
                 <span className="desks-quota-card__title">
-                  {new Date(currentMonth + '-02').toLocaleString('default', { month: 'long', year: 'numeric' })} Quota
+                  {t('desks.quota', { month: new Date(currentMonth + '-02').toLocaleString(i18n.language, { month: 'long', year: 'numeric' }) })}
                 </span>
                 {quota.quotaType === 'per_company' && (
-                  <span className="desks-quota-card__badge">Shared</span>
+                  <span className="desks-quota-card__badge">{t('desks.shared')}</span>
                 )}
               </div>
 
@@ -372,7 +374,7 @@ export function DesksPage() {
                   {quota.remainingThisMonth}
                 </span>
                 <span className="desks-quota-card__sub">
-                  of {quota.monthlyQuota} day{quota.monthlyQuota !== 1 ? 's' : ''} remaining
+                  {t('desks.daysRemaining', { count: quota.remainingThisMonth, total: quota.monthlyQuota })}
                 </span>
               </div>
 
@@ -381,7 +383,7 @@ export function DesksPage() {
                 role="progressbar"
                 aria-valuenow={quota.usedThisMonth}
                 aria-valuemax={quota.monthlyQuota}
-                aria-label={`${quota.usedThisMonth} of ${quota.monthlyQuota} days used`}
+                aria-label={t('desks.daysUsed', { used: quota.usedThisMonth, left: quota.remainingThisMonth })}
               >
                 <div
                   className={[
@@ -394,12 +396,12 @@ export function DesksPage() {
               </div>
 
               <p className="desks-quota-card__used">
-                {quota.usedThisMonth} used · {quota.remainingThisMonth} left
+                {t('desks.daysUsed', { used: quota.usedThisMonth, left: quota.remainingThisMonth })}
               </p>
 
               {isOverQuota && (
                 <p className="desks-quota-card__warning">
-                  Selection exceeds your remaining quota
+                  {t('desks.quotaExceeded')}
                 </p>
               )}
             </div>
@@ -408,7 +410,7 @@ export function DesksPage() {
           {/* Feature filter */}
           {allDeskFeatures.length > 0 && (
             <div className="desks-feature-filter">
-              <p className="desks-feature-filter__label">Filter by features</p>
+              <p className="desks-feature-filter__label">{t('desks.filterFeatures')}</p>
               <div className="desks-feature-filter__chips">
                 {allDeskFeatures.map((feature) => (
                   <label key={feature} className="amenity-checkbox-label">
@@ -427,7 +429,7 @@ export function DesksPage() {
                   style={{ marginTop: '0.5rem', padding: '0.25rem 0.75rem', fontSize: '0.8125rem' }}
                   onClick={() => setSelectedFeatures([])}
                 >
-                  Clear filters
+                  {t('desks.clearFilters')}
                 </button>
               )}
             </div>
@@ -440,13 +442,10 @@ export function DesksPage() {
           {bookingResult && dateMode === 'range' && (
             <div className={`alert ${bookingResult.failed.length === 0 ? 'alert-success' : bookingResult.succeeded.length === 0 ? 'alert-error' : 'alert-warning'}`}>
               {bookingResult.succeeded.length > 0 && (
-                <p>Booked {bookingResult.succeeded.length} day{bookingResult.succeeded.length !== 1 ? 's' : ''} successfully.</p>
+                <p>{t('desks.bookedSuccess', { count: bookingResult.succeeded.length })}</p>
               )}
               {bookingResult.failed.length > 0 && (
-                <p>
-                  Failed on: {bookingResult.failed.map(f => format(parseISO(f.date), 'MMM d')).join(', ')}
-                  {' '}— {bookingResult.failed[0].error}
-                </p>
+                <p>{t('desks.bookedFailedOn', { dates: bookingResult.failed.map(f => format(parseISO(f.date), 'MMM d')).join(', '), error: bookingResult.failed[0].error })}</p>
               )}
             </div>
           )}
@@ -454,16 +453,16 @@ export function DesksPage() {
           <section className="bookings-section">
             <h2>
               {dateMode === 'single' || !rangeEnd || rangeEnd < rangeStart
-                ? `Availability for ${format(parseISO(rangeStart), 'EEEE, MMMM d, yyyy')}`
-                : `Availability — ${format(parseISO(rangeStart), 'MMM d')} to ${format(parseISO(rangeEnd), 'MMM d, yyyy')}`}
+                ? t('desks.availabilityDate', { date: format(parseISO(rangeStart), 'EEEE, MMMM d, yyyy') })
+                : t('desks.availabilityRange', { from: format(parseISO(rangeStart), 'MMM d'), to: format(parseISO(rangeEnd), 'MMM d, yyyy') })}
             </h2>
 
             {visibleDesks.length === 0 ? (
               <div className="empty-state">
                 <p>
                   {searchQuery.trim() || selectedFeatures.length > 0
-                    ? 'No desks match your search or filters.'
-                    : 'No hot desks are currently available in your park.'}
+                    ? t('desks.noDesks')
+                    : t('desks.noDesksAvailable')}
                 </p>
               </div>
             ) : (
@@ -478,7 +477,7 @@ export function DesksPage() {
                     ? deskBookings.some(b => b.userId !== user?.id)
                     : (!!booking && booking.userId !== user?.id);
                   const bookingError = bookingErrors[desk.id];
-                  const statusLabel = isBookedByMe ? 'Booked by you' : isBookedByOther ? 'Occupied' : 'Available';
+                  const statusLabel = isBookedByMe ? t('desks.bookedByYou') : isBookedByOther ? t('desks.occupied') : t('desks.available');
                   const statusClass = isBookedByMe || isBookedByOther ? 'occupied' : 'available';
 
                   return (
@@ -489,7 +488,7 @@ export function DesksPage() {
                       </div>
 
                       <div className="room-card-body">
-                        {desk.floor && <p><strong>Location:</strong> {desk.floor}</p>}
+                        {desk.floor && <p><strong>{t('desks.location')}:</strong> {desk.floor}</p>}
                         {desk.description && <p className="room-description">{desk.description}</p>}
                         {desk.features && desk.features.length > 0 && (
                           <div className="room-amenities" style={{ marginTop: '0.5rem' }}>
@@ -509,16 +508,16 @@ export function DesksPage() {
 
                       <div className="room-card-footer">
                         {isBookedByOther ? (
-                          <button className="btn btn-primary" disabled>Occupied</button>
+                          <button className="btn btn-primary" disabled>{t('desks.occupied')}</button>
                         ) : dateMode === 'range' && isBookedByMe ? (
-                          <button className="btn btn-secondary" disabled>Already booked</button>
+                          <button className="btn btn-secondary" disabled>{t('desks.alreadyBooked')}</button>
                         ) : isBookedByMe ? (
                           <button
                             className="btn btn-secondary"
                             onClick={() => handleCancel(booking!.id)}
                             disabled={cancellingId === booking!.id}
                           >
-                            {cancellingId === booking!.id ? 'Cancelling...' : 'Cancel Booking'}
+                            {cancellingId === booking!.id ? t('desks.cancelling') : t('desks.cancelBooking')}
                           </button>
                         ) : (
                           <button
@@ -531,12 +530,12 @@ export function DesksPage() {
                             }
                           >
                             {bookingDeskId === desk.id
-                              ? 'Booking...'
+                              ? t('desks.booking')
                               : isOverQuota
-                              ? 'Quota Reached'
+                              ? t('desks.quotaReached')
                               : dateMode === 'range' && totalSelectedDays > 1
-                              ? `Book ${totalSelectedDays} Days`
-                              : 'Book Desk'}
+                              ? t('desks.bookDays', { count: totalSelectedDays })
+                              : t('desks.bookDesk')}
                           </button>
                         )}
                       </div>
@@ -553,7 +552,7 @@ export function DesksPage() {
                   className="btn btn-secondary desks-pagination__btn"
                   disabled={safePage <= 1}
                   onClick={() => setCurrentPage(p => p - 1)}
-                  aria-label="Previous page"
+                  aria-label={t('rooms.prevPage')}
                 >
                   ‹
                 </button>
@@ -571,7 +570,7 @@ export function DesksPage() {
                   className="btn btn-secondary desks-pagination__btn"
                   disabled={safePage >= totalPages}
                   onClick={() => setCurrentPage(p => p + 1)}
-                  aria-label="Next page"
+                  aria-label={t('rooms.nextPage')}
                 >
                   ›
                 </button>
@@ -583,21 +582,21 @@ export function DesksPage() {
 
       {/* My Upcoming Bookings — full width, below the two-column layout */}
       <section className="bookings-section">
-        <h2>My Upcoming Desk Bookings ({upcomingMyBookings.length})</h2>
+        <h2>{t('desks.myUpcoming', { count: upcomingMyBookings.length })}</h2>
 
         {upcomingMyBookings.length === 0 ? (
-          <p className="empty-message">No upcoming desk bookings</p>
+          <p className="empty-message">{t('desks.noUpcoming')}</p>
         ) : (
           <div className="bookings-list">
             {upcomingMyBookings.map((booking) => (
               <div key={booking.id} className="booking-card">
                 <div className="booking-card-header">
-                  <h3>{booking.desk?.name ?? 'Desk'}</h3>
-                  <span className="status-badge confirmed">Confirmed</span>
+                  <h3>{booking.desk?.name ?? t('desks.title')}</h3>
+                  <span className="status-badge confirmed">{t('myBookings.confirmed')}</span>
                 </div>
                 <div className="booking-card-body">
-                  <p><strong>Date:</strong> {format(parseISO(booking.bookingDate), 'EEEE, MMMM d, yyyy')}</p>
-                  {booking.desk?.floor && <p><strong>Location:</strong> {booking.desk.floor}</p>}
+                  <p><strong>{t('desks.date')}:</strong> {format(parseISO(booking.bookingDate), 'EEEE, MMMM d, yyyy')}</p>
+                  {booking.desk?.floor && <p><strong>{t('desks.location')}:</strong> {booking.desk.floor}</p>}
                 </div>
                 <div className="booking-card-footer">
                   <button
@@ -605,7 +604,7 @@ export function DesksPage() {
                     onClick={() => handleCancel(booking.id)}
                     disabled={cancellingId === booking.id}
                   >
-                    {cancellingId === booking.id ? 'Cancelling...' : 'Cancel Booking'}
+                    {cancellingId === booking.id ? t('desks.cancelling') : t('desks.cancelBooking')}
                   </button>
                 </div>
               </div>

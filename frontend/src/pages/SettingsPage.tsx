@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { TwoFaEnforcement, TwoFaLevelEnforcement, TwoFaMode } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -6,6 +7,7 @@ import { useSettings } from '../context/SettingsContext';
 import { formatHour, TimeFormat } from '../utils/time';
 
 export function SettingsPage() {
+  const { t } = useTranslation();
   const { user, isSuperAdmin, isAdmin } = useAuth();
   const { setTimeFormat: setContextTimeFormat } = useSettings();
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,7 @@ export function SettingsPage() {
       setBannerStartsAt(settingsData.bannerStartsAt ? settingsData.bannerStartsAt.slice(0, 16) : '');
       setBannerEndsAt(settingsData.bannerEndsAt ? settingsData.bannerEndsAt.slice(0, 16) : '');
     } catch (err) {
-      setError('Failed to load settings');
+      setError(t('settings.failedLoad'));
       console.error(err);
     } finally {
       setLoading(false);
@@ -77,16 +79,16 @@ export function SettingsPage() {
 
     try {
       if (openingHour >= closingHour) {
-        setError('Opening hour must be before closing hour');
+        setError(t('settings.openingBeforeClosing'));
         setSaving(false);
         return;
       }
 
       await api.updateSettings({ openingHour, closingHour, timezone, timeFormat });
       setContextTimeFormat(timeFormat); // propagate to global context immediately
-      setSuccess('Global settings saved successfully');
+      setSuccess(t('settings.savedGlobal'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save settings');
+      setError(err instanceof Error ? err.message : t('settings.failedSave'));
     } finally {
       setSaving(false);
     }
@@ -104,9 +106,9 @@ export function SettingsPage() {
         twofaMode,
         twofaTrustedDeviceDays
       });
-      setSuccess('Two-factor authentication settings saved successfully');
+      setSuccess(t('settings.saved2fa'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save 2FA settings');
+      setError(err instanceof Error ? err.message : t('settings.failedSave2fa'));
     } finally {
       setSaving2fa(false);
     }
@@ -119,9 +121,9 @@ export function SettingsPage() {
     setSavingParkTwofa(true);
     try {
       await api.updateParkTwofa(user!.parkId!, parkTwofaEnforcement);
-      setSuccess('Two-factor authentication settings saved successfully');
+      setSuccess(t('settings.saved2fa'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save 2FA settings');
+      setError(err instanceof Error ? err.message : t('settings.failedSave2fa'));
     } finally {
       setSavingParkTwofa(false);
     }
@@ -140,37 +142,34 @@ export function SettingsPage() {
         bannerStartsAt: bannerStartsAt ? new Date(bannerStartsAt).toISOString() : null,
         bannerEndsAt: bannerEndsAt ? new Date(bannerEndsAt).toISOString() : null,
       });
-      setSuccess('Banner settings saved successfully');
+      setSuccess(t('settings.savedBanner'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save banner settings');
+      setError(err instanceof Error ? err.message : t('settings.failedSaveBanner'));
     } finally {
       setSavingBanner(false);
     }
   };
 
   if (loading) {
-    return <div className="loading">Loading settings...</div>;
+    return <div className="loading">{t('common.loading')}</div>;
   }
 
   return (
     <div className="settings-page">
-      <h1>System Settings</h1>
+      <h1>{t('settings.title')}</h1>
 
       {error && <div className="alert alert-error">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
 
       {/* Global Booking Hours */}
       <section className="settings-section">
-        <h2>Global Booking Hours</h2>
-        <p className="section-description">
-          Set the default time range when meeting rooms can be booked.
-          Individual rooms can override these settings.
-        </p>
+        <h2>{t('settings.bookingHours')}</h2>
+        <p className="section-description">{t('settings.bookingHoursDesc')}</p>
 
         <form onSubmit={handleSaveGlobalSettings} className="settings-form">
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="openingHour">Opening Hour</label>
+              <label htmlFor="openingHour">{t('settings.openingHour')}</label>
               <select
                 id="openingHour"
                 value={openingHour}
@@ -183,7 +182,7 @@ export function SettingsPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="closingHour">Closing Hour</label>
+              <label htmlFor="closingHour">{t('settings.closingHour')}</label>
               <select
                 id="closingHour"
                 value={closingHour}
@@ -197,19 +196,19 @@ export function SettingsPage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="timeFormat">Time Format</label>
+            <label htmlFor="timeFormat">{t('settings.timeFormat')}</label>
             <select
               id="timeFormat"
               value={timeFormat}
               onChange={e => setTimeFormat(e.target.value as TimeFormat)}
             >
-              <option value="12h">12-hour (e.g. 2:00 PM)</option>
-              <option value="24h">24-hour (e.g. 14:00)</option>
+              <option value="12h">{t('settings.timeFormat12h')}</option>
+              <option value="24h">{t('settings.timeFormat24h')}</option>
             </select>
           </div>
 
           <div className="form-group">
-            <label htmlFor="timezone">Timezone</label>
+            <label htmlFor="timezone">{t('settings.timezone')}</label>
             <select
               id="timezone"
               value={timezone}
@@ -255,11 +254,11 @@ export function SettingsPage() {
                 <option value="Pacific/Auckland">Pacific/Auckland (NZST/NZDT)</option>
               </optgroup>
             </select>
-            <small>Used to enforce opening/closing hours for room display devices</small>
+            <small>{t('settings.timezoneDesc')}</small>
           </div>
 
           <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Saving...' : 'Save Global Settings'}
+            {saving ? t('common.saving') : t('settings.saveGlobal')}
           </button>
         </form>
       </section>
@@ -267,43 +266,40 @@ export function SettingsPage() {
       {/* Two-Factor Authentication Settings (Super Admin only) */}
       {isSuperAdmin && (
         <section className="settings-section">
-          <h2>Two-Factor Authentication</h2>
-          <p className="section-description">
-            Configure system-wide two-factor authentication enforcement.
-            Park and company admins can further restrict their own scope when set to Optional.
-          </p>
+          <h2>{t('settings.twofa')}</h2>
+          <p className="section-description">{t('settings.twofaDesc')}</p>
 
           <form onSubmit={handleSave2faSettings} className="settings-form">
             <div className="form-group">
-              <label htmlFor="twofaEnforcement">System Enforcement</label>
+              <label htmlFor="twofaEnforcement">{t('settings.systemEnforcement')}</label>
               <select
                 id="twofaEnforcement"
                 value={twofaEnforcement}
                 onChange={e => setTwofaEnforcement(e.target.value as TwoFaEnforcement)}
               >
-                <option value="disabled">Disabled - 2FA is not available</option>
-                <option value="optional">Optional - Users can enable 2FA voluntarily</option>
-                <option value="required">Required - All users must set up 2FA</option>
+                <option value="disabled">{t('settings.twofaOptions.disabled')}</option>
+                <option value="optional">{t('settings.twofaOptions.optional')}</option>
+                <option value="required">{t('settings.twofaOptions.required')}</option>
               </select>
             </div>
 
             {twofaEnforcement !== 'disabled' && (
               <>
                 <div className="form-group">
-                  <label htmlFor="twofaMode">Verification Mode</label>
+                  <label htmlFor="twofaMode">{t('settings.verificationMode')}</label>
                   <select
                     id="twofaMode"
                     value={twofaMode}
                     onChange={e => setTwofaMode(e.target.value as TwoFaMode)}
                   >
-                    <option value="every_login">Every Login - Always require 2FA code</option>
-                    <option value="trusted_device">Trusted Device - Remember verified devices</option>
+                    <option value="every_login">{t('settings.verificationOptions.every_login')}</option>
+                    <option value="trusted_device">{t('settings.verificationOptions.trusted_device')}</option>
                   </select>
                 </div>
 
                 {twofaMode === 'trusted_device' && (
                   <div className="form-group">
-                    <label htmlFor="twofaTrustedDeviceDays">Trusted Device Duration (days)</label>
+                    <label htmlFor="twofaTrustedDeviceDays">{t('settings.trustedDeviceDuration')}</label>
                     <input
                       type="number"
                       id="twofaTrustedDeviceDays"
@@ -312,14 +308,14 @@ export function SettingsPage() {
                       min={1}
                       max={365}
                     />
-                    <small>How long a device stays trusted before requiring 2FA again</small>
+                    <small>{t('settings.trustedDeviceDurationDesc')}</small>
                   </div>
                 )}
               </>
             )}
 
             <button type="submit" className="btn btn-primary" disabled={saving2fa}>
-              {saving2fa ? 'Saving...' : 'Save 2FA Settings'}
+              {saving2fa ? t('common.saving') : t('settings.save2fa')}
             </button>
           </form>
         </section>
@@ -328,27 +324,25 @@ export function SettingsPage() {
       {/* Two-Factor Authentication (Park Admin only — scoped to their park) */}
       {isAdmin && !isSuperAdmin && (
         <section className="settings-section">
-          <h2>Two-Factor Authentication</h2>
-          <p className="section-description">
-            Set the 2FA enforcement level for your site. "Inherit" follows the system-wide policy set by the super admin.
-          </p>
+          <h2>{t('settings.twofa')}</h2>
+          <p className="section-description">{t('settings.twofaDesc')}</p>
 
           <form onSubmit={handleSaveParkTwofaSettings} className="settings-form">
             <div className="form-group">
-              <label htmlFor="parkTwofaEnforcement">Site Enforcement</label>
+              <label htmlFor="parkTwofaEnforcement">{t('settings.siteEnforcement')}</label>
               <select
                 id="parkTwofaEnforcement"
                 value={parkTwofaEnforcement}
                 onChange={e => setParkTwofaEnforcement(e.target.value as TwoFaLevelEnforcement)}
               >
-                <option value="inherit">Inherit — follow system-wide policy</option>
-                <option value="optional">Optional — users can enable 2FA voluntarily</option>
-                <option value="required">Required — all users on this site must set up 2FA</option>
+                <option value="inherit">{t('settings.twofaOptions.inherit')}</option>
+                <option value="optional">{t('settings.twofaOptions.park_optional')}</option>
+                <option value="required">{t('settings.twofaOptions.park_required')}</option>
               </select>
             </div>
 
             <button type="submit" className="btn btn-primary" disabled={savingParkTwofa}>
-              {savingParkTwofa ? 'Saving...' : 'Save 2FA Settings'}
+              {savingParkTwofa ? t('common.saving') : t('settings.save2fa')}
             </button>
           </form>
         </section>
@@ -357,11 +351,8 @@ export function SettingsPage() {
       {/* System Banner (Super Admin only) */}
       {isSuperAdmin && (
         <section className="settings-section">
-          <h2>System Banner</h2>
-          <p className="section-description">
-            Display a system-wide message to all users — useful for communicating maintenance windows,
-            migrations, or other important notices. Users can dismiss the banner per session.
-          </p>
+          <h2>{t('settings.banner')}</h2>
+          <p className="section-description">{t('settings.bannerDesc')}</p>
 
           <form onSubmit={handleSaveBannerSettings} className="settings-form">
             <div className="form-group">
@@ -371,19 +362,19 @@ export function SettingsPage() {
                   checked={bannerEnabled}
                   onChange={e => setBannerEnabled(e.target.checked)}
                 />
-                Enable banner
+                {t('settings.enableBanner')}
               </label>
             </div>
 
             {bannerEnabled && (
               <div className="form-group">
-                <label htmlFor="bannerMessage">Message</label>
+                <label htmlFor="bannerMessage">{t('settings.bannerMessage')}</label>
                 <textarea
                   id="bannerMessage"
                   value={bannerMessage}
                   onChange={e => setBannerMessage(e.target.value)}
                   rows={3}
-                  placeholder="e.g. Scheduled maintenance on Saturday 10:00–12:00 UTC. The system may be briefly unavailable."
+                  placeholder={t('settings.bannerMessagePlaceholder')}
                   required={bannerEnabled}
                   maxLength={500}
                 />
@@ -391,38 +382,38 @@ export function SettingsPage() {
             )}
 
             <div className="form-group">
-              <label htmlFor="bannerLevel">Severity</label>
+              <label htmlFor="bannerLevel">{t('settings.bannerSeverity')}</label>
               <select
                 id="bannerLevel"
                 value={bannerLevel}
                 onChange={e => setBannerLevel(e.target.value as 'info' | 'warning' | 'critical')}
               >
-                <option value="info">Info — general notice (blue)</option>
-                <option value="warning">Warning — action may be needed (yellow)</option>
-                <option value="critical">Critical — urgent attention required (red)</option>
+                <option value="info">{t('settings.severityOptions.info')}</option>
+                <option value="warning">{t('settings.severityOptions.warning')}</option>
+                <option value="critical">{t('settings.severityOptions.critical')}</option>
               </select>
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="bannerStartsAt">Show from (optional)</label>
+                <label htmlFor="bannerStartsAt">{t('settings.bannerShowFrom')}</label>
                 <input
                   type="datetime-local"
                   id="bannerStartsAt"
                   value={bannerStartsAt}
                   onChange={e => setBannerStartsAt(e.target.value)}
                 />
-                <small>Leave blank to show immediately</small>
+                <small>{t('settings.bannerShowFromDesc')}</small>
               </div>
               <div className="form-group">
-                <label htmlFor="bannerEndsAt">Show until (optional)</label>
+                <label htmlFor="bannerEndsAt">{t('settings.bannerShowUntil')}</label>
                 <input
                   type="datetime-local"
                   id="bannerEndsAt"
                   value={bannerEndsAt}
                   onChange={e => setBannerEndsAt(e.target.value)}
                 />
-                <small>Leave blank to show indefinitely</small>
+                <small>{t('settings.bannerShowUntilDesc')}</small>
               </div>
             </div>
 
@@ -435,7 +426,7 @@ export function SettingsPage() {
             )}
 
             <button type="submit" className="btn btn-primary" disabled={savingBanner}>
-              {savingBanner ? 'Saving...' : 'Save Banner Settings'}
+              {savingBanner ? t('common.saving') : t('settings.saveBanner')}
             </button>
           </form>
         </section>

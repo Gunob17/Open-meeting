@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { format, addDays, subDays, isSameDay, parseISO, startOfWeek } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { Booking, MeetingRoom, Settings } from '../types';
 import { BookingModal } from '../components/BookingModal';
@@ -54,6 +55,7 @@ const assignColumns = (slotBookings: Booking[]): Map<string, { colIndex: number;
 };
 
 export function CalendarPage() {
+  const { t } = useTranslation();
   const { user, isAdmin } = useAuth();
   const showConfirm = useConfirm();
   const { timeFormat, calendarViewMode, setCalendarViewMode } = useSettings();
@@ -301,10 +303,10 @@ export function CalendarPage() {
 
     const isOwn = isOwnBooking(selectedBooking);
     const message = isOwn
-      ? 'Are you sure you want to delete this booking?'
-      : 'Are you sure you want to delete this booking? The organizer will be notified.';
+      ? t('calendar.deleteConfirm')
+      : t('calendar.deleteConfirmOrganizer');
 
-    if (await showConfirm({ message, title: 'Delete Booking', confirmLabel: 'Delete' })) {
+    if (await showConfirm({ message, title: t('calendar.deleteBooking'), confirmLabel: t('common.delete') })) {
       try {
         await api.deleteBooking(selectedBooking.id, isOwn ? undefined : adminActionReason || undefined);
         setSelectedBooking(null);
@@ -328,7 +330,7 @@ export function CalendarPage() {
     if (!selectedBooking || !moveTargetRoom) return;
 
     const targetRoom = rooms.find(r => r.id === moveTargetRoom);
-    if (!await showConfirm({ message: `Move "${selectedBooking.title}" to ${targetRoom?.name}?`, title: 'Move Booking', confirmLabel: 'Move', variant: 'primary' })) {
+    if (!await showConfirm({ message: t('calendar.moveConfirm', { title: selectedBooking.title, room: targetRoom?.name }), title: t('calendar.moveBooking'), confirmLabel: t('calendar.moveBookingConfirmLabel'), variant: 'primary' })) {
       return;
     }
 
@@ -374,24 +376,24 @@ export function CalendarPage() {
     <div className="calendar-page">
       <div className="calendar-header">
         <div className="calendar-header-top">
-          <h1>Meeting Room Calendar</h1>
+          <h1>{t('calendar.title')}</h1>
           <Link to="/rooms" className="btn btn-primary quick-book-btn">
-            Quick Book
+            {t('calendar.quickBook')}
           </Link>
         </div>
         <div className="calendar-nav">
           <button onClick={() => setStartDate(subDays(startDate, 7))} className="btn btn-secondary">
             {isMobile
-              ? (calendarViewMode === 'weekly' ? '\u25C0 Wk' : '\u25C0 7d')
-              : (calendarViewMode === 'weekly' ? '\u25C0 Week' : 'Previous 7 Days')}
+              ? (calendarViewMode === 'weekly' ? `\u25C0 ${t('calendar.week')}` : `\u25C0 ${t('calendar.sevenDay')}`)
+              : (calendarViewMode === 'weekly' ? `\u25C0 ${t('calendar.week')}` : t('calendar.previous7Days'))}
           </button>
           <button onClick={() => setStartDate(new Date())} className="btn btn-secondary">
-            Today
+            {t('common.today')}
           </button>
           <button onClick={() => setStartDate(addDays(startDate, 7))} className="btn btn-secondary">
             {isMobile
-              ? (calendarViewMode === 'weekly' ? 'Wk \u25B6' : '7d \u25B6')
-              : (calendarViewMode === 'weekly' ? 'Week \u25B6' : 'Next 7 Days')}
+              ? (calendarViewMode === 'weekly' ? `${t('calendar.week')} \u25B6` : `${t('calendar.sevenDay')} \u25B6`)
+              : (calendarViewMode === 'weekly' ? `${t('calendar.week')} \u25B6` : t('calendar.next7Days'))}
           </button>
           <button
             onClick={() => {
@@ -404,15 +406,15 @@ export function CalendarPage() {
               }
             }}
             className="btn btn-secondary"
-            title={calendarViewMode === 'rolling' ? 'Switch to full week view' : 'Switch to rolling 7-day view'}
+            title={calendarViewMode === 'rolling' ? t('calendar.switchToWeekly') : t('calendar.switchToRolling')}
           >
-            {calendarViewMode === 'rolling' ? (isMobile ? 'Wk' : 'Week View') : (isMobile ? '7d' : '7-Day View')}
+            {calendarViewMode === 'rolling' ? (isMobile ? t('calendar.week') : t('calendar.weekView')) : (isMobile ? t('calendar.sevenDay') : t('calendar.sevenDayView'))}
           </button>
         </div>
         <h2>{format(days[0], 'MMM d')} – {format(days[6], 'MMM d, yyyy')}</h2>
         {isMobile && rooms.length > 0 && (
           <div className="mobile-room-selector">
-            <label htmlFor="mobile-room-select">Room:</label>
+            <label htmlFor="mobile-room-select">{t('calendar.room')}:</label>
             <select
               id="mobile-room-select"
               value={selectedMobileRoomId}
@@ -420,7 +422,7 @@ export function CalendarPage() {
             >
               {rooms.map(room => (
                 <option key={room.id} value={room.id}>
-                  {room.name} ({room.capacity} people)
+                  {room.name} ({t('calendar.capacityPeople', { count: room.capacity })})
                 </option>
               ))}
             </select>
@@ -429,27 +431,27 @@ export function CalendarPage() {
         <div className="calendar-legend">
           <div className="legend-item">
             <span className="legend-color available"></span>
-            <span>Available - Click to book</span>
+            <span>{t('calendar.available')}</span>
           </div>
           <div className="legend-item">
             <span className="legend-color partial"></span>
-            <span>Partially booked - Click to book free time</span>
+            <span>{t('calendar.partiallyBooked')}</span>
           </div>
           <div className="legend-item">
             <span className="legend-color booked"></span>
-            <span>Fully booked - Click for details</span>
+            <span>{t('calendar.fullyBooked')}</span>
           </div>
           <div className="legend-item">
             <span className="legend-color unavailable"></span>
-            <span>Outside hours</span>
+            <span>{t('calendar.outsideHours')}</span>
           </div>
           <div className="legend-item">
             <span className="legend-color restricted"></span>
-            <span>Restricted</span>
+            <span>{t('calendar.restricted')}</span>
           </div>
           <div className="legend-item">
             <span className="legend-color past"></span>
-            <span>Past</span>
+            <span>{t('calendar.past')}</span>
           </div>
         </div>
       </div>
@@ -458,12 +460,12 @@ export function CalendarPage() {
         <div className="calendar-grid" style={{ gridTemplateColumns: `60px repeat(${displayRooms.length}, 1fr)`, minWidth: isMobile ? 0 : undefined }}>
           {/* Header row with room names */}
           <div className="calendar-corner">
-            <div className="room-header">Time / Room</div>
+            <div className="room-header">{t('calendar.timeRoom')}</div>
           </div>
           {displayRooms.map(room => (
             <div key={room.id} className="room-column-header">
               <div className="room-name">{room.name}</div>
-              <div className="room-capacity">{room.capacity} people</div>
+              <div className="room-capacity">{t('calendar.capacityPeople', { count: room.capacity })}</div>
             </div>
           ))}
 
@@ -473,7 +475,7 @@ export function CalendarPage() {
               {/* Day header spanning all room columns */}
               <div className={`day-header${isSameDay(day, new Date()) ? ' today' : ''}`} style={{ gridColumn: `1 / span ${displayRooms.length + 1}` }}>
                 {format(day, 'EEEE, MMM d')}
-                {isSameDay(day, new Date()) && <span className="today-badge">Today</span>}
+                {isSameDay(day, new Date()) && <span className="today-badge">{t('common.today')}</span>}
               </div>
 
               {/* Time slots for each hour */}
@@ -500,22 +502,22 @@ export function CalendarPage() {
 
                     if (isPast) {
                       slotClass += ' past';
-                      title = 'Past time slot';
+                      title = t('calendar.pastSlot');
                     } else if (fullyBooked) {
                       slotClass += ' booked';
-                      title = `${booking.title} - Click for details`;
+                      title = t('calendar.clickForDetails', { title: booking.title });
                     } else if (partiallyBooked) {
                       slotClass += ' partial';
-                      title = `Partially booked - Click to book remaining time`;
+                      title = t('calendar.partiallyBookedSlot');
                     } else if (!isAvailable) {
                       slotClass += ' unavailable';
-                      title = 'Outside room booking hours';
+                      title = t('calendar.outsideHoursSlot');
                     } else if (!canBook) {
                       slotClass += ' restricted';
-                      title = 'This room is reserved for another company';
+                      title = t('calendar.restrictedSlot');
                     } else {
                       slotClass += ' available';
-                      title = `Book ${room.name} at ${formatHour(hour, timeFormat)}`;
+                      title = t('calendar.bookSlot', { room: room.name, time: formatHour(hour, timeFormat) });
                     }
 
                     if (isSameDay(day, new Date())) slotClass += ' today-column';
@@ -617,31 +619,31 @@ export function CalendarPage() {
               <button className="modal-close" onClick={() => setSelectedBooking(null)} aria-label="Close">×</button>
             </div>
             <div className="modal-body">
-              <p><strong>Room:</strong> {selectedBooking.room?.name}</p>
-              <p><strong>Time:</strong> {formatDateTime(selectedBooking.startTime, timeFormat)} - {formatTime(selectedBooking.endTime, timeFormat)}</p>
+              <p><strong>{t('myBookings.room')}:</strong> {selectedBooking.room?.name}</p>
+              <p><strong>{t('common.time')}:</strong> {formatDateTime(selectedBooking.startTime, timeFormat)} - {formatTime(selectedBooking.endTime, timeFormat)}</p>
               {selectedBooking.description && (
-                <p><strong>Description:</strong> {selectedBooking.description}</p>
+                <p><strong>{t('common.description')}:</strong> {selectedBooking.description}</p>
               )}
               {(isOwnBooking(selectedBooking) || isAdmin) && (selectedBooking.attendees?.length ?? 0) > 0 && (
-                <p><strong>Attendees:</strong> {selectedBooking.attendees!.join(', ')}</p>
+                <p><strong>{t('myBookings.attendees')}:</strong> {selectedBooking.attendees!.join(', ')}</p>
               )}
-              <p><strong>Booked by:</strong> {selectedBooking.user?.name}</p>
+              <p><strong>{t('calendar.bookedBy')}:</strong> {selectedBooking.user?.name}</p>
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setSelectedBooking(null)}>
-                Close
+                {t('common.close')}
               </button>
               {/* Own booking actions — only for future/ongoing bookings */}
               {isOwnBooking(selectedBooking) && isFutureOrOngoing(selectedBooking) && (
                 <>
                   <button className="btn btn-primary" onClick={handleEditBooking}>
-                    Edit
+                    {t('common.edit')}
                   </button>
                   <button className="btn btn-warning" onClick={handleBookingCancelled}>
-                    Cancel Booking
+                    {t('calendar.cancelBooking')}
                   </button>
                   <button className="btn btn-danger" onClick={handleDeleteBooking}>
-                    Delete
+                    {t('common.delete')}
                   </button>
                 </>
               )}
@@ -649,10 +651,10 @@ export function CalendarPage() {
               {isAdmin && !isOwnBooking(selectedBooking) && isFutureOrOngoing(selectedBooking) && (
                 <>
                   <button className="btn btn-primary" onClick={openMoveDialog}>
-                    Move to Room
+                    {t('calendar.moveToRoom')}
                   </button>
                   <button className="btn btn-danger" onClick={handleDeleteBooking}>
-                    Delete (Admin)
+                    {t('calendar.deleteAdmin')}
                   </button>
                 </>
               )}
@@ -666,27 +668,27 @@ export function CalendarPage() {
         <div className="modal-overlay" onClick={() => setShowMoveDialog(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Move Booking to Another Room</h2>
-              <button className="modal-close" onClick={() => setShowMoveDialog(false)} aria-label="Close">×</button>
+              <h2>{t('calendar.moveBookingTitle')}</h2>
+              <button className="modal-close" onClick={() => setShowMoveDialog(false)} aria-label={t('common.close')}>×</button>
             </div>
             <div className="modal-body">
-              <p><strong>Meeting:</strong> {selectedBooking.title}</p>
-              <p><strong>Current Room:</strong> {selectedBooking.room?.name}</p>
-              <p><strong>Time:</strong> {formatDateTime(selectedBooking.startTime, timeFormat)} - {formatTime(selectedBooking.endTime, timeFormat)}</p>
+              <p><strong>{t('calendar.meeting')}:</strong> {selectedBooking.title}</p>
+              <p><strong>{t('calendar.currentRoom')}:</strong> {selectedBooking.room?.name}</p>
+              <p><strong>{t('common.time')}:</strong> {formatDateTime(selectedBooking.startTime, timeFormat)} - {formatTime(selectedBooking.endTime, timeFormat)}</p>
 
               <div className="form-group mt-4">
-                <label htmlFor="targetRoom"><strong>Move to Room:</strong></label>
+                <label htmlFor="targetRoom"><strong>{t('calendar.moveToRoom')}:</strong></label>
                 <select
                   id="targetRoom"
                   value={moveTargetRoom}
                   onChange={(e) => setMoveTargetRoom(e.target.value)}
                 >
-                  <option value="">Select a room...</option>
+                  <option value="">{t('calendar.selectRoom')}</option>
                   {rooms
                     .filter(r => r.id !== selectedBooking.roomId && r.isActive)
                     .map(room => (
                       <option key={room.id} value={room.id}>
-                        {room.name} (Floor: {room.floor}, Capacity: {room.capacity})
+                        {room.name} ({t('common.floor')}: {room.floor}, {t('common.capacity')}: {room.capacity})
                       </option>
                     ))
                   }
@@ -694,30 +696,30 @@ export function CalendarPage() {
               </div>
 
               <div className="form-group mt-4">
-                <label htmlFor="reason"><strong>Reason (optional):</strong></label>
+                <label htmlFor="reason"><strong>{t('calendar.reason')}:</strong></label>
                 <input
                   type="text"
                   id="reason"
                   value={adminActionReason}
                   onChange={(e) => setAdminActionReason(e.target.value)}
-                  placeholder="e.g., Room maintenance, double booking fix..."
+                  placeholder={t('calendar.reasonPlaceholder')}
                 />
               </div>
 
               <p className="mt-4" style={{ color: '#6b7280', fontSize: '0.875rem' }}>
-                The meeting organizer will be notified via email about this change.
+                {t('calendar.moveNotice')}
               </p>
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowMoveDialog(false)}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 className="btn btn-primary"
                 onClick={handleMoveBooking}
                 disabled={!moveTargetRoom}
               >
-                Move Booking
+                {t('calendar.moveBooking')}
               </button>
             </div>
           </div>

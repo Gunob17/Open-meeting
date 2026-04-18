@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { Company, UserRole } from '../types';
 import { parseCsvText, validateRows, generateCsvTemplate, ParsedRow } from '../utils/csvParser';
@@ -50,6 +51,7 @@ function companyNameFromEmail(email: string): string {
 export function BulkImportModal({
   companies, currentUserCompanyId, currentUserCompanyName, isAdmin, isSuperAdmin, onClose, onComplete,
 }: Props) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<ImportStep>('input');
   const [method, setMethod] = useState<InputMethod>('upload');
   const [pasteText, setPasteText] = useState('');
@@ -86,13 +88,13 @@ export function BulkImportModal({
 
   const revalidateRow = useCallback((row: ParsedRow): ParsedRow => {
     const errors: string[] = [];
-    if (!row.email) errors.push('Email is required');
-    else if (!EMAIL_REGEX.test(row.email.toLowerCase())) errors.push('Invalid email format');
+    if (!row.email) errors.push(t('bulkImport.emailRequired'));
+    else if (!EMAIL_REGEX.test(row.email.toLowerCase())) errors.push(t('bulkImport.invalidEmail'));
     if (isAdmin && row.role !== UserRole.COMPANY_ADMIN && !row.companyId) {
-      errors.push('Company is required');
+      errors.push(t('bulkImport.companyRequired'));
     }
     return { ...row, errors };
-  }, [isAdmin]);
+  }, [isAdmin, t]);
 
   const processEmailsIntoReview = useCallback((raw: ParsedRow[]) => {
     const applied = validateRows(raw.map(r => revalidateRow(applyGlobal(r))));
@@ -105,8 +107,8 @@ export function BulkImportModal({
 
   const handleFileChange = (file: File | null) => {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.csv')) { alert('Please upload a .csv file'); return; }
-    if (file.size > 50 * 1024) { alert('File must be under 50 KB'); return; }
+    if (!file.name.toLowerCase().endsWith('.csv')) { alert(t('bulkImport.invalidFile')); return; }
+    if (file.size > 50 * 1024) { alert(t('bulkImport.fileTooLarge')); return; }
     setFileName(file.name);
     const reader = new FileReader();
     reader.onload = e => setFileText(e.target?.result as string ?? '');
@@ -123,7 +125,7 @@ export function BulkImportModal({
 
   const handleNextFromInput = () => {
     if (isAdmin && globalRole !== UserRole.COMPANY_ADMIN && !globalCompanyId) {
-      alert('Please select a company before continuing.');
+      alert(t('bulkImport.selectCompany'));
       return;
     }
     if (method === 'upload') {
@@ -164,7 +166,7 @@ export function BulkImportModal({
       setStep('results');
       if (response.created > 0) onComplete();
     } catch (err) {
-      setSubmitError(err instanceof Error ? err.message : 'Import failed — please try again');
+      setSubmitError(err instanceof Error ? err.message : t('bulkImport.importFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -211,14 +213,14 @@ export function BulkImportModal({
   };
 
   const steps: { key: ImportStep; label: string }[] = [
-    { key: 'input', label: 'Input Data' },
-    { key: 'review', label: 'Review' },
-    { key: 'results', label: 'Results' },
+    { key: 'input', label: t('bulkImport.stepInput') },
+    { key: 'review', label: t('bulkImport.stepReview') },
+    { key: 'results', label: t('bulkImport.stepResults') },
   ];
   const stepIndex = steps.findIndex(s => s.key === step);
 
-  const globalRoleLabel = globalRole === UserRole.COMPANY_ADMIN ? 'Company Admin'
-    : globalRole === UserRole.PARK_ADMIN ? 'Park Admin' : 'User';
+  const globalRoleLabel = globalRole === UserRole.COMPANY_ADMIN ? t('bulkImport.roleCompanyAdmin')
+    : globalRole === UserRole.PARK_ADMIN ? t('bulkImport.roleParkAdmin') : t('bulkImport.roleUser');
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -227,8 +229,8 @@ export function BulkImportModal({
 
         {/* Header */}
         <div className="modal-header">
-          <h2 id="bulk-import-title">Import Multiple Users</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">×</button>
+          <h2 id="bulk-import-title">{t('bulkImport.title')}</h2>
+          <button className="modal-close" onClick={onClose} aria-label={t('common.close')}>×</button>
         </div>
 
         {/* Step indicator */}
@@ -263,31 +265,29 @@ export function BulkImportModal({
               {isAdmin && (
                 <div className="bulk-import-settings">
                   <div className="form-group form-group--inline">
-                    <label htmlFor="globalRole">Import all as</label>
+                    <label htmlFor="globalRole">{t('bulkImport.importAllAs')}</label>
                     <select
                       id="globalRole"
                       value={globalRole}
                       onChange={e => { setGlobalRole(e.target.value as UserRole); setGlobalCompanyId(''); }}>
-                      <option value={UserRole.USER}>User</option>
-                      {!isSuperAdmin && <option value={UserRole.COMPANY_ADMIN}>Company Admin</option>}
-                      <option value={UserRole.PARK_ADMIN}>Park Admin</option>
+                      <option value={UserRole.USER}>{t('bulkImport.roleUser')}</option>
+                      {!isSuperAdmin && <option value={UserRole.COMPANY_ADMIN}>{t('bulkImport.roleCompanyAdmin')}</option>}
+                      <option value={UserRole.PARK_ADMIN}>{t('bulkImport.roleParkAdmin')}</option>
                     </select>
                   </div>
 
                   {globalRole === UserRole.COMPANY_ADMIN ? (
                     <p className="bulk-import-hint" style={{ margin: '0.25rem 0 0' }}>
-                      Each user's company will be auto-created from their email domain —
-                      e.g. <code>john@acme.com</code> → company <code>acme</code>.
-                      Admins complete company details on first login.
+                      {t('bulkImport.companyAdminHint')}
                     </p>
                   ) : (
                     <div className="form-group form-group--inline">
-                      <label htmlFor="globalCompany">Company</label>
+                      <label htmlFor="globalCompany">{t('common.company')}</label>
                       <select
                         id="globalCompany"
                         value={globalCompanyId}
                         onChange={e => setGlobalCompanyId(e.target.value)}>
-                        <option value="">Select company…</option>
+                        <option value="">{t('bulkImport.selectCompanyOption')}</option>
                         {companies.map(c => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
@@ -299,7 +299,7 @@ export function BulkImportModal({
 
               {!isAdmin && (
                 <div className="bulk-import-banner">
-                  Users will be added to <strong>{currentUserCompanyName}</strong> as regular users.
+                  {t('bulkImport.addedToBanner', { company: currentUserCompanyName })}
                 </div>
               )}
 
@@ -308,7 +308,7 @@ export function BulkImportModal({
                   <button key={m} role="tab"
                     className={`tab-btn${method === m ? ' tab-btn--active' : ''}`}
                     onClick={() => setMethod(m)} aria-selected={method === m}>
-                    {m === 'upload' ? 'Upload CSV' : m === 'paste' ? 'Paste Emails' : 'Enter Manually'}
+                    {m === 'upload' ? t('bulkImport.uploadCsv') : m === 'paste' ? t('bulkImport.pasteEmails') : t('bulkImport.enterManually')}
                   </button>
                 ))}
               </div>
@@ -329,21 +329,21 @@ export function BulkImportModal({
                         <span>📄 {fileName}</span>
                         <button className="btn btn-small btn-secondary"
                           onClick={e => { e.stopPropagation(); setFileName(''); setFileText(''); }}
-                          aria-label="Remove file">×</button>
+                          aria-label={t('common.remove')}>×</button>
                       </div>
                     ) : (
                       <>
                         <div className="csv-drop-zone__icon">↑</div>
-                        <p>Drag and drop your CSV here, or click to browse</p>
-                        <span className="btn btn-small btn-secondary" style={{ pointerEvents: 'none' }}>Browse file</span>
+                        <p>{t('bulkImport.dropZoneText')}</p>
+                        <span className="btn btn-small btn-secondary" style={{ pointerEvents: 'none' }}>{t('bulkImport.browseFile')}</span>
                       </>
                     )}
                   </div>
                   <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }}
                     onChange={e => handleFileChange(e.target.files?.[0] ?? null)} />
                   <p className="bulk-import-hint">
-                    One email per row. &nbsp;
-                    <button className="btn-link" onClick={handleDownloadTemplate}>Download template</button>
+                    {t('bulkImport.onePerRow')} &nbsp;
+                    <button className="btn-link" onClick={handleDownloadTemplate}>{t('bulkImport.downloadTemplate')}</button>
                   </p>
                 </div>
               )}
@@ -353,8 +353,8 @@ export function BulkImportModal({
                   <textarea className="bulk-import-paste" value={pasteText}
                     onChange={e => setPasteText(e.target.value)}
                     placeholder={'john@acme.com\njane@bigcorp.com\nbob@startup.io'}
-                    aria-label="Paste email addresses" />
-                  <p className="bulk-import-hint">One email per line. Header row optional.</p>
+                    aria-label={t('bulkImport.pasteEmails')} />
+                  <p className="bulk-import-hint">{t('bulkImport.onePerLine')}</p>
                 </div>
               )}
 
@@ -365,8 +365,8 @@ export function BulkImportModal({
                       <thead>
                         <tr>
                           <th>#</th>
-                          <th>Email *</th>
-                          <th aria-label="Remove" />
+                          <th>{t('bulkImport.emailColumnHeader')}</th>
+                          <th aria-label={t('common.remove')} />
                         </tr>
                       </thead>
                       <tbody>
@@ -396,7 +396,7 @@ export function BulkImportModal({
                   </div>
                   {manualRows.length < MAX_ROWS && (
                     <button className="btn btn-small btn-secondary" style={{ marginTop: 'var(--space-3)' }}
-                      onClick={() => setManualRows(prev => [...prev, emptyRow()])}>+ Add Row</button>
+                      onClick={() => setManualRows(prev => [...prev, emptyRow()])}>{t('bulkImport.addRow')}</button>
                   )}
                 </div>
               )}
@@ -408,25 +408,25 @@ export function BulkImportModal({
             <>
               <div className="bulk-import-summary">
                 <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)' }}>
-                  {parsedCount} email{parsedCount !== 1 ? 's' : ''} parsed
-                  {parsedCount > MAX_ROWS ? ` — showing first ${MAX_ROWS}` : ''}
+                  {t('bulkImport.emailsParsed', { count: parsedCount })}
+                  {parsedCount > MAX_ROWS ? t('bulkImport.showingFirst', { max: MAX_ROWS }) : ''}
                 </span>
                 <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                  {validCount > 0 && <span className="role-badge" style={{ background: 'var(--color-success-light)', color: 'var(--color-success-hover)' }}>{validCount} valid</span>}
-                  {errorCount > 0 && <span className="role-badge" style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger-hover)' }}>{errorCount} errors</span>}
+                  {validCount > 0 && <span className="role-badge" style={{ background: 'var(--color-success-light)', color: 'var(--color-success-hover)' }}>{t('bulkImport.validBadge', { count: validCount })}</span>}
+                  {errorCount > 0 && <span className="role-badge" style={{ background: 'var(--color-danger-light)', color: 'var(--color-danger-hover)' }}>{t('bulkImport.errorsBadge', { count: errorCount })}</span>}
                 </div>
               </div>
 
               <div className="bulk-import-banner" style={{ marginBottom: 'var(--space-4)' }}>
                 {isAdmin ? (
                   <>
-                    Role: <strong>{globalRoleLabel}</strong>
+                    {t('bulkImport.roleLabel')} <strong>{globalRoleLabel}</strong>
                     {globalRole === UserRole.COMPANY_ADMIN
-                      ? ' — company derived from each email domain'
+                      ? t('bulkImport.companyFromDomain')
                       : ` — ${companies.find(c => c.id === globalCompanyId)?.name ?? ''}`}
                   </>
                 ) : (
-                  <>All users will be added to <strong>{currentUserCompanyName}</strong> as regular users.</>
+                  t('bulkImport.addedToBanner', { company: currentUserCompanyName })
                 )}
               </div>
 
@@ -434,10 +434,10 @@ export function BulkImportModal({
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th>Status</th>
-                      <th>Email</th>
-                      {isAdmin && <th>Company</th>}
-                      <th aria-label="Remove" />
+                      <th>{t('common.status')}</th>
+                      <th>{t('common.email')}</th>
+                      {isAdmin && <th>{t('common.company')}</th>}
+                      <th aria-label={t('common.remove')} />
                     </tr>
                   </thead>
                   <tbody>
@@ -462,7 +462,7 @@ export function BulkImportModal({
                           {isAdmin && (
                             <td style={{ fontSize: 'var(--font-size-sm)', whiteSpace: 'nowrap' }}>
                               {isNew && (
-                                <span className="role-badge" style={{ marginRight: 'var(--space-1)', background: 'var(--color-warning-light)', color: 'var(--color-warning-hover)' }}>New</span>
+                                <span className="role-badge" style={{ marginRight: 'var(--space-1)', background: 'var(--color-warning-light)', color: 'var(--color-warning-hover)' }}>{t('bulkImport.newBadge')}</span>
                               )}
                               {label}
                             </td>
@@ -481,8 +481,7 @@ export function BulkImportModal({
 
               {isAdmin && newCompanyDomains.length > 0 && (
                 <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning-hover)', marginTop: 'var(--space-3)' }}>
-                  ⚠ {newCompanyDomains.length} new compan{newCompanyDomains.length === 1 ? 'y' : 'ies'} will be created.
-                  Admins will be prompted to complete company details on first login.
+                  {t('bulkImport.newCompaniesWarning', { count: newCompanyDomains.length })}
                 </p>
               )}
 
@@ -501,32 +500,34 @@ export function BulkImportModal({
                   {resultCreated}
                 </div>
                 <div className="results-hero__label">
-                  {resultCreated === 1 ? 'invitation sent' : 'invitations sent'}
+                  {t('bulkImport.invitationsSent', { count: resultCreated })}
                 </div>
                 {resultSkipped > 0 && (
                   <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-sm)', color: 'var(--color-danger-hover)' }}>
-                    {resultSkipped} row{resultSkipped !== 1 ? 's' : ''} skipped
+                    {t('bulkImport.rowsSkipped', { count: resultSkipped })}
                   </div>
                 )}
               </div>
 
               {newCompanyCount > 0 && (
                 <div className="bulk-import-banner" style={{ textAlign: 'left', marginBottom: 'var(--space-4)' }}>
-                  <strong>{newCompanyCount} new compan{newCompanyCount === 1 ? 'y was' : 'ies were'} created.</strong>
-                  {' '}Invited admins will be prompted to complete their company profile on first login.
+                  <strong>{t('bulkImport.newCompaniesCreated', { count: newCompanyCount })}</strong>
+                  {' '}{t('bulkImport.adminProfilePrompt')}
                 </div>
               )}
 
               {resultCreated > 0 && (
                 <p style={{ textAlign: 'center', fontSize: 'var(--font-size-sm)', color: 'var(--color-gray-500)', marginBottom: 'var(--space-4)' }}>
-                  Invitation emails dispatched. Users appear with "invite pending" until they complete setup.
+                  {t('bulkImport.invitationsDispatched')}
                 </p>
               )}
 
               {failedResults.length > 0 && (
                 <div>
                   <button className="btn btn-small btn-secondary" onClick={() => setShowErrors(v => !v)}>
-                    {showErrors ? '▾ Hide' : '▸ Show'} {failedResults.length} skipped row{failedResults.length !== 1 ? 's' : ''}
+                    {showErrors
+                      ? t('bulkImport.hideSkipped', { count: failedResults.length })
+                      : t('bulkImport.showSkipped', { count: failedResults.length })}
                   </button>
                   {showErrors && (
                     <div className="results-error-list">
@@ -534,7 +535,7 @@ export function BulkImportModal({
                         <div key={i} style={{ padding: 'var(--space-2) 0', borderBottom: 'var(--border)', fontSize: 'var(--font-size-sm)' }}>
                           <strong>{r.email}</strong>
                           <span style={{ color: 'var(--color-gray-500)', marginLeft: 'var(--space-2)' }}>
-                            — {r.error === 'already_exists' ? 'Email already registered' : r.error}
+                            — {r.error === 'already_exists' ? t('bulkImport.alreadyExists') : r.error}
                           </span>
                         </div>
                       ))}
@@ -550,34 +551,34 @@ export function BulkImportModal({
         <div className="modal-footer">
           {step === 'input' && (
             <>
-              <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+              <button className="btn btn-secondary" onClick={onClose}>{t('common.cancel')}</button>
               <button className="btn btn-primary" onClick={handleNextFromInput}
                 disabled={
                   (method === 'paste' && !pasteText.trim()) ||
                   (method === 'manual' && !manualRows.some(r => r.email.trim())) ||
                   (method === 'upload' && !fileName)
                 }>
-                Preview &amp; Validate →
+                {t('bulkImport.previewValidate')}
               </button>
             </>
           )}
           {step === 'review' && (
             <>
-              <button className="btn btn-secondary" onClick={() => setStep('input')}>← Back</button>
+              <button className="btn btn-secondary" onClick={() => setStep('input')}>{t('bulkImport.backBtn')}</button>
               {errorCount > 0 && (
                 <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-danger-hover)', alignSelf: 'center', marginRight: 'auto', marginLeft: 'var(--space-4)' }}>
-                  {errorCount} row{errorCount !== 1 ? 's' : ''} with errors will be skipped
+                  {t('bulkImport.errorRowsSkipped', { count: errorCount })}
                 </span>
               )}
               <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting || validCount === 0}>
-                {submitting ? 'Importing…' : `Import ${validCount} User${validCount !== 1 ? 's' : ''}`}
+                {submitting ? t('bulkImport.importing') : t('bulkImport.importUsersBtn', { count: validCount })}
               </button>
             </>
           )}
           {step === 'results' && (
             <>
-              <button className="btn btn-secondary" onClick={handleReset}>Import More Users</button>
-              <button className="btn btn-primary" onClick={onClose}>Done</button>
+              <button className="btn btn-secondary" onClick={handleReset}>{t('bulkImport.importMore')}</button>
+              <button className="btn btn-primary" onClick={onClose}>{t('common.done')}</button>
             </>
           )}
         </div>

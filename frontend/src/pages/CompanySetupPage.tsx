@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function CompanySetupPage({ onComplete }: Props) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -18,7 +20,7 @@ export function CompanySetupPage({ onComplete }: Props) {
     setError('');
 
     if (!name.trim()) {
-      setError('Company name is required');
+      setError(t('companySetup.companyName') + ' ' + t('common.required').toLowerCase());
       return;
     }
 
@@ -37,21 +39,21 @@ export function CompanySetupPage({ onComplete }: Props) {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>Set up your company</h1>
-          <p>Your account is ready. Please complete your company profile to continue.</p>
+          <h1>{t('companySetup.title')}</h1>
+          <p>{t('companySetup.subtitle')}</p>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label htmlFor="companyName">Company name</label>
+            <label htmlFor="companyName">{t('companySetup.companyName')}</label>
             <input
               type="text"
               id="companyName"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Acme Corp"
+              placeholder={t('companySetup.companyNamePlaceholder')}
               autoFocus
               required
             />
@@ -59,20 +61,20 @@ export function CompanySetupPage({ onComplete }: Props) {
 
           <div className="form-group">
             <label htmlFor="companyAddress">
-              Address{' '}
-              <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(optional)</span>
+              {t('companySetup.address')}{' '}
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>({t('common.optional').toLowerCase()})</span>
             </label>
             <input
               type="text"
               id="companyAddress"
               value={address}
               onChange={e => setAddress(e.target.value)}
-              placeholder="123 Main Street, City"
+              placeholder={t('companySetup.addressPlaceholder')}
             />
           </div>
 
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? 'Saving...' : 'Continue'}
+            {loading ? t('companySetup.saving') : t('companySetup.continue')}
           </button>
         </form>
       </div>

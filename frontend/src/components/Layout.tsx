@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { TourProvider } from '../context/TourContext';
 import { TourGuide } from './TourGuide';
@@ -13,6 +14,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
+  const { t } = useTranslation();
   const { user, logout, isAdmin, isParkAdmin, isCompanyAdmin, isSuperAdmin, isReceptionist, impersonatedUser, viewAsRole, viewAsReceptionist } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,7 +47,7 @@ export function Layout({ children }: LayoutProps) {
   // Guided tour
   const [runTour, setRunTour] = useState(false);
   const deskBookingEnabled = !!(user?.deskBookingEnabled || isAdmin || isParkAdmin || isSuperAdmin);
-  const tourSteps = getStepsForRole(user?.role ?? 'user', { deskBookingEnabled });
+  const tourSteps = getStepsForRole(user?.role ?? 'user', t, { deskBookingEnabled });
 
   // Sync the initial selectedParkId to localStorage before any child useEffect fires.
   // useLayoutEffect runs synchronously after DOM commit but before child useEffects,
@@ -216,7 +218,7 @@ export function Layout({ children }: LayoutProps) {
     <TourProvider startTour={startTour}>
       <div className="app-layout">
         {/* Skip navigation link for keyboard/screen reader users */}
-        <a href="#main-content" className="skip-link">Skip to main content</a>
+        <a href="#main-content" className="skip-link">{t('nav.skipToContent')}</a>
 
         {/* Guided tour overlay */}
         <TourGuide steps={tourSteps} run={runTour} onFinish={handleTourFinish} onStep={handleTourStep} />
@@ -234,7 +236,7 @@ export function Layout({ children }: LayoutProps) {
                 </>
               )}
             </Link>
-            <button className="sidebar-toggle" onClick={toggleSidebar} aria-label="Toggle sidebar">
+            <button className="sidebar-toggle" onClick={toggleSidebar} aria-label={t('nav.toggleSidebar')}>
               <span className="toggle-icon">{sidebarOpen ? '\u2039' : '\u203A'}</span>
             </button>
           </div>
@@ -248,15 +250,15 @@ export function Layout({ children }: LayoutProps) {
 
             {isSuperAdmin && parks.length > 0 && (
               <div className="sidebar-section">
-                <span className="sidebar-section-label">Park</span>
+                <span className="sidebar-section-label">{t('nav.park')}</span>
                 <div className="park-select-wrapper" ref={parkDropdownRef} data-tour="park-select">
                   <button
                     className="park-select-btn"
                     onClick={() => setParkDropdownOpen(o => !o)}
-                    title={parks.find(p => p.id === selectedParkId)?.name ?? 'Select Park'}
+                    title={parks.find(p => p.id === selectedParkId)?.name ?? t('nav.selectPark')}
                   >
                     <span className="park-select-name">
-                      {parks.find(p => p.id === selectedParkId)?.name ?? 'Select Park'}
+                      {parks.find(p => p.id === selectedParkId)?.name ?? t('nav.selectPark')}
                     </span>
                     <span className="park-select-chevron">{parkDropdownOpen ? '▴' : '▾'}</span>
                   </button>
@@ -280,31 +282,31 @@ export function Layout({ children }: LayoutProps) {
             )}
 
             <div className="sidebar-section">
-              <span className="sidebar-section-label">Navigation</span>
+              <span className="sidebar-section-label">{t('nav.navigation')}</span>
               <ul className="sidebar-menu">
                 <li>
                   <Link to="/" className={`sidebar-link ${isActive('/') ? 'active' : ''}`} data-tour="nav-calendar">
                     <span className="link-icon">&#128197;</span>
-                    <span className="link-text">Calendar</span>
+                    <span className="link-text">{t('nav.calendar')}</span>
                   </Link>
                 </li>
                 <li>
                   <Link to="/rooms" className={`sidebar-link ${isActive('/rooms') ? 'active' : ''}`} data-tour="nav-rooms">
                     <span className="link-icon">&#127970;</span>
-                    <span className="link-text">Rooms</span>
+                    <span className="link-text">{t('nav.rooms')}</span>
                   </Link>
                 </li>
                 <li>
                   <Link to="/my-bookings" className={`sidebar-link ${isActive('/my-bookings') ? 'active' : ''}`} data-tour="nav-my-bookings">
                     <span className="link-icon">&#128203;</span>
-                    <span className="link-text">My Bookings</span>
+                    <span className="link-text">{t('nav.myBookings')}</span>
                   </Link>
                 </li>
                 {(user?.deskBookingEnabled || isAdmin || isParkAdmin || isSuperAdmin) && (
                   <li>
                     <Link to="/desks" className={`sidebar-link ${isActive('/desks') ? 'active' : ''}`} data-tour="nav-desks">
                       <span className="link-icon">&#128188;</span>
-                      <span className="link-text">Hot Desks</span>
+                      <span className="link-text">{t('nav.hotDesks')}</span>
                     </Link>
                   </li>
                 )}
@@ -313,12 +315,12 @@ export function Layout({ children }: LayoutProps) {
 
             {isCompanyAdmin && (
               <div className="sidebar-section">
-                <span className="sidebar-section-label">Management</span>
+                <span className="sidebar-section-label">{t('nav.management')}</span>
                 <ul className="sidebar-menu">
                   <li>
                     <Link to="/users" className={`sidebar-link ${isActive('/users') ? 'active' : ''}`} data-tour="nav-users">
                       <span className="link-icon">&#128101;</span>
-                      <span className="link-text">Users</span>
+                      <span className="link-text">{t('nav.users')}</span>
                     </Link>
                   </li>
                   {user?.companyId && !isAdmin && (
@@ -326,13 +328,13 @@ export function Layout({ children }: LayoutProps) {
                       <li>
                         <Link to={`/admin/ldap/${user.companyId}`} className={`sidebar-link ${location.pathname.startsWith('/admin/ldap') ? 'active' : ''}`} data-tour="nav-ldap">
                           <span className="link-icon">&#128272;</span>
-                          <span className="link-text">LDAP Settings</span>
+                          <span className="link-text">{t('nav.ldapSettings')}</span>
                         </Link>
                       </li>
                       <li>
                         <Link to={`/admin/sso/${user.companyId}`} className={`sidebar-link ${location.pathname.startsWith('/admin/sso') ? 'active' : ''}`} data-tour="nav-sso">
                           <span className="link-icon">&#128273;</span>
-                          <span className="link-text">SSO Settings</span>
+                          <span className="link-text">{t('nav.ssoSettings')}</span>
                         </Link>
                       </li>
                     </>
@@ -343,12 +345,12 @@ export function Layout({ children }: LayoutProps) {
 
             {isReceptionist && (
               <div className="sidebar-section">
-                <span className="sidebar-section-label">Reception</span>
+                <span className="sidebar-section-label">{t('nav.reception')}</span>
                 <ul className="sidebar-menu">
                   <li>
                     <Link to="/reception" className={`sidebar-link ${isActive('/reception') ? 'active' : ''}`} data-tour="nav-reception">
                       <span className="link-icon">&#128717;</span>
-                      <span className="link-text">Guest Management</span>
+                      <span className="link-text">{t('nav.guestManagement')}</span>
                     </Link>
                   </li>
                 </ul>
@@ -357,49 +359,49 @@ export function Layout({ children }: LayoutProps) {
 
             {isAdmin && (
               <div className="sidebar-section">
-                <span className="sidebar-section-label">Administration</span>
+                <span className="sidebar-section-label">{t('nav.administration')}</span>
                 <ul className="sidebar-menu">
                   <li>
                     <Link to="/admin/rooms" className={`sidebar-link ${isActive('/admin/rooms') ? 'active' : ''}`} data-tour="nav-admin-rooms">
                       <span className="link-icon">&#128736;</span>
-                      <span className="link-text">Manage Rooms</span>
+                      <span className="link-text">{t('nav.manageRooms')}</span>
                     </Link>
                   </li>
                   <li>
                     <Link to="/admin/desks" className={`sidebar-link ${isActive('/admin/desks') ? 'active' : ''}`} data-tour="nav-admin-desks">
                       <span className="link-icon">&#128188;</span>
-                      <span className="link-text">Manage Desks</span>
+                      <span className="link-text">{t('nav.manageDesks')}</span>
                     </Link>
                   </li>
                   <li>
                     <Link to="/admin/devices" className={`sidebar-link ${isActive('/admin/devices') ? 'active' : ''}`} data-tour="nav-admin-devices">
                       <span className="link-icon">&#128187;</span>
-                      <span className="link-text">Devices</span>
+                      <span className="link-text">{t('nav.devices')}</span>
                     </Link>
                   </li>
                   <li>
                     <Link to="/admin/companies" className={`sidebar-link ${isActive('/admin/companies') ? 'active' : ''}`} data-tour="nav-admin-companies">
                       <span className="link-icon">&#127970;</span>
-                      <span className="link-text">Companies</span>
+                      <span className="link-text">{t('nav.companies')}</span>
                     </Link>
                   </li>
                   <li>
                     <Link to="/admin/statistics" className={`sidebar-link ${isActive('/admin/statistics') ? 'active' : ''}`} data-tour="nav-admin-statistics">
                       <span className="link-icon">&#128202;</span>
-                      <span className="link-text">Statistics</span>
+                      <span className="link-text">{t('nav.statistics')}</span>
                     </Link>
                   </li>
                   <li>
                     <Link to="/admin/settings" className={`sidebar-link ${isActive('/admin/settings') ? 'active' : ''}`} data-tour="nav-admin-settings">
                       <span className="link-icon">&#9881;</span>
-                      <span className="link-text">Settings</span>
+                      <span className="link-text">{t('nav.settings')}</span>
                     </Link>
                   </li>
                   {isSuperAdmin && (
                     <li>
                       <Link to="/admin/parks" className={`sidebar-link ${isActive('/admin/parks') ? 'active' : ''}`} data-tour="nav-admin-parks">
                         <span className="link-icon">&#127795;</span>
-                        <span className="link-text">Parks</span>
+                        <span className="link-text">{t('nav.parks')}</span>
                       </Link>
                     </li>
                   )}
@@ -418,11 +420,11 @@ export function Layout({ children }: LayoutProps) {
                   onClick={() => setUserMenuOpen(false)}
                 >
                   <span className="link-icon">&#9881;&#65039;</span>
-                  <span className="link-text">Settings</span>
+                  <span className="link-text">{t('nav.settings')}</span>
                 </Link>
                 <button onClick={handleLogout} className="user-menu-item user-menu-item--logout">
                   <span className="link-icon">&#10145;</span>
-                  <span className="link-text">Logout</span>
+                  <span className="link-text">{t('nav.logout')}</span>
                 </button>
               </div>
             )}
@@ -431,7 +433,7 @@ export function Layout({ children }: LayoutProps) {
               onClick={() => setUserMenuOpen(o => !o)}
               aria-expanded={userMenuOpen}
               aria-haspopup="true"
-              title="Account menu"
+              title={t('nav.accountMenu')}
               data-tour="user-menu"
             >
               <div className="user-avatar">
@@ -453,7 +455,7 @@ export function Layout({ children }: LayoutProps) {
         <div className={`main-wrapper ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}${isBannerActive && !bannerDismissed ? ' has-banner' : ''}`}>
           {/* Top bar for mobile */}
           <header className="top-bar">
-            <button className="mobile-menu-btn" onClick={toggleSidebar} aria-label="Open menu">
+            <button className="mobile-menu-btn" onClick={toggleSidebar} aria-label={t('nav.openMenu')}>
               <span className="hamburger-line"></span>
               <span className="hamburger-line"></span>
               <span className="hamburger-line"></span>

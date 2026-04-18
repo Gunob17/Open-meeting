@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { MeetingRoom, Device, Company, Settings } from '../types';
 import { useSettings } from '../context/SettingsContext';
@@ -20,6 +21,7 @@ const COMMON_AMENITIES = [
 ];
 
 export function AdminRoomsPage() {
+  const { t } = useTranslation();
   const { timeFormat } = useSettings();
   const showConfirm = useConfirm();
   const [rooms, setRooms] = useState<MeetingRoom[]>([]);
@@ -219,7 +221,7 @@ export function AdminRoomsPage() {
       setShowModal(false);
       loadRooms();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save room');
+      setError(err instanceof Error ? err.message : t('adminRooms.failedSave'));
     } finally {
       setSaving(false);
     }
@@ -235,7 +237,7 @@ export function AdminRoomsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!await showConfirm({ message: 'Are you sure you want to permanently delete this room? This action cannot be undone.', title: 'Delete Room', confirmLabel: 'Delete' })) return;
+    if (!await showConfirm({ message: t('adminRooms.deleteConfirm'), title: t('adminRooms.deleteTitle'), confirmLabel: t('common.delete') })) return;
 
     try {
       await api.deleteRoom(id, false);
@@ -283,7 +285,7 @@ export function AdminRoomsPage() {
       setShowAddDevice(false);
       await loadDevices(selectedRoom.id);
     } catch (err) {
-      setDeviceError(err instanceof Error ? err.message : 'Failed to add device');
+      setDeviceError(err instanceof Error ? err.message : t('adminRooms.failedAddDevice'));
     } finally {
       setSavingDevice(false);
     }
@@ -302,7 +304,7 @@ export function AdminRoomsPage() {
 
   const handleRegenerateToken = async (device: Device) => {
     if (!selectedRoom) return;
-    if (!await showConfirm({ message: `Regenerate token for "${device.name}"? The old token will stop working immediately.`, title: 'Regenerate Token', confirmLabel: 'Regenerate', variant: 'warning' })) return;
+    if (!await showConfirm({ message: t('adminRooms.regenerateConfirm', { name: device.name }), title: t('adminRooms.regenerateTitle'), confirmLabel: t('adminRooms.regenerateLabel'), variant: 'warning' })) return;
 
     try {
       await api.regenerateDeviceToken(device.id);
@@ -314,7 +316,7 @@ export function AdminRoomsPage() {
 
   const handleDeleteDevice = async (device: Device) => {
     if (!selectedRoom) return;
-    if (!await showConfirm({ message: `Delete device "${device.name}"? This action cannot be undone.`, title: 'Delete Device', confirmLabel: 'Delete' })) return;
+    if (!await showConfirm({ message: t('adminRooms.deleteDeviceConfirm', { name: device.name }), title: t('adminRooms.deleteDeviceTitle'), confirmLabel: t('common.delete') })) return;
 
     try {
       await api.deleteDevice(device.id);
@@ -335,30 +337,30 @@ export function AdminRoomsPage() {
   };
 
   const formatLastSeen = (lastSeenAt: string | null) => {
-    if (!lastSeenAt) return 'Never';
+    if (!lastSeenAt) return t('common.never');
     const date = new Date(lastSeenAt);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
 
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffMins < 1) return t('adminRooms.deviceJustNow');
+    if (diffMins < 60) return t('adminRooms.deviceMinAgo', { count: diffMins });
     const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return diffHours === 1 ? t('adminRooms.deviceHourAgo') : t('adminRooms.deviceHoursAgo', { count: diffHours });
     const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    return diffDays === 1 ? t('adminRooms.deviceDayAgo') : t('adminRooms.deviceDaysAgo', { count: diffDays });
   };
 
   if (loading) {
-    return <div className="loading">Loading rooms...</div>;
+    return <div className="loading">{t('adminRooms.loading')}</div>;
   }
 
   return (
     <div className="admin-rooms-page">
       <div className="page-header">
-        <h1>Manage Meeting Rooms</h1>
+        <h1>{t('adminRooms.title')}</h1>
         <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          Add Room
+          {t('adminRooms.addRoom')}
         </button>
       </div>
 
@@ -366,13 +368,13 @@ export function AdminRoomsPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Capacity</th>
-              <th>Floor</th>
-              <th>Amenities</th>
-              <th>Access</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th>{t('common.name')}</th>
+              <th>{t('common.capacity')}</th>
+              <th>{t('common.floor')}</th>
+              <th>{t('common.amenities')}</th>
+              <th>{t('adminRooms.tableAccess')}</th>
+              <th>{t('common.status')}</th>
+              <th>{t('common.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -385,7 +387,7 @@ export function AdminRoomsPage() {
                       {room.imapHost && (() => {
                         const s = imapStatuses[room.id];
                         if (!s || s.status === 'unknown') return (
-                          <span title="IMAP: waiting for first poll…" style={{ color: '#9ca3af', fontSize: '0.7rem' }}>●</span>
+                          <span title={t('adminRooms.imapStatusWaiting')} style={{ color: '#9ca3af', fontSize: '0.7rem' }}>●</span>
                         );
                         if (s.status === 'ok') return (
                           <span title={`IMAP connected — last checked ${s.lastChecked ? new Date(s.lastChecked).toLocaleTimeString() : '?'}`} style={{ color: '#10b981' }}>✓</span>
@@ -406,13 +408,13 @@ export function AdminRoomsPage() {
                       <span key={a} className="amenity-tag small">{a}</span>
                     ))}
                     {room.amenities.length > 3 && (
-                      <span className="amenity-tag small">+{room.amenities.length - 3} more</span>
+                      <span className="amenity-tag small">{t('adminRooms.amenitiesMore', { count: room.amenities.length - 3 })}</span>
                     )}
                   </div>
                 </td>
                 <td>
                   {(!room.lockedToCompanyIds || room.lockedToCompanyIds.length === 0) ? (
-                    <span className="access-badge open">Open to All</span>
+                    <span className="access-badge open">{t('adminRooms.accessOpenToAll')}</span>
                   ) : (
                     <div className="access-companies">
                       {room.lockedToCompanyIds.slice(0, 2).map(id => {
@@ -425,7 +427,7 @@ export function AdminRoomsPage() {
                       })}
                       {room.lockedToCompanyIds.length > 2 && (
                         <span className="access-badge restricted">
-                          +{room.lockedToCompanyIds.length - 2} more
+                          {t('adminRooms.accessMore', { count: room.lockedToCompanyIds.length - 2 })}
                         </span>
                       )}
                     </div>
@@ -433,7 +435,7 @@ export function AdminRoomsPage() {
                 </td>
                 <td>
                   <span className={`status-badge ${room.isActive ? 'active' : 'inactive'}`}>
-                    {room.isActive ? 'Active' : 'Inactive'}
+                    {room.isActive ? t('common.active') : t('common.inactive')}
                   </span>
                 </td>
                 <td>
@@ -442,25 +444,25 @@ export function AdminRoomsPage() {
                       className="btn btn-small btn-secondary"
                       onClick={() => handleOpenModal(room)}
                     >
-                      Edit
+                      {t('common.edit')}
                     </button>
                     <button
                       className="btn btn-small btn-info"
                       onClick={() => handleOpenDevicesModal(room)}
                     >
-                      Devices
+                      {t('adminRooms.devicesBtn')}
                     </button>
                     <button
                       className={`btn btn-small ${room.isActive ? 'btn-warning' : 'btn-success'}`}
                       onClick={() => handleToggleActive(room)}
                     >
-                      {room.isActive ? 'Deactivate' : 'Activate'}
+                      {room.isActive ? t('adminRooms.deactivate') : t('adminRooms.activate')}
                     </button>
                     <button
                       className="btn btn-small btn-danger"
                       onClick={() => handleDelete(room.id)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </td>
@@ -475,8 +477,8 @@ export function AdminRoomsPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal modal-large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingRoom ? 'Edit Room' : 'Add Room'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)} aria-label="Close">×</button>
+              <h2>{editingRoom ? t('adminRooms.modalEditTitle') : t('adminRooms.modalAddTitle')}</h2>
+              <button className="modal-close" onClick={() => setShowModal(false)} aria-label={t('common.close')}>×</button>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -485,19 +487,19 @@ export function AdminRoomsPage() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label htmlFor="name">Room Name *</label>
+                    <label htmlFor="name">{t('adminRooms.roomName')}</label>
                     <input
                       type="text"
                       id="name"
                       value={formData.name}
                       onChange={e => setFormData({ ...formData, name: e.target.value })}
                       required
-                      placeholder="e.g., Innovation Lab"
+                      placeholder={t('adminRooms.roomNamePlaceholder')}
                     />
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="capacity">Capacity *</label>
+                    <label htmlFor="capacity">{t('adminRooms.capacityLabel')}</label>
                     <input
                       type="number"
                       id="capacity"
@@ -510,78 +512,77 @@ export function AdminRoomsPage() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="floor">Floor *</label>
+                  <label htmlFor="floor">{t('adminRooms.floorLabel')}</label>
                   <input
                     type="text"
                     id="floor"
                     value={formData.floor}
                     onChange={e => setFormData({ ...formData, floor: e.target.value })}
                     required
-                    placeholder="e.g., 3rd Floor"
+                    placeholder={t('adminRooms.floorPlaceholder')}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="address">Address *</label>
+                  <label htmlFor="address">{t('adminRooms.addressLabel')}</label>
                   <input
                     type="text"
                     id="address"
                     value={formData.address}
                     onChange={e => setFormData({ ...formData, address: e.target.value })}
                     required
-                    placeholder="Full address including room number"
+                    placeholder={t('adminRooms.addressPlaceholder')}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="description">Description</label>
+                  <label htmlFor="description">{t('adminRooms.descLabel')}</label>
                   <textarea
                     id="description"
                     value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Describe the room"
+                    placeholder={t('adminRooms.descPlaceholder')}
                     rows={2}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="bookingEmail">Booking Email Address</label>
+                  <label htmlFor="bookingEmail">{t('adminRooms.bookingEmail')}</label>
                   <input
                     type="email"
                     id="bookingEmail"
                     value={formData.bookingEmail}
                     onChange={e => setFormData({ ...formData, bookingEmail: e.target.value })}
-                    placeholder="e.g., boardroom@rooms.yourdomain.com"
+                    placeholder={t('adminRooms.bookingEmailPlaceholder')}
                     maxLength={254}
                   />
                   <small style={{ color: '#6b7280', marginTop: '0.25rem', display: 'block' }}>
-                    The email address users send calendar invites to. Also used as the reply address for iMIP responses.
+                    {t('adminRooms.bookingEmailDesc')}
                   </small>
                 </div>
 
                 <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '1rem', marginBottom: '0.5rem' }}>
                   <legend style={{ padding: '0 0.5rem', fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>
-                    IMAP Inbox (for receiving booking requests)
+                    {t('adminRooms.imapTitle')}
                   </legend>
                   <small style={{ color: '#6b7280', display: 'block', marginBottom: '0.75rem' }}>
-                    Connect this room's mailbox so incoming calendar invites are processed automatically.
-                    Leave all fields empty to disable email-based booking for this room.
+                    {t('adminRooms.imapDesc')}
                   </small>
 
                   <div className="form-row">
                     <div className="form-group" style={{ flex: 3 }}>
-                      <label htmlFor="imapHost">IMAP Host</label>
+                      <label htmlFor="imapHost">{t('adminRooms.imapHost')}</label>
                       <input
                         type="text"
                         id="imapHost"
                         value={formData.imapHost}
                         onChange={e => setFormData({ ...formData, imapHost: e.target.value })}
-                        placeholder="e.g., imap.gmail.com"
+                        placeholder={t('adminRooms.imapHostPlaceholder')}
                         maxLength={253}
                       />
                     </div>
                     <div className="form-group" style={{ flex: 1 }}>
-                      <label htmlFor="imapPort">Port</label>
+                      <label htmlFor="imapPort">{t('adminRooms.imapPort')}</label>
                       <input
                         type="number"
                         id="imapPort"
@@ -594,20 +595,20 @@ export function AdminRoomsPage() {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="imapUser">IMAP Username</label>
+                    <label htmlFor="imapUser">{t('adminRooms.imapUser')}</label>
                     <input
                       type="text"
                       id="imapUser"
                       value={formData.imapUser}
                       onChange={e => setFormData({ ...formData, imapUser: e.target.value })}
-                      placeholder="e.g., boardroom@rooms.yourdomain.com"
+                      placeholder={t('adminRooms.imapUserPlaceholder')}
                       maxLength={254}
                       autoComplete="off"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="imapPass">IMAP Password</label>
+                    <label htmlFor="imapPass">{t('adminRooms.imapPass')}</label>
                     <input
                       type="password"
                       id="imapPass"
@@ -616,50 +617,49 @@ export function AdminRoomsPage() {
                         setFormData({ ...formData, imapPass: e.target.value });
                         setImapPassChanged(true);
                       }}
-                      placeholder={editingRoom?.hasImapPassword ? '(password saved — type to change)' : 'Enter password'}
+                      placeholder={editingRoom?.hasImapPassword ? t('adminRooms.imapPassSaved') : t('adminRooms.imapPassNew')}
                       autoComplete="new-password"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="imapMailbox">Mailbox / Folder</label>
+                    <label htmlFor="imapMailbox">{t('adminRooms.imapMailbox')}</label>
                     <input
                       type="text"
                       id="imapMailbox"
                       value={formData.imapMailbox}
                       onChange={e => setFormData({ ...formData, imapMailbox: e.target.value })}
-                      placeholder="INBOX"
+                      placeholder={t('adminRooms.imapMailboxPlaceholder')}
                       maxLength={255}
                     />
                     <small style={{ color: '#6b7280', marginTop: '0.25rem', display: 'block' }}>
-                      Leave blank to use INBOX. Use TLS port 993 (recommended).
+                      {t('adminRooms.imapMailboxDesc')}
                     </small>
                   </div>
                 </fieldset>
 
                 <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '1rem', marginBottom: '0.5rem' }}>
                   <legend style={{ padding: '0 0.5rem', fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>
-                    SMTP Outbox (for sending booking replies)
+                    {t('adminRooms.smtpTitle')}
                   </legend>
                   <small style={{ color: '#6b7280', display: 'block', marginBottom: '0.75rem' }}>
-                    Used to send ACCEPT / DECLINE replies from the room's own address. Uses the same username and password as IMAP.
-                    On most providers (including Hetzner) the SMTP host is the same as the IMAP host — leave the host blank to reuse it.
+                    {t('adminRooms.smtpDesc')}
                   </small>
 
                   <div className="form-row">
                     <div className="form-group" style={{ flex: 3 }}>
-                      <label htmlFor="smtpHost">SMTP Host (optional)</label>
+                      <label htmlFor="smtpHost">{t('adminRooms.smtpHost')}</label>
                       <input
                         type="text"
                         id="smtpHost"
                         value={formData.smtpHost}
                         onChange={e => setFormData({ ...formData, smtpHost: e.target.value })}
-                        placeholder={formData.imapHost || 'Same as IMAP host'}
+                        placeholder={formData.imapHost || t('adminRooms.smtpHostSameAsImap')}
                         maxLength={253}
                       />
                     </div>
                     <div className="form-group" style={{ flex: 1 }}>
-                      <label htmlFor="smtpPort">Port</label>
+                      <label htmlFor="smtpPort">{t('adminRooms.smtpPort')}</label>
                       <input
                         type="number"
                         id="smtpPort"
@@ -678,7 +678,7 @@ export function AdminRoomsPage() {
                         checked={formData.smtpSecure}
                         onChange={e => setFormData({ ...formData, smtpSecure: e.target.checked })}
                       />
-                      Use SSL/TLS (port 465) — leave unchecked for STARTTLS (port 587)
+                      {t('adminRooms.smtpSsl')}
                     </label>
                   </div>
                 </fieldset>
@@ -690,13 +690,13 @@ export function AdminRoomsPage() {
                       checked={formData.calendarFeedEnabled}
                       onChange={e => setFormData({ ...formData, calendarFeedEnabled: e.target.checked })}
                     />
-                    Allow calendar feed subscriptions (ICS)
+                    {t('adminRooms.calendarFeed')}
                   </label>
-                  <small>When disabled, users cannot subscribe to this room's ICS feed and existing feed URLs will stop working.</small>
+                  <small>{t('adminRooms.calendarFeedDesc')}</small>
                 </div>
 
                 <div className="form-group">
-                  <label>Quick Book Durations (for device screen)</label>
+                  <label>{t('adminRooms.quickBookDurations')}</label>
                   <div className="quick-book-durations">
                     {[15, 30, 45, 60, 90, 120, 180, 240].map(duration => (
                       <label key={duration} className="duration-checkbox">
@@ -712,17 +712,17 @@ export function AdminRoomsPage() {
                             }));
                           }}
                         />
-                        <span>{duration < 60 ? `${duration} min` : `${duration / 60} ${duration === 60 ? 'hour' : 'hours'}`}</span>
+                        <span>{duration < 60 ? t('adminRooms.durationMin', { count: duration }) : duration === 60 ? t('adminRooms.durationHour') : t('adminRooms.durationHours', { count: duration / 60 })}</span>
                       </label>
                     ))}
                   </div>
                   <small style={{ color: '#6b7280', marginTop: '0.25rem', display: 'block' }}>
-                    Select the booking durations available on the room's display device (max 4 will be shown)
+                    {t('adminRooms.quickBookDesc')}
                   </small>
                 </div>
 
                 <div className="form-group">
-                  <label>Amenities</label>
+                  <label>{t('adminRooms.amenitiesLabel')}</label>
                   <div className="amenities-grid">
                     {COMMON_AMENITIES.map(amenity => (
                       <label key={amenity} className="amenity-checkbox">
@@ -739,33 +739,33 @@ export function AdminRoomsPage() {
 
                 <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '1rem', marginBottom: '0.5rem' }}>
                   <legend style={{ padding: '0 0.5rem', fontWeight: 600, color: '#374151', fontSize: '0.95rem' }}>
-                    Booking Hours
+                    {t('adminRooms.bookingHoursTitle')}
                   </legend>
                   <small style={{ color: '#6b7280', display: 'block', marginBottom: '0.75rem' }}>
-                    Override the global booking hours for this room. Leave empty to use the global setting.
+                    {t('adminRooms.bookingHoursDesc')}
                   </small>
                   <div className="form-row">
                     <div className="form-group">
-                      <label htmlFor="roomOpeningHour">Opening Hour</label>
+                      <label htmlFor="roomOpeningHour">{t('adminRooms.openingHour')}</label>
                       <select
                         id="roomOpeningHour"
                         value={formData.openingHour ?? ''}
                         onChange={e => setFormData({ ...formData, openingHour: e.target.value === '' ? null : Number(e.target.value) })}
                       >
-                        <option value="">Use Global{settings ? ` (${formatHour(settings.openingHour, timeFormat)})` : ''}</option>
+                        <option value="">{t('adminRooms.useGlobal')}{settings ? ` (${formatHour(settings.openingHour, timeFormat)})` : ''}</option>
                         {Array.from({ length: 24 }, (_, i) => (
                           <option key={i} value={i}>{formatHour(i, timeFormat)}</option>
                         ))}
                       </select>
                     </div>
                     <div className="form-group">
-                      <label htmlFor="roomClosingHour">Closing Hour</label>
+                      <label htmlFor="roomClosingHour">{t('adminRooms.closingHour')}</label>
                       <select
                         id="roomClosingHour"
                         value={formData.closingHour ?? ''}
                         onChange={e => setFormData({ ...formData, closingHour: e.target.value === '' ? null : Number(e.target.value) })}
                       >
-                        <option value="">Use Global{settings ? ` (${formatHour(settings.closingHour, timeFormat)})` : ''}</option>
+                        <option value="">{t('adminRooms.useGlobal')}{settings ? ` (${formatHour(settings.closingHour, timeFormat)})` : ''}</option>
                         {Array.from({ length: 24 }, (_, i) => (
                           <option key={i} value={i}>{formatHour(i, timeFormat)}</option>
                         ))}
@@ -775,12 +775,12 @@ export function AdminRoomsPage() {
                 </fieldset>
 
                 <div className="form-group">
-                  <label>Restrict Access to Companies</label>
+                  <label>{t('adminRooms.companyAccess')}</label>
                   <small style={{ color: '#6b7280', marginBottom: '0.5rem', display: 'block' }}>
-                    Select companies that can book this room. Leave empty to allow all companies.
+                    {t('adminRooms.companyAccessDesc')}
                   </small>
                   {companies.length === 0 ? (
-                    <p style={{ color: '#6b7280', fontStyle: 'italic' }}>No companies available</p>
+                    <p style={{ color: '#6b7280', fontStyle: 'italic' }}>{t('adminRooms.noCompanies')}</p>
                   ) : (
                     <div className="companies-grid">
                       {companies.map(company => (
@@ -800,10 +800,10 @@ export function AdminRoomsPage() {
 
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save Room'}
+                  {saving ? t('common.saving') : t('adminRooms.saveRoom')}
                 </button>
               </div>
             </form>
@@ -816,25 +816,24 @@ export function AdminRoomsPage() {
         <div className="modal-overlay" onClick={() => setShowDevicesModal(false)}>
           <div className="modal modal-large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Screen Devices - {selectedRoom.name}</h2>
-              <button className="modal-close" onClick={() => setShowDevicesModal(false)} aria-label="Close">×</button>
+              <h2>{t('adminRooms.devicesModalTitle', { room: selectedRoom.name })}</h2>
+              <button className="modal-close" onClick={() => setShowDevicesModal(false)} aria-label={t('common.close')}>×</button>
             </div>
 
             <div className="modal-body">
               <p className="modal-description">
-                Screen devices can be placed outside meeting rooms to show room status and allow quick bookings.
-                Each device uses a unique token for authentication.
+                {t('adminRooms.devicesDesc')}
               </p>
 
               {deviceError && <div className="alert alert-error">{deviceError}</div>}
 
               {loadingDevices ? (
-                <div className="loading">Loading devices...</div>
+                <div className="loading">{t('adminRooms.loadingDevices')}</div>
               ) : (
                 <>
                   {devices.length === 0 && !showAddDevice ? (
                     <div className="empty-state">
-                      <p>No devices linked to this room yet.</p>
+                      <p>{t('adminRooms.noDevices')}</p>
                     </div>
                   ) : (
                     <div className="devices-list">
@@ -844,20 +843,20 @@ export function AdminRoomsPage() {
                             <div className="device-name">
                               {device.name}
                               <span className={`status-badge small ${device.isActive ? 'active' : 'inactive'}`}>
-                                {device.isActive ? 'Active' : 'Inactive'}
+                                {device.isActive ? t('adminRooms.deviceActive') : t('adminRooms.deviceInactive')}
                               </span>
                             </div>
                             <div className="device-meta">
-                              Last seen: {formatLastSeen(device.lastSeenAt)}
+                              {t('adminRooms.deviceLastSeen', { time: formatLastSeen(device.lastSeenAt) })}
                             </div>
                             <div className="device-token">
                               <code>{device.token.substring(0, 16)}...{device.token.substring(device.token.length - 8)}</code>
                               <button
                                 className="btn btn-tiny"
                                 onClick={() => handleCopyToken(device)}
-                                title="Copy full token"
+                                title={t('common.copy')}
                               >
-                                {copiedTokenId === device.id ? 'Copied!' : 'Copy'}
+                                {copiedTokenId === device.id ? t('common.copied') : t('common.copy')}
                               </button>
                             </div>
                           </div>
@@ -865,21 +864,21 @@ export function AdminRoomsPage() {
                             <button
                               className="btn btn-small btn-secondary"
                               onClick={() => handleRegenerateToken(device)}
-                              title="Generate new token"
+                              title={t('adminRooms.regenerateToken')}
                             >
-                              Regenerate Token
+                              {t('adminRooms.regenerateToken')}
                             </button>
                             <button
                               className={`btn btn-small ${device.isActive ? 'btn-warning' : 'btn-success'}`}
                               onClick={() => handleToggleDeviceActive(device)}
                             >
-                              {device.isActive ? 'Disable' : 'Enable'}
+                              {device.isActive ? t('adminRooms.deviceDisable') : t('adminRooms.deviceEnable')}
                             </button>
                             <button
                               className="btn btn-small btn-danger"
                               onClick={() => handleDeleteDevice(device)}
                             >
-                              Delete
+                              {t('common.delete')}
                             </button>
                           </div>
                         </div>
@@ -891,13 +890,13 @@ export function AdminRoomsPage() {
                     <form onSubmit={handleAddDevice} className="add-device-form">
                       <div className="form-row">
                         <div className="form-group" style={{ flex: 1 }}>
-                          <label htmlFor="deviceName">Device Name</label>
+                          <label htmlFor="deviceName">{t('adminRooms.deviceNameLabel')}</label>
                           <input
                             type="text"
                             id="deviceName"
                             value={newDeviceName}
                             onChange={e => setNewDeviceName(e.target.value)}
-                            placeholder="e.g., Screen Outside Room 101"
+                            placeholder={t('adminRooms.deviceNamePlaceholder')}
                             required
                             autoFocus
                           />
@@ -913,10 +912,10 @@ export function AdminRoomsPage() {
                             setDeviceError('');
                           }}
                         >
-                          Cancel
+                          {t('common.cancel')}
                         </button>
                         <button type="submit" className="btn btn-primary" disabled={savingDevice}>
-                          {savingDevice ? 'Adding...' : 'Add Device'}
+                          {savingDevice ? t('adminRooms.deviceAdding') : t('adminRooms.addDevice')}
                         </button>
                       </div>
                     </form>
@@ -926,7 +925,7 @@ export function AdminRoomsPage() {
                       onClick={() => setShowAddDevice(true)}
                       style={{ marginTop: '1rem' }}
                     >
-                      Add Device
+                      {t('adminRooms.addDevice')}
                     </button>
                   )}
                 </>
@@ -935,7 +934,7 @@ export function AdminRoomsPage() {
 
             <div className="modal-footer">
               <button className="btn btn-secondary" onClick={() => setShowDevicesModal(false)}>
-                Close
+                {t('common.close')}
               </button>
             </div>
           </div>

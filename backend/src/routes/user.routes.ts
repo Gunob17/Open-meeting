@@ -29,7 +29,7 @@ const bulkImportLimiter = rateLimit({
   message: { error: 'Too many bulk import requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req: any) => req.user?.userId ?? req.ip ?? 'unknown',
+  keyGenerator: (req: any) => req.user?.userId ?? 'unauthenticated',
 });
 
 // Get all users (admin only)

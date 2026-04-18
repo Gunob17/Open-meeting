@@ -22,7 +22,8 @@
 - **Routing**: React Router v6
 - **Date Handling**: date-fns
 - **Password strength**: zxcvbn (strength meter UI in invite completion and password change forms)
-- **Guided tour**: react-joyride (spotlight onboarding tour, role-tailored step sets)
+- **Guided tour**: react-joyride (spotlight onboarding tour, role-tailored step sets, fully i18n'd via `t()`)
+- **i18n**: react-i18next — locale files in `frontend/src/locales/` (`en.json`, `da.json`). All UI strings use `t()`. Language stored in `localStorage` via `SettingsContext`.
 - **Styling**: CSS with custom properties (no CSS framework)
 - **Build**: Create React App (react-scripts)
 
@@ -152,10 +153,12 @@ open-meeting/
 │   ├── src/
 │   │   ├── components/      # BookingModal, Layout, TourGuide, DevRoleWidget
 │   │   ├── context/         # AuthContext, TourContext, SettingsContext
+│   │   ├── locales/         # i18n translation files (en.json, da.json)
 │   │   ├── pages/           # 18 page components
-│   │   ├── tour/            # Role-specific guided tour step definitions
+│   │   ├── tour/            # Role-specific guided tour step definitions (i18n'd via t())
 │   │   ├── services/        # API client (api.ts)
 │   │   ├── types/           # TypeScript types
+│   │   ├── i18n.ts          # react-i18next setup
 │   │   ├── App.tsx          # Router and app shell
 │   │   └── styles.css       # Global styles
 │   └── package.json
@@ -206,7 +209,7 @@ The production image uses a 3-stage build: backend compilation, frontend build, 
 
 ## Database Migrations
 
-Migrations are in `backend/src/migrations/` and run automatically on startup. Currently 19 migrations:
+Migrations are in `backend/src/migrations/` and run automatically on startup. Currently 28 migration files (two share the `020` prefix):
 
 1. `001_initial_schema` — Core tables (users, parks, companies, rooms, bookings, devices, firmware)
 2. `002_two_factor_auth` — 2FA fields and trusted devices table
@@ -227,5 +230,14 @@ Migrations are in `backend/src/migrations/` and run automatically on startup. Cu
 17. `017_add_missing_indexes` — FK indexes on `email_uid_map.booking_id`, `email_uid_map.room_id`, and `calendar_tokens.room_id`
 18. `018_system_banner` — System banner fields on `settings` table (`banner_enabled`, `banner_message`, `banner_level`, `banner_starts_at`, `banner_ends_at`)
 19. `019_user_tour` — `has_seen_tour` boolean on `users` table (defaults `true` for existing users; `false` for new invites so the tour auto-starts on first login)
+20. `020_company_setup_pending` — `setup_pending` flag on `companies` (marks auto-created companies that still need initial configuration)
+20. `020_hot_desks` — Hot desk tables: `desks`, `desk_bookings`; desk quota fields on `desks`
+21. `021_desk_quota_overrides` — Stub (superseded before commit; exists for migration history compatibility)
+22. `022_park_desk_quota` — Park-level desk quota defaults (`desk_quota_type`, `monthly_desk_quota`); `user_desk_quotas` table
+23. `023_company_desk_access` — `desk_booking_enabled` flag on `companies`
+24. `024_desk_features` — `features` JSON column on `desks` (e.g. standing desk, dual monitor)
+25. `025_park_blocked_weekdays` — `blocked_weekdays` JSON array on `parks` (0–6, days unavailable for booking)
+26. `026_park_week_start_day` — `week_start_day` on `parks` (0=Sunday, 1=Monday default)
+27. `027_user_disable` — `disabled_until` and `disable_reason` on `users` for temporary suspension
 
 Each migration uses `hasTable`/`hasColumn` guards and is safe to run on an existing database.

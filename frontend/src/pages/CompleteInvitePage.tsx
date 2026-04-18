@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import zxcvbn from 'zxcvbn';
 
 export function CompleteInvitePage() {
+  const { t } = useTranslation();
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [name, setName] = useState('');
@@ -18,22 +20,22 @@ export function CompleteInvitePage() {
     setError('');
 
     if (!name.trim()) {
-      setError('Please enter your name');
+      setError(t('invite.nameRequired'));
       return;
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters');
+      setError(t('invite.passwordTooShort'));
       return;
     }
 
     if (zxcvbn(password).score < 2) {
-      setError('Password is too weak. Please choose a stronger password.');
+      setError(t('invite.passwordWeak'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('invite.passwordMismatch'));
       return;
     }
 
@@ -44,7 +46,7 @@ export function CompleteInvitePage() {
       setDone(true);
       setTimeout(() => navigate('/'), 1500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to complete setup. The link may have expired.');
+      setError(err instanceof Error ? err.message : t('invite.setupFailed'));
     } finally {
       setLoading(false);
     }
@@ -55,8 +57,8 @@ export function CompleteInvitePage() {
       <div className="login-container">
         <div className="login-card">
           <div className="login-header">
-            <h1>Account ready!</h1>
-            <p>Redirecting you to the app...</p>
+            <h1>{t('invite.accountReady')}</h1>
+            <p>{t('invite.redirecting')}</p>
           </div>
         </div>
       </div>
@@ -67,40 +69,46 @@ export function CompleteInvitePage() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <h1>Welcome to Open Meeting</h1>
-          <p>Set up your account to get started</p>
+          <h1>{t('invite.title')}</h1>
+          <p>{t('invite.subtitle')}</p>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
 
         <form onSubmit={handleSubmit} className="login-form">
           <div className="form-group">
-            <label htmlFor="name">Your name</label>
+            <label htmlFor="name">{t('invite.yourName')}</label>
             <input
               type="text"
               id="name"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Full name"
+              placeholder={t('invite.namePlaceholder')}
               autoFocus
               required
             />
           </div>
 
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">{t('invite.password')}</label>
             <input
               type="password"
               id="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
+              placeholder={t('invite.passwordPlaceholder')}
               minLength={8}
               required
             />
             {password.length > 0 && (() => {
               const score = zxcvbn(password).score;
-              const labels = ['Very weak', 'Weak', 'Fair', 'Strong', 'Very strong'];
+              const labels = [
+                t('userSettings.password.strength.veryWeak'),
+                t('userSettings.password.strength.weak'),
+                t('userSettings.password.strength.fair'),
+                t('userSettings.password.strength.strong'),
+                t('userSettings.password.strength.veryStrong'),
+              ];
               const colors = ['#e53935', '#e53935', '#f57c00', '#43a047', '#1b5e20'];
               return (
                 <div style={{ marginTop: 6 }}>
@@ -116,20 +124,20 @@ export function CompleteInvitePage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm password</label>
+            <label htmlFor="confirmPassword">{t('invite.confirmPassword')}</label>
             <input
               type="password"
               id="confirmPassword"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="Repeat password"
+              placeholder={t('invite.confirmPlaceholder')}
               minLength={8}
               required
             />
           </div>
 
           <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? 'Setting up...' : 'Complete setup'}
+            {loading ? t('invite.settingUp') : t('invite.completeSetup')}
           </button>
         </form>
       </div>

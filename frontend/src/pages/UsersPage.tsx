@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { User, Company, UserRole } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -6,14 +7,15 @@ import { useConfirm } from '../context/ConfirmContext';
 import { BulkImportModal } from '../components/BulkImportModal';
 
 const DISABLE_DURATION_OPTIONS = [
-  { label: '1 hour', hours: 1 },
-  { label: '24 hours', hours: 24 },
-  { label: '3 days', hours: 72 },
-  { label: '7 days', hours: 168 },
-  { label: '30 days', hours: 720 },
+  { key: '1h', hours: 1 },
+  { key: '24h', hours: 24 },
+  { key: '3d', hours: 72 },
+  { key: '7d', hours: 168 },
+  { key: '30d', hours: 720 },
 ];
 
 export function UsersPage() {
+  const { t } = useTranslation();
   const { user: currentUser, isAdmin, isSuperAdmin } = useAuth();
   const showConfirm = useConfirm();
   const [users, setUsers] = useState<User[]>([]);
@@ -131,7 +133,7 @@ export function UsersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!await showConfirm({ message: 'Are you sure you want to delete this user?', title: 'Delete User', confirmLabel: 'Delete' })) return;
+    if (!await showConfirm({ message: t('users.deleteConfirm'), title: t('users.deleteUserTitle'), confirmLabel: t('common.delete') })) return;
 
     try {
       await api.deleteUser(id);
@@ -175,23 +177,23 @@ export function UsersPage() {
     !!user.disabledUntil && new Date(user.disabledUntil) > new Date();
 
   const getCompanyName = (companyId: string) => {
-    return companies.find(c => c.id === companyId)?.name || 'Unknown';
+    return companies.find(c => c.id === companyId)?.name || t('common.unknown');
   };
 
   if (loading) {
-    return <div className="loading">Loading users...</div>;
+    return <div className="loading">{t('users.loading')}</div>;
   }
 
   return (
     <div className="users-page">
       <div className="page-header">
-        <h1>User Management</h1>
+        <h1>{t('users.title')}</h1>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-secondary" onClick={() => setShowBulkModal(true)}>
-            Add Multiple Users
+            {t('users.addMultiple')}
           </button>
           <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-            Add User
+            {t('users.addUser')}
           </button>
         </div>
       </div>
@@ -200,24 +202,24 @@ export function UsersPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Source</th>
-              {isAdmin && <th>Company</th>}
-              <th>Actions</th>
+              <th>{t('users.name')}</th>
+              <th>{t('users.email')}</th>
+              <th>{t('users.role')}</th>
+              <th>{t('users.source')}</th>
+              {isAdmin && <th>{t('users.company')}</th>}
+              <th>{t('users.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {users.map(user => (
               <tr key={user.id} style={user.isActive === false || isCurrentlyDisabled(user) ? { opacity: 0.5 } : undefined}>
                 <td>
-                  {user.name || <em style={{ color: 'var(--text-muted)' }}>Not set up</em>}
+                  {user.name || <em style={{ color: 'var(--text-muted)' }}>{t('users.notSetUp')}</em>}
                   {user.isActive === false && user.inviteToken && (
-                    <span className="role-badge" style={{ marginLeft: '0.25rem', background: '#d97706', color: '#fff' }}>invite pending</span>
+                    <span className="role-badge" style={{ marginLeft: '0.25rem', background: '#d97706', color: '#fff' }}>{t('users.invitePending')}</span>
                   )}
                   {user.isActive === false && !user.inviteToken && (
-                    <span className="role-badge" style={{ marginLeft: '0.25rem', background: 'var(--danger)', color: '#fff' }}>disabled</span>
+                    <span className="role-badge" style={{ marginLeft: '0.25rem', background: 'var(--danger)', color: '#fff' }}>{t('users.disabledBadge')}</span>
                   )}
                   {isCurrentlyDisabled(user) && (
                     <span
@@ -225,17 +227,17 @@ export function UsersPage() {
                       style={{ marginLeft: '0.25rem', background: '#f59e0b', color: '#fff', cursor: 'help' }}
                       title={`Suspended until ${new Date(user.disabledUntil!).toLocaleString()}${user.disableReason ? ` — ${user.disableReason}` : ''}`}
                     >
-                      suspended
+                      {t('users.suspendedBadge')}
                     </span>
                   )}
                 </td>
                 <td>{user.email}</td>
                 <td>
                   <span className={`role-badge ${user.role}`}>
-                    {user.role.replace('_', ' ')}
+                    {t(`users.roles.${user.role}`, { defaultValue: user.role.replace('_', ' ') })}
                   </span>
                   {user.addonRoles?.includes('receptionist') && (
-                    <span className="role-badge receptionist" style={{ marginLeft: '0.25rem' }}>receptionist</span>
+                    <span className="role-badge receptionist" style={{ marginLeft: '0.25rem' }}>{t('users.receptionistBadge')}</span>
                   )}
                 </td>
                 <td>
@@ -254,7 +256,7 @@ export function UsersPage() {
                         className="btn btn-small btn-secondary"
                         onClick={() => handleResendInvite(user.id)}
                       >
-                        Resend invite
+                        {t('users.resendInvite')}
                       </button>
                     )}
                     <button
@@ -262,7 +264,7 @@ export function UsersPage() {
                       onClick={() => handleOpenModal(user)}
                       disabled={user.id === currentUser?.id}
                     >
-                      Edit
+                      {t('common.edit')}
                     </button>
                     {isAdmin && user.id !== currentUser?.id && user.isActive !== false && (
                       isCurrentlyDisabled(user) ? (
@@ -270,14 +272,14 @@ export function UsersPage() {
                           className="btn btn-small btn-secondary"
                           onClick={() => handleEnable(user)}
                         >
-                          Enable
+                          {t('users.enable')}
                         </button>
                       ) : (
                         <button
                           className="btn btn-small btn-warning"
                           onClick={() => handleOpenDisable(user)}
                         >
-                          Suspend
+                          {t('users.suspend')}
                         </button>
                       )
                     )}
@@ -286,7 +288,7 @@ export function UsersPage() {
                       onClick={() => handleDelete(user.id)}
                       disabled={user.id === currentUser?.id || (!isAdmin && user.role !== UserRole.USER)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </td>
@@ -312,43 +314,43 @@ export function UsersPage() {
         <div className="modal-overlay" onClick={() => setDisableTarget(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Suspend User</h2>
-              <button className="modal-close" onClick={() => setDisableTarget(null)} aria-label="Close">×</button>
+              <h2>{t('users.suspendUser')}</h2>
+              <button className="modal-close" onClick={() => setDisableTarget(null)} aria-label={t('common.close')}>×</button>
             </div>
             <div className="modal-body">
-              <p style={{ marginBottom: '1rem' }}>
-                Suspending <strong>{disableTarget.name || disableTarget.email}</strong> will immediately revoke their active sessions and block email-based bookings for the selected period.
-              </p>
+              <p style={{ marginBottom: '1rem' }}
+                dangerouslySetInnerHTML={{ __html: t('users.suspendInfo', { name: `<strong>${disableTarget.name || disableTarget.email}</strong>` }) }}
+              />
               <div className="form-group">
-                <label htmlFor="disableDuration">Duration</label>
+                <label htmlFor="disableDuration">{t('users.duration')}</label>
                 <select
                   id="disableDuration"
                   value={disableHours}
                   onChange={e => setDisableHours(Number(e.target.value))}
                 >
                   {DISABLE_DURATION_OPTIONS.map(opt => (
-                    <option key={opt.hours} value={opt.hours}>{opt.label}</option>
+                    <option key={opt.hours} value={opt.hours}>{t(`users.suspendDurations.${opt.key}`)}</option>
                   ))}
                 </select>
               </div>
               <div className="form-group">
-                <label htmlFor="disableReason">Reason (optional)</label>
+                <label htmlFor="disableReason">{t('users.reason')}</label>
                 <input
                   type="text"
                   id="disableReason"
                   value={disableReason}
                   onChange={e => setDisableReason(e.target.value)}
-                  placeholder="e.g. repeated misuse of booking system"
+                  placeholder={t('users.reasonPlaceholder')}
                   maxLength={200}
                 />
               </div>
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" onClick={() => setDisableTarget(null)}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button type="button" className="btn btn-warning" onClick={handleDisableSubmit} disabled={saving}>
-                {saving ? 'Suspending...' : 'Suspend User'}
+                {saving ? t('users.suspending') : t('users.suspendUser')}
               </button>
             </div>
           </div>
@@ -359,8 +361,8 @@ export function UsersPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingUser ? 'Edit User' : 'Add User'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)} aria-label="Close">×</button>
+              <h2>{editingUser ? t('users.editUserTitle') : t('users.addUserTitle')}</h2>
+              <button className="modal-close" onClick={() => setShowModal(false)} aria-label={t('common.close')}>×</button>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -369,13 +371,13 @@ export function UsersPage() {
 
                 {!editingUser && (
                   <div className="alert" style={{ background: 'var(--bg-secondary)', borderLeft: '3px solid var(--primary)', marginBottom: '1rem', padding: '0.75rem 1rem', borderRadius: '4px', fontSize: '0.9rem' }}>
-                    An invitation email will be sent to this address. The user will set their own name and password.
+                    {t('users.inviteEmailInfo')}
                   </div>
                 )}
 
                 {editingUser && (
                   <div className="form-group">
-                    <label htmlFor="name">Name *</label>
+                    <label htmlFor="name">{t('common.name')} *</label>
                     <input
                       type="text"
                       id="name"
@@ -387,7 +389,7 @@ export function UsersPage() {
                 )}
 
                 <div className="form-group">
-                  <label htmlFor="email">Email *</label>
+                  <label htmlFor="email">{t('common.email')} *</label>
                   <input
                     type="email"
                     id="email"
@@ -401,14 +403,14 @@ export function UsersPage() {
                 {editingUser && (
                   editingUser.authSource && editingUser.authSource !== 'local' ? (
                     <div className="form-group">
-                      <label>Password</label>
+                      <label>{t('common.password')}</label>
                       <small style={{ color: 'var(--text-muted)' }}>
-                        Managed by {editingUser.authSource === 'ldap' ? 'LDAP directory' : 'SSO identity provider'}
+                        {editingUser.authSource === 'ldap' ? t('users.managedByLdap') : t('users.managedBySso')}
                       </small>
                     </div>
                   ) : (
                     <div className="form-group">
-                      <label htmlFor="password">Password (leave blank to keep current)</label>
+                      <label htmlFor="password">{t('users.keepCurrentPassword')}</label>
                       <input
                         type="password"
                         id="password"
@@ -423,28 +425,28 @@ export function UsersPage() {
                 {isAdmin && (
                   <>
                     <div className="form-group">
-                      <label htmlFor="role">Role *</label>
+                      <label htmlFor="role">{t('common.role')} *</label>
                       <select
                         id="role"
                         value={formData.role}
                         onChange={e => setFormData({ ...formData, role: e.target.value as UserRole })}
                       >
-                        <option value={UserRole.USER}>User</option>
-                        <option value={UserRole.COMPANY_ADMIN}>Company Admin</option>
-                        {isSuperAdmin && <option value={UserRole.PARK_ADMIN}>Park Admin</option>}
-                        {isSuperAdmin && <option value={UserRole.SUPER_ADMIN}>Super Admin</option>}
+                        <option value={UserRole.USER}>{t('users.roles.user')}</option>
+                        <option value={UserRole.COMPANY_ADMIN}>{t('users.roles.company_admin')}</option>
+                        {isSuperAdmin && <option value={UserRole.PARK_ADMIN}>{t('users.roles.park_admin')}</option>}
+                        {isSuperAdmin && <option value={UserRole.SUPER_ADMIN}>{t('users.roles.super_admin')}</option>}
                       </select>
                     </div>
 
                     <div className="form-group">
-                      <label htmlFor="companyId">Company *</label>
+                      <label htmlFor="companyId">{t('common.company')} *</label>
                       <select
                         id="companyId"
                         value={formData.companyId}
                         onChange={e => setFormData({ ...formData, companyId: e.target.value })}
                         required
                       >
-                        <option value="">Select company</option>
+                        <option value="">{t('users.selectCompany')}</option>
                         {companies.map(company => (
                           <option key={company.id} value={company.id}>
                             {company.name}
@@ -460,7 +462,7 @@ export function UsersPage() {
                           checked={formData.isReceptionist}
                           onChange={e => setFormData({ ...formData, isReceptionist: e.target.checked })}
                         />
-                        Receptionist (can manage guest check-in/check-out)
+                        {t('users.receptionistRole')}
                       </label>
                     </div>
                   </>
@@ -469,10 +471,10 @@ export function UsersPage() {
 
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? (editingUser ? 'Saving...' : 'Sending...') : (editingUser ? 'Save' : 'Send Invite')}
+                  {saving ? (editingUser ? t('common.saving') : t('users.sending')) : (editingUser ? t('users.save') : t('users.sendInvite'))}
                 </button>
               </div>
             </form>

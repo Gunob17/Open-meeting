@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { MeetingRoom, Booking, Park, ExternalGuest } from '../types';
 
@@ -16,6 +17,7 @@ interface BookingModalProps {
 }
 
 export function BookingModal({ room, initialDate, initialHour, initialMinute = 0, initialStartTime, initialEndTime, existingBooking, onClose, onBooked }: BookingModalProps) {
+  const { t } = useTranslation();
   const isEditing = !!existingBooking;
 
   const [title, setTitle] = useState(existingBooking?.title || '');
@@ -116,7 +118,7 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
 
       onBooked();
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to ${isEditing ? 'update' : 'create'} booking`);
+      setError(err instanceof Error ? err.message : isEditing ? t('bookingModal.saving') : t('bookingModal.booking'));
     } finally {
       setLoading(false);
     }
@@ -126,8 +128,8 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>{isEditing ? 'Edit Booking' : `Book ${room.name}`}</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Close">×</button>
+          <h2>{isEditing ? t('bookingModal.editTitle') : t('bookingModal.bookTitle', { room: room.name })}</h2>
+          <button className="modal-close" onClick={onClose} aria-label={t('common.close')}>×</button>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -135,39 +137,39 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
             {error && <div className="alert alert-error">{error}</div>}
 
             <div className="room-details">
-              <p><strong>Room:</strong> {room.name}</p>
-              <p><strong>Capacity:</strong> {room.capacity} people</p>
-              <p><strong>Floor:</strong> {room.floor}</p>
-              <p><strong>Amenities:</strong> {room.amenities.join(', ')}</p>
-              <p><strong>Address:</strong> {room.address}</p>
+              <p><strong>{t('common.name')}:</strong> {room.name}</p>
+              <p><strong>{t('bookingModal.capacity', { count: room.capacity })}</strong></p>
+              <p><strong>{t('common.floor')}:</strong> {room.floor}</p>
+              <p><strong>{t('common.amenities')}:</strong> {room.amenities.join(', ')}</p>
+              <p><strong>{t('common.address')}:</strong> {room.address}</p>
             </div>
 
             <div className="form-group">
-              <label htmlFor="title">Meeting Title *</label>
+              <label htmlFor="title">{t('bookingModal.meetingTitle')}</label>
               <input
                 type="text"
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 required
-                placeholder="Enter meeting title"
+                placeholder={t('bookingModal.meetingTitlePlaceholder')}
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="description">Description</label>
+              <label htmlFor="description">{t('bookingModal.description')}</label>
               <textarea
                 id="description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Enter meeting description (optional)"
+                placeholder={t('bookingModal.descriptionPlaceholder')}
                 rows={3}
               />
             </div>
 
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="startTime">Start Time *</label>
+                <label htmlFor="startTime">{t('bookingModal.startTime')}</label>
                 <input
                   type="datetime-local"
                   id="startTime"
@@ -178,7 +180,7 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
               </div>
 
               <div className="form-group">
-                <label htmlFor="endTime">End Time *</label>
+                <label htmlFor="endTime">{t('bookingModal.endTime')}</label>
                 <input
                   type="datetime-local"
                   id="endTime"
@@ -190,29 +192,29 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
             </div>
 
             <div className="form-group">
-              <label htmlFor="attendees">Invite Attendees (comma-separated emails)</label>
+              <label htmlFor="attendees">{t('bookingModal.inviteAttendees')}</label>
               <input
                 type="text"
                 id="attendees"
                 value={attendees}
                 onChange={(e) => setAttendees(e.target.value)}
-                placeholder="email1@example.com, email2@example.com"
+                placeholder={t('bookingModal.attendeesPlaceholder')}
               />
-              <small>Attendees will receive an email with a calendar invite</small>
+              <small>{t('bookingModal.attendeesNotice')}</small>
             </div>
 
             {hasReception && (
               <div className="form-group">
-                <label>External Guests</label>
+                <label>{t('bookingModal.externalGuests')}</label>
                 <small style={{ display: 'block', marginBottom: '8px' }}>
-                  Add visitors from outside the park. The reception will be notified to prepare guest passes.
+                  {t('bookingModal.externalGuestsNotice')}
                 </small>
 
                 {externalGuests.map((guest, index) => (
                   <div key={index} className="external-guest-row">
                     <input
                       type="text"
-                      placeholder="Name *"
+                      placeholder={t('bookingModal.guestName')}
                       value={guest.name}
                       onChange={(e) => updateExternalGuest(index, 'name', e.target.value)}
                       style={{ flex: 1 }}
@@ -220,7 +222,7 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
                     {guestFields.includes('email') && (
                       <input
                         type="email"
-                        placeholder="Email"
+                        placeholder={t('bookingModal.guestEmail')}
                         value={guest.email || ''}
                         onChange={(e) => updateExternalGuest(index, 'email', e.target.value)}
                         style={{ flex: 1 }}
@@ -229,7 +231,7 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
                     {guestFields.includes('company') && (
                       <input
                         type="text"
-                        placeholder="Company / Organization"
+                        placeholder={t('bookingModal.guestCompany')}
                         value={guest.company || ''}
                         onChange={(e) => updateExternalGuest(index, 'company', e.target.value)}
                         style={{ flex: 1 }}
@@ -240,7 +242,7 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
                       className="btn btn-small btn-danger"
                       onClick={() => removeExternalGuest(index)}
                     >
-                      Remove
+                      {t('bookingModal.removeGuest')}
                     </button>
                   </div>
                 ))}
@@ -250,7 +252,7 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
                   className="btn btn-small btn-secondary"
                   onClick={addExternalGuest}
                 >
-                  + Add External Guest
+                  {t('bookingModal.addGuest')}
                 </button>
               </div>
             )}
@@ -258,10 +260,10 @@ export function BookingModal({ room, initialDate, initialHour, initialMinute = 0
 
           <div className="modal-footer">
             <button type="button" className="btn btn-secondary" onClick={onClose}>
-              Cancel
+              {t('bookingModal.cancel')}
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? (isEditing ? 'Saving...' : 'Booking...') : (isEditing ? 'Save Changes' : 'Book Room')}
+              {loading ? (isEditing ? t('bookingModal.saving') : t('bookingModal.booking')) : (isEditing ? t('bookingModal.saveChanges') : t('bookingModal.bookRoom'))}
             </button>
           </div>
         </form>

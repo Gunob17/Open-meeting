@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { GuestVisit } from '../types';
 import { useSettings } from '../context/SettingsContext';
 import { formatTime as sharedFormatTime } from '../utils/time';
 
 export function ReceptionistPage() {
+  const { t } = useTranslation();
   const { timeFormat } = useSettings();
   const [loading, setLoading] = useState(true);
   const [date, setDate] = useState(() => {
@@ -127,16 +129,16 @@ export function ReceptionistPage() {
   const pending = guests.filter(g => !g.checkedInAt).length;
 
   if (loading && guests.length === 0) {
-    return <div className="loading">Loading guest data...</div>;
+    return <div className="loading">{t('receptionist.loadingData')}</div>;
   }
 
   return (
     <div className="receptionist-page">
       <div className="page-header">
-        <h1>Guest Management</h1>
+        <h1>{t('receptionist.title')}</h1>
         <div className="date-picker">
           <button className="btn btn-secondary btn-sm" onClick={() => changeDate(-1)} disabled={loading}>
-            &#8249; Prev
+            &#8249; {t('common.previous')}
           </button>
           <input
             id="guest-date"
@@ -145,10 +147,10 @@ export function ReceptionistPage() {
             onChange={e => setDate(e.target.value)}
           />
           <button className="btn btn-secondary btn-sm" onClick={() => changeDate(1)} disabled={loading}>
-            Next &#8250;
+            {t('common.next')} &#8250;
           </button>
           <button className="btn btn-secondary btn-sm" onClick={loadGuests} disabled={loading}>
-            {loading ? 'Loading...' : 'Refresh'}
+            {loading ? t('common.loading') : t('receptionist.refresh')}
           </button>
         </div>
       </div>
@@ -158,25 +160,25 @@ export function ReceptionistPage() {
       <div className="guest-summary">
         <div className="summary-card">
           <div className="summary-number">{totalGuests}</div>
-          <div className="summary-label">Total Guests</div>
+          <div className="summary-label">{t('receptionist.totalGuests')}</div>
         </div>
         <div className="summary-card summary-pending">
           <div className="summary-number">{pending}</div>
-          <div className="summary-label">Pending</div>
+          <div className="summary-label">{t('receptionist.pending')}</div>
         </div>
         <div className="summary-card summary-checked-in">
           <div className="summary-number">{checkedIn}</div>
-          <div className="summary-label">Checked In</div>
+          <div className="summary-label">{t('receptionist.checkedIn')}</div>
         </div>
         <div className="summary-card summary-checked-out">
           <div className="summary-number">{checkedOut}</div>
-          <div className="summary-label">Checked Out</div>
+          <div className="summary-label">{t('receptionist.checkedOut')}</div>
         </div>
       </div>
 
       {guests.length === 0 && !loading && (
         <div className="empty-state">
-          <p>No external guests expected for this date.</p>
+          <p>{t('receptionist.noGuests')}</p>
         </div>
       )}
 
@@ -189,16 +191,16 @@ export function ReceptionistPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Guest Name</th>
-                  <th>Email</th>
-                  <th>Invited By</th>
-                  <th>Meeting</th>
-                  <th>Room</th>
-                  <th>Expected</th>
-                  <th>Check-in</th>
-                  <th>Check-out</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>{t('receptionist.guestName')}</th>
+                  <th>{t('receptionist.email')}</th>
+                  <th>{t('receptionist.invitedBy')}</th>
+                  <th>{t('receptionist.meeting')}</th>
+                  <th>{t('receptionist.room')}</th>
+                  <th>{t('receptionist.expected')}</th>
+                  <th>{t('receptionist.checkIn')}</th>
+                  <th>{t('receptionist.checkOut')}</th>
+                  <th>{t('receptionist.status')}</th>
+                  <th>{t('receptionist.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,9 +220,9 @@ export function ReceptionistPage() {
                       <td>{formatTime(guest.checkedInAt)}</td>
                       <td>{formatTime(guest.checkedOutAt)}</td>
                       <td>
-                        {isPending && <span className="guest-status pending">Pending</span>}
-                        {isIn && <span className="guest-status checked-in">Checked In</span>}
-                        {isOut && <span className="guest-status checked-out">Left</span>}
+                        {isPending && <span className="guest-status pending">{t('receptionist.statusPending')}</span>}
+                        {isIn && <span className="guest-status checked-in">{t('receptionist.statusCheckedIn')}</span>}
+                        {isOut && <span className="guest-status checked-out">{t('receptionist.statusLeft')}</span>}
                       </td>
                       <td>
                         <div className="action-buttons">
@@ -230,7 +232,7 @@ export function ReceptionistPage() {
                               onClick={() => handleCheckIn(guest.id)}
                               disabled={actionLoading === guest.id}
                             >
-                              {actionLoading === guest.id ? '...' : 'Check In'}
+                              {actionLoading === guest.id ? '...' : t('receptionist.checkInBtn')}
                             </button>
                           )}
                           {isIn && (
@@ -240,14 +242,14 @@ export function ReceptionistPage() {
                                 onClick={() => handleCheckOut(guest.id)}
                                 disabled={actionLoading === guest.id}
                               >
-                                {actionLoading === guest.id ? '...' : 'Check Out'}
+                                {actionLoading === guest.id ? '...' : t('receptionist.checkOutBtn')}
                               </button>
                               <button
                                 className="btn btn-sm btn-secondary"
                                 onClick={() => handleUndoCheckIn(guest.id)}
                                 disabled={actionLoading === guest.id}
                               >
-                                Undo
+                                {t('receptionist.undoBtn')}
                               </button>
                             </>
                           )}

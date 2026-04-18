@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Company, Settings, TwoFaLevelEnforcement } from '../types';
 import { useConfirm } from '../context/ConfirmContext';
 
 export function CompaniesPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const showConfirm = useConfirm();
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -87,7 +89,7 @@ export function CompaniesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!await showConfirm({ message: 'Are you sure you want to delete this company? All users in this company will also be deleted.', title: 'Delete Company', confirmLabel: 'Delete' })) return;
+    if (!await showConfirm({ message: t('companies.deleteConfirm'), title: t('companies.deleteTitle'), confirmLabel: t('common.delete') })) return;
 
     try {
       await api.deleteCompany(id);
@@ -98,15 +100,15 @@ export function CompaniesPage() {
   };
 
   if (loading) {
-    return <div className="loading">Loading companies...</div>;
+    return <div className="loading">{t('companies.loading')}</div>;
   }
 
   return (
     <div className="companies-page">
       <div className="page-header">
-        <h1>Company Management</h1>
+        <h1>{t('companies.title')}</h1>
         <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          Add Company
+          {t('companies.addCompany')}
         </button>
       </div>
 
@@ -114,9 +116,9 @@ export function CompaniesPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Address</th>
-              <th>Actions</th>
+              <th>{t('companies.name')}</th>
+              <th>{t('companies.address')}</th>
+              <th>{t('companies.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -130,25 +132,25 @@ export function CompaniesPage() {
                       className="btn btn-small btn-secondary"
                       onClick={() => handleOpenModal(company)}
                     >
-                      Edit
+                      {t('common.edit')}
                     </button>
                     <button
                       className="btn btn-small btn-secondary"
                       onClick={() => navigate(`/admin/ldap/${company.id}`)}
                     >
-                      LDAP
+                      {t('companies.ldap')}
                     </button>
                     <button
                       className="btn btn-small btn-secondary"
                       onClick={() => navigate(`/admin/sso/${company.id}`)}
                     >
-                      SSO
+                      {t('companies.sso')}
                     </button>
                     <button
                       className="btn btn-small btn-danger"
                       onClick={() => handleDelete(company.id)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </div>
                 </td>
@@ -162,8 +164,8 @@ export function CompaniesPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingCompany ? 'Edit Company' : 'Add Company'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)} aria-label="Close">×</button>
+              <h2>{editingCompany ? t('companies.editTitle') : t('companies.addTitle')}</h2>
+              <button className="modal-close" onClick={() => setShowModal(false)} aria-label={t('common.close')}>×</button>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -171,52 +173,52 @@ export function CompaniesPage() {
                 {error && <div className="alert alert-error">{error}</div>}
 
                 <div className="form-group">
-                  <label htmlFor="name">Company Name *</label>
+                  <label htmlFor="name">{t('companies.companyName')}</label>
                   <input
                     type="text"
                     id="name"
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     required
-                    placeholder="Enter company name"
+                    placeholder={t('companies.companyNamePlaceholder')}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="address">Address *</label>
+                  <label htmlFor="address">{t('common.address')} *</label>
                   <textarea
                     id="address"
                     value={formData.address}
                     onChange={e => setFormData({ ...formData, address: e.target.value })}
                     required
-                    placeholder="Enter company address"
+                    placeholder={t('companies.addressPlaceholder')}
                     rows={3}
                   />
                 </div>
 
                 {editingCompany && settings?.twofaEnforcement === 'optional' && (
                   <div className="form-group">
-                    <label htmlFor="companyTwofaEnforcement">Two-Factor Authentication</label>
+                    <label htmlFor="companyTwofaEnforcement">{t('companies.twofaLabel')}</label>
                     <select
                       id="companyTwofaEnforcement"
                       value={companyTwofaEnforcement}
                       onChange={e => setCompanyTwofaEnforcement(e.target.value as TwoFaLevelEnforcement)}
                     >
-                      <option value="inherit">Inherit from Park</option>
-                      <option value="optional">Optional - Users can enable 2FA</option>
-                      <option value="required">Required - All users in this company must use 2FA</option>
+                      <option value="inherit">{t('companies.twofaEnforcement.inherit')}</option>
+                      <option value="optional">{t('companies.twofaEnforcement.optional')}</option>
+                      <option value="required">{t('companies.twofaEnforcement.required')}</option>
                     </select>
-                    <small>Override park 2FA enforcement for this company</small>
+                    <small>{t('companies.twofaDesc')}</small>
                   </div>
                 )}
               </div>
 
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save'}
+                  {saving ? t('common.saving') : t('common.save')}
                 </button>
               </div>
             </form>

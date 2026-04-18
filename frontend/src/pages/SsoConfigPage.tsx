@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { SsoConfig, SsoProtocol, Company } from '../types';
 import { useConfirm } from '../context/ConfirmContext';
 
 export function SsoConfigPage() {
+  const { t } = useTranslation();
   const { companyId } = useParams<{ companyId: string }>();
   const showConfirm = useConfirm();
   const [config, setConfig] = useState<SsoConfig | null>(null);
@@ -100,18 +102,18 @@ export function SsoConfigPage() {
       if (config) {
         const updated = await api.updateSsoConfig(config.id, data);
         setConfig(updated);
-        setSuccess('SSO configuration updated');
+        setSuccess(t('sso.updated'));
       } else {
         const created = await api.createSsoConfig({
           companyId: companyId!,
           ...data,
         });
         setConfig(created);
-        setSuccess('SSO configuration created');
+        setSuccess(t('sso.created'));
       }
       setOidcClientSecret('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save SSO configuration');
+      setError(err instanceof Error ? err.message : t('sso.failedSave'));
     } finally {
       setSaving(false);
     }
@@ -126,20 +128,20 @@ export function SsoConfigPage() {
       if (config.isEnabled) {
         const updated = await api.disableSso(config.id);
         setConfig(updated);
-        setSuccess('SSO disabled');
+        setSuccess(t('sso.ssoDisabled'));
       } else {
         const updated = await api.enableSso(config.id);
         setConfig(updated);
-        setSuccess('SSO enabled');
+        setSuccess(t('sso.ssoEnabled'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to toggle SSO');
+      setError(err instanceof Error ? err.message : t('sso.failedToggle'));
     }
   };
 
   const handleDelete = async () => {
     if (!config) return;
-    if (!await showConfirm({ message: 'Are you sure you want to delete this SSO configuration? Users authenticated via SSO will no longer be able to log in.', title: 'Delete SSO Config', confirmLabel: 'Delete' })) return;
+    if (!await showConfirm({ message: t('sso.deleteConfirm'), title: t('sso.deleteConfirmTitle'), confirmLabel: t('common.delete') })) return;
 
     try {
       await api.deleteSsoConfig(config.id);
@@ -156,20 +158,20 @@ export function SsoConfigPage() {
       setAutoCreateUsers(true);
       setDefaultRole('user');
       setEmailDomains('');
-      setSuccess('SSO configuration deleted');
+      setSuccess(t('sso.deleted'));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete SSO configuration');
+      setError(err instanceof Error ? err.message : t('sso.failedDelete'));
     }
   };
 
   if (loading) {
-    return <div className="loading">Loading SSO configuration...</div>;
+    return <div className="loading">{t('sso.loading')}</div>;
   }
 
   return (
     <div className="settings-page">
       <div className="page-header">
-        <h1>SSO Configuration — {company?.name || 'Company'}</h1>
+        <h1>{t('sso.title', { company: company?.name || '' })}</h1>
       </div>
 
       {error && <div className="alert alert-error">{error}</div>}
@@ -177,7 +179,7 @@ export function SsoConfigPage() {
 
       <form onSubmit={handleSave}>
         <div className="settings-section">
-          <h3>Protocol</h3>
+          <h3>{t('sso.protocol')}</h3>
           <div className="form-group">
             <label>
               <input
@@ -188,7 +190,7 @@ export function SsoConfigPage() {
                 onChange={() => setProtocol('oidc')}
                 disabled={!!config}
               />
-              {' '}OpenID Connect (OIDC) — Keycloak, Azure AD, Okta, Google
+              {' '}{t('sso.oidcLabel')}
             </label>
           </div>
           <div className="form-group">
@@ -201,19 +203,19 @@ export function SsoConfigPage() {
                 onChange={() => setProtocol('saml')}
                 disabled={!!config}
               />
-              {' '}SAML 2.0 — ADFS, Shibboleth, OneLogin
+              {' '}{t('sso.samlLabel')}
             </label>
           </div>
           {config && (
-            <small style={{ color: 'var(--text-muted)' }}>Protocol cannot be changed after creation. Delete and recreate to change.</small>
+            <small style={{ color: 'var(--text-muted)' }}>{t('sso.protocolLocked')}</small>
           )}
         </div>
 
         {protocol === 'oidc' && (
           <div className="settings-section">
-            <h3>OIDC Settings</h3>
+            <h3>{t('sso.oidcSettings')}</h3>
             <div className="form-group">
-              <label htmlFor="oidcIssuerUrl">Issuer URL *</label>
+              <label htmlFor="oidcIssuerUrl">{t('sso.issuerUrl')}</label>
               <input
                 type="url"
                 id="oidcIssuerUrl"
@@ -222,10 +224,10 @@ export function SsoConfigPage() {
                 placeholder="https://keycloak.example.com/realms/myrealm"
                 required={protocol === 'oidc'}
               />
-              <small>The OIDC provider's issuer URL (supports auto-discovery via .well-known)</small>
+              <small>{t('sso.issuerUrlDesc')}</small>
             </div>
             <div className="form-group">
-              <label htmlFor="oidcClientId">Client ID *</label>
+              <label htmlFor="oidcClientId">{t('sso.clientId')}</label>
               <input
                 type="text"
                 id="oidcClientId"
@@ -237,19 +239,19 @@ export function SsoConfigPage() {
             </div>
             <div className="form-group">
               <label htmlFor="oidcClientSecret">
-                Client Secret {config ? '(leave blank to keep current)' : '*'}
+                {config ? t('sso.clientSecret') : t('sso.clientSecretNew')}
               </label>
               <input
                 type="password"
                 id="oidcClientSecret"
                 value={oidcClientSecret}
                 onChange={e => setOidcClientSecret(e.target.value)}
-                placeholder={config ? '••••••••' : 'Enter client secret'}
+                placeholder={config ? '••••••••' : ''}
                 required={!config && protocol === 'oidc'}
               />
             </div>
             <div className="form-group">
-              <label htmlFor="oidcScopes">Scopes</label>
+              <label htmlFor="oidcScopes">{t('sso.scopes')}</label>
               <input
                 type="text"
                 id="oidcScopes"
@@ -259,7 +261,7 @@ export function SsoConfigPage() {
               />
             </div>
             <div className="form-group">
-              <label>Callback URL (configure in your IdP)</label>
+              <label>{t('sso.callbackUrl')}</label>
               <input
                 type="text"
                 readOnly
@@ -272,9 +274,9 @@ export function SsoConfigPage() {
 
         {protocol === 'saml' && (
           <div className="settings-section">
-            <h3>SAML Settings</h3>
+            <h3>{t('sso.samlSettings')}</h3>
             <div className="form-group">
-              <label htmlFor="samlEntryPoint">IdP SSO URL *</label>
+              <label htmlFor="samlEntryPoint">{t('sso.idpSsoUrl')}</label>
               <input
                 type="url"
                 id="samlEntryPoint"
@@ -285,7 +287,7 @@ export function SsoConfigPage() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="samlIssuer">SP Entity ID</label>
+              <label htmlFor="samlIssuer">{t('sso.spEntityId')}</label>
               <input
                 type="text"
                 id="samlIssuer"
@@ -293,20 +295,20 @@ export function SsoConfigPage() {
                 onChange={e => setSamlIssuer(e.target.value)}
                 placeholder={`${appUrl}/api/sso/saml/metadata/${config?.id || '<config-id>'}`}
               />
-              <small>Leave blank to use the auto-generated metadata URL</small>
+              <small>{t('sso.spEntityIdDesc')}</small>
             </div>
             <div className="form-group">
-              <label htmlFor="samlCert">IdP Certificate (PEM)</label>
+              <label htmlFor="samlCert">{t('sso.idpCertificate')}</label>
               <textarea
                 id="samlCert"
                 value={samlCert}
                 onChange={e => setSamlCert(e.target.value)}
-                placeholder="Paste the IdP signing certificate here (PEM format without headers)"
+                placeholder={t('sso.idpCertificateDesc')}
                 rows={5}
               />
             </div>
             <div className="form-group">
-              <label>ACS / Callback URL (configure in your IdP)</label>
+              <label>{t('sso.acsUrl')}</label>
               <input
                 type="text"
                 readOnly
@@ -316,7 +318,7 @@ export function SsoConfigPage() {
             </div>
             {config && (
               <div className="form-group">
-                <label>SP Metadata URL</label>
+                <label>{t('sso.spMetadataUrl')}</label>
                 <input
                   type="text"
                   readOnly
@@ -329,17 +331,17 @@ export function SsoConfigPage() {
         )}
 
         <div className="settings-section">
-          <h3>User Provisioning</h3>
+          <h3>{t('sso.provisioning')}</h3>
           <div className="form-group">
-            <label htmlFor="displayName">SSO Button Label</label>
+            <label htmlFor="displayName">{t('sso.ssoButtonLabel')}</label>
             <input
               type="text"
               id="displayName"
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
-              placeholder="Login with SSO"
+              placeholder={t('sso.ssoButtonDefault')}
             />
-            <small>Text shown on the SSO button on the login page</small>
+            <small>{t('sso.ssoButtonDesc')}</small>
           </div>
           <div className="form-group">
             <label className="checkbox-label">
@@ -348,36 +350,36 @@ export function SsoConfigPage() {
                 checked={autoCreateUsers}
                 onChange={e => setAutoCreateUsers(e.target.checked)}
               />
-              Auto-create users on first SSO login (JIT provisioning)
+              {t('sso.autoCreate')}
             </label>
           </div>
           <div className="form-group">
-            <label htmlFor="defaultRole">Default Role for new users</label>
+            <label htmlFor="defaultRole">{t('sso.defaultRole')}</label>
             <select
               id="defaultRole"
               value={defaultRole}
               onChange={e => setDefaultRole(e.target.value)}
             >
-              <option value="user">User</option>
-              <option value="company_admin">Company Admin</option>
+              <option value="user">{t('sso.userRole')}</option>
+              <option value="company_admin">{t('sso.companyAdminRole')}</option>
             </select>
           </div>
           <div className="form-group">
-            <label htmlFor="emailDomains">Allowed Email Domains</label>
+            <label htmlFor="emailDomains">{t('sso.allowedDomains')}</label>
             <input
               type="text"
               id="emailDomains"
               value={emailDomains}
               onChange={e => setEmailDomains(e.target.value)}
-              placeholder="example.com, company.org"
+              placeholder={t('sso.allowedDomainsPlaceholder')}
             />
-            <small>Comma-separated. Leave empty to allow all domains.</small>
+            <small>{t('sso.allowedDomainsDesc')}</small>
           </div>
         </div>
 
         <div className="settings-section" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Saving...' : config ? 'Update Configuration' : 'Create Configuration'}
+            {saving ? t('common.saving') : config ? t('sso.updateConfig') : t('sso.createConfig')}
           </button>
           {config && (
             <>
@@ -386,14 +388,14 @@ export function SsoConfigPage() {
                 className={`btn ${config.isEnabled ? 'btn-secondary' : 'btn-primary'}`}
                 onClick={handleToggleEnabled}
               >
-                {config.isEnabled ? 'Disable SSO' : 'Enable SSO'}
+                {config.isEnabled ? t('sso.disableSso') : t('sso.enableSso')}
               </button>
               <button
                 type="button"
                 className="btn btn-danger"
                 onClick={handleDelete}
               >
-                Delete Configuration
+                {t('sso.deleteConfig')}
               </button>
             </>
           )}

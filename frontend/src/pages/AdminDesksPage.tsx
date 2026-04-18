@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { Company, Desk, DeskQuotaType, ParkDeskQuota, User, UserDeskQuota } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -19,6 +20,7 @@ const tabClass = (active: boolean) =>
   `tab-btn${active ? ' tab-btn--active' : ''}`;
 
 export function AdminDesksPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const showConfirm = useConfirm();
@@ -95,7 +97,7 @@ export function AdminDesksPage() {
       setParkUsers(usersData.filter((u) => u.isActive));
       setCompanies(companiesData);
     } catch {
-      setDeskError('Failed to load data');
+      setDeskError(t('adminDesks.failedLoad'));
     } finally {
       setLoading(false);
     }
@@ -151,7 +153,7 @@ export function AdminDesksPage() {
       const updated = await api.getDesks(true);
       setDesks(updated);
     } catch (err: any) {
-      setDeskError(err.message || 'Failed to save desk');
+      setDeskError(err.message || t('adminDesks.failedSave'));
     } finally {
       setSaving(false);
     }
@@ -162,18 +164,18 @@ export function AdminDesksPage() {
       await api.updateDesk(desk.id, { isActive: !desk.isActive });
       setDesks(await api.getDesks(true));
     } catch (err: any) {
-      setDeskError(err.message || 'Failed to update desk');
+      setDeskError(err.message || t('adminDesks.failedUpdate'));
     }
   };
 
   const handleDelete = async (desk: Desk) => {
-    if (!await showConfirm({ message: `Delete desk "${desk.name}"? This will also remove all its bookings.`, title: 'Delete Desk', confirmLabel: 'Delete' })) return;
+    if (!await showConfirm({ message: t('adminDesks.deleteConfirm', { name: desk.name }), title: t('adminDesks.deleteTitle'), confirmLabel: t('common.delete') })) return;
     setDeletingId(desk.id);
     try {
       await api.deleteDesk(desk.id);
       setDesks(await api.getDesks(true));
     } catch (err: any) {
-      setDeskError(err.message || 'Failed to delete desk');
+      setDeskError(err.message || t('adminDesks.failedSave'));
     } finally {
       setDeletingId(null);
     }
@@ -189,7 +191,7 @@ export function AdminDesksPage() {
     const limit = type && monthlyLimit ? parseInt(monthlyLimit, 10) : null;
 
     if (type && (!monthlyLimit || isNaN(limit!) || limit! < 1)) {
-      setQuotaError('Monthly limit must be a positive number when a quota type is selected');
+      setQuotaError(t('adminDesks.quotaValidation'));
       return;
     }
 
@@ -202,10 +204,10 @@ export function AdminDesksPage() {
       setMonthlyLimit(updated.monthlyDeskQuota !== null ? String(updated.monthlyDeskQuota) : '');
       setBlockedWeekdays(updated.blockedWeekdays ?? []);
       setWeekStartDay(updated.weekStartDay ?? 1);
-      setQuotaSuccess('Quota settings saved');
+      setQuotaSuccess(t('adminDesks.quotaSaved'));
       setTimeout(() => setQuotaSuccess(''), 3000);
     } catch (err: any) {
-      setQuotaError(err.message || 'Failed to save quota settings');
+      setQuotaError(err.message || t('adminDesks.quotaFailedSave'));
     } finally {
       setSavingQuota(false);
     }
@@ -231,7 +233,7 @@ export function AdminDesksPage() {
 
     const q = parseInt(overrideQuota, 10);
     if (!overrideQuota || isNaN(q) || q < 1) {
-      setOverrideError('Monthly limit must be a positive number');
+      setOverrideError(t('adminDesks.quotaValidation'));
       return;
     }
     setSavingOverride(true);
@@ -244,7 +246,7 @@ export function AdminDesksPage() {
       setUserSearch('');
       setShowUserDropdown(false);
     } catch (err: any) {
-      setOverrideError(err.message || 'Failed to set override');
+      setOverrideError(err.message || t('adminDesks.exceptionFailedSet'));
     } finally {
       setSavingOverride(false);
     }
@@ -257,7 +259,7 @@ export function AdminDesksPage() {
       const updated = await api.getParkDeskQuota(parkId);
       setParkQuota(updated);
     } catch (err: any) {
-      setOverrideError(err.message || 'Failed to remove override');
+      setOverrideError(err.message || t('adminDesks.exceptionFailedRemove'));
     } finally {
       setRemovingUserId(null);
     }
@@ -271,33 +273,33 @@ export function AdminDesksPage() {
       await api.updateCompany(company.id, { deskBookingEnabled: !company.deskBookingEnabled });
       setCompanies(await api.getCompanies());
     } catch (err: any) {
-      setCompanyAccessError(err.message || 'Failed to update company access');
+      setCompanyAccessError(err.message || t('adminDesks.accessFailedToggle'));
     } finally {
       setTogglingCompanyId(null);
     }
   };
 
-  if (loading) return <div className="loading">Loading desks...</div>;
+  if (loading) return <div className="loading">{t('adminDesks.loading')}</div>;
 
   return (
     <div className="admin-rooms-page">
       <div className="page-header">
-        <h1>Manage Hot Desks</h1>
+        <h1>{t('adminDesks.title')}</h1>
         {activeTab === 'desks' && (
-          <button className="btn btn-primary" onClick={openCreate}>Add Desk</button>
+          <button className="btn btn-primary" onClick={openCreate}>{t('adminDesks.addDesk')}</button>
         )}
       </div>
 
       {/* Tab navigation */}
       <div className="tab-nav">
         <button className={tabClass(activeTab === 'desks')} onClick={() => switchTab('desks')}>
-          Desks
+          {t('adminDesks.tabDesks')}
         </button>
         <button className={tabClass(activeTab === 'quota')} onClick={() => switchTab('quota')}>
-          Quota
+          {t('adminDesks.tabQuota')}
         </button>
         <button className={tabClass(activeTab === 'access')} onClick={() => switchTab('access')}>
-          Company Access
+          {t('adminDesks.tabAccess')}
         </button>
       </div>
 
@@ -309,10 +311,10 @@ export function AdminDesksPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Floor / Location</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                  <th>{t('common.name')}</th>
+                  <th>{t('adminDesks.tableFloor')}</th>
+                  <th>{t('common.status')}</th>
+                  <th>{t('common.actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -320,7 +322,7 @@ export function AdminDesksPage() {
                   <tr>
                     <td colSpan={4}>
                       <div className="empty-state">
-                        <p>No desks configured yet. Add your first hot desk to get started.</p>
+                        <p>{t('adminDesks.empty')}</p>
                       </div>
                     </td>
                   </tr>
@@ -340,7 +342,7 @@ export function AdminDesksPage() {
                               <span key={f} className="amenity-tag small">{f}</span>
                             ))}
                             {desk.features.length > 3 && (
-                              <span className="amenity-tag small">+{desk.features.length - 3} more</span>
+                              <span className="amenity-tag small">{t('adminDesks.featuresMore', { count: desk.features.length - 3 })}</span>
                             )}
                           </div>
                         )}
@@ -348,24 +350,24 @@ export function AdminDesksPage() {
                       <td>{desk.floor || '—'}</td>
                       <td>
                         <span className={`status-badge ${desk.isActive ? 'active' : 'inactive'}`}>
-                          {desk.isActive ? 'Active' : 'Inactive'}
+                          {desk.isActive ? t('common.active') : t('common.inactive')}
                         </span>
                       </td>
                       <td>
                         <div className="room-actions">
-                          <button className="btn btn-small btn-secondary" onClick={() => openEdit(desk)}>Edit</button>
+                          <button className="btn btn-small btn-secondary" onClick={() => openEdit(desk)}>{t('common.edit')}</button>
                           <button
                             className={`btn btn-small ${desk.isActive ? 'btn-warning' : 'btn-success'}`}
                             onClick={() => handleToggleActive(desk)}
                           >
-                            {desk.isActive ? 'Deactivate' : 'Activate'}
+                            {desk.isActive ? t('adminDesks.deactivate') : t('adminDesks.activate')}
                           </button>
                           <button
                             className="btn btn-small btn-danger"
                             onClick={() => handleDelete(desk)}
                             disabled={deletingId === desk.id}
                           >
-                            {deletingId === desk.id ? 'Deleting...' : 'Delete'}
+                            {deletingId === desk.id ? t('adminDesks.deleting') : t('common.delete')}
                           </button>
                         </div>
                       </td>
@@ -382,7 +384,7 @@ export function AdminDesksPage() {
       {activeTab === 'quota' && (
         <>
           <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-            Monthly limit on desk-days a user can book across all desks in this park.
+            {t('adminDesks.quotaDesc')}
           </p>
 
           {quotaError && <div className="alert alert-error">{quotaError}</div>}
@@ -391,7 +393,7 @@ export function AdminDesksPage() {
           <form onSubmit={handleSaveQuota}>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
               <div className="form-group" style={{ marginBottom: 0, minWidth: '220px' }}>
-                <label htmlFor="quotaType">Quota Type</label>
+                <label htmlFor="quotaType">{t('adminDesks.quotaType')}</label>
                 <select
                   id="quotaType"
                   value={quotaType}
@@ -400,15 +402,15 @@ export function AdminDesksPage() {
                     if (!e.target.value) setMonthlyLimit('');
                   }}
                 >
-                  <option value="">Unlimited (no quota)</option>
-                  <option value="per_user">Per User — each user has their own monthly limit</option>
-                  <option value="per_company">Per Company — all users in a company share a limit</option>
+                  <option value="">{t('adminDesks.quotaTypeUnlimited')}</option>
+                  <option value="per_user">{t('adminDesks.quotaTypePerUser')}</option>
+                  <option value="per_company">{t('adminDesks.quotaTypePerCompany')}</option>
                 </select>
               </div>
 
               {quotaType && (
                 <div className="form-group" style={{ marginBottom: 0, width: '140px' }}>
-                  <label htmlFor="monthlyLimit">Days per Month</label>
+                  <label htmlFor="monthlyLimit">{t('adminDesks.quotaDaysPerMonth')}</label>
                   <input
                     id="monthlyLimit"
                     type="number"
@@ -416,48 +418,49 @@ export function AdminDesksPage() {
                     max={31}
                     value={monthlyLimit}
                     onChange={(e) => setMonthlyLimit(e.target.value)}
-                    placeholder="e.g. 10"
+                    placeholder={t('adminDesks.quotaDaysPlaceholder')}
                     required
                   />
                 </div>
               )}
 
               <button type="submit" className="btn btn-primary" disabled={savingQuota} style={{ marginBottom: '1px' }}>
-                {savingQuota ? 'Saving...' : 'Save Quota'}
+                {savingQuota ? t('common.saving') : t('adminDesks.saveQuota')}
               </button>
             </div>
           </form>
 
           {/* Calendar & closed days */}
           <div style={{ marginTop: '2rem', borderTop: '1px solid #e5e7eb', paddingTop: '1.5rem' }}>
-            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.2rem' }}>Calendar Settings</h2>
+            <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.2rem' }}>{t('adminDesks.calendarSettingsTitle')}</h2>
             <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1rem' }}>
-              Configure how the booking calendar is displayed and which days are unavailable.
+              {t('adminDesks.calendarSettingsDesc')}
             </p>
 
             <div className="form-group" style={{ maxWidth: '220px', marginBottom: '1.5rem' }}>
-              <label htmlFor="weekStartDay">Week starts on</label>
+              <label htmlFor="weekStartDay">{t('adminDesks.weekStartDay')}</label>
               <select
                 id="weekStartDay"
                 value={weekStartDay}
                 onChange={(e) => setWeekStartDay(Number(e.target.value))}
               >
-                <option value={0}>Sunday</option>
-                <option value={1}>Monday</option>
-                <option value={2}>Tuesday</option>
-                <option value={3}>Wednesday</option>
-                <option value={4}>Thursday</option>
-                <option value={5}>Friday</option>
-                <option value={6}>Saturday</option>
+                <option value={0}>{t('adminDesks.weekDays.0')}</option>
+                <option value={1}>{t('adminDesks.weekDays.1')}</option>
+                <option value={2}>{t('adminDesks.weekDays.2')}</option>
+                <option value={3}>{t('adminDesks.weekDays.3')}</option>
+                <option value={4}>{t('adminDesks.weekDays.4')}</option>
+                <option value={5}>{t('adminDesks.weekDays.5')}</option>
+                <option value={6}>{t('adminDesks.weekDays.6')}</option>
               </select>
             </div>
 
-            <p style={{ fontWeight: 500, fontSize: '0.875rem', marginBottom: '0.5rem' }}>Closed days</p>
+            <p style={{ fontWeight: 500, fontSize: '0.875rem', marginBottom: '0.5rem' }}>{t('adminDesks.closedDays')}</p>
             <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-              Users will not be able to book desks on the selected days of the week.
+              {t('adminDesks.closedDaysDesc')}
             </p>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const).map((label, idx) => {
+              {([0, 1, 2, 3, 4, 5, 6] as const).map((idx) => {
+                const label = t(`adminDesks.dayAbbr.${idx}`);
                 const checked = blockedWeekdays.includes(idx);
                 return (
                   <label
@@ -490,16 +493,16 @@ export function AdminDesksPage() {
               })}
             </div>
             <p style={{ color: '#9ca3af', fontSize: '0.8rem', marginTop: '0.5rem' }}>
-              Click "Save Quota" above to apply closed-day changes.
+              {t('adminDesks.closedDaysNote')}
             </p>
           </div>
 
           {/* User exceptions — only shown when quota type is per_user */}
           {parkQuota?.deskQuotaType === 'per_user' && (
             <div style={{ marginTop: '2rem', borderTop: '1px solid #e5e7eb', paddingTop: '1.5rem' }}>
-              <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.2rem' }}>User Exceptions</h2>
+              <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.2rem' }}>{t('adminDesks.exceptionsTitle')}</h2>
               <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                Give specific users a different monthly limit than the default above.
+                {t('adminDesks.exceptionsDesc')}
               </p>
 
               {overrideError && <div className="alert alert-error">{overrideError}</div>}
@@ -508,8 +511,8 @@ export function AdminDesksPage() {
                 <table className="data-table" style={{ marginBottom: '1.25rem' }}>
                   <thead>
                     <tr>
-                      <th>User</th>
-                      <th>Monthly Limit</th>
+                      <th>{t('adminDesks.exceptionUser')}</th>
+                      <th>{t('adminDesks.exceptionMonthlyLimit')}</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -522,14 +525,14 @@ export function AdminDesksPage() {
                             <div style={{ fontSize: '0.78rem', color: '#6b7280' }}>{o.user.email}</div>
                           )}
                         </td>
-                        <td>{o.monthlyQuota} day{o.monthlyQuota !== 1 ? 's' : ''}/month</td>
+                        <td>{t('adminDesks.exceptionDaysMonth', { count: o.monthlyQuota })}</td>
                         <td>
                           <button
                             className="btn btn-small btn-danger"
                             onClick={() => handleRemoveOverride(o.userId)}
                             disabled={removingUserId === o.userId}
                           >
-                            {removingUserId === o.userId ? 'Removing...' : 'Remove'}
+                            {removingUserId === o.userId ? t('adminDesks.exceptionRemoving') : t('common.remove')}
                           </button>
                         </td>
                       </tr>
@@ -541,7 +544,7 @@ export function AdminDesksPage() {
               {availableUsers.length > 0 && (
                 <form onSubmit={handleAddOverride} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                   <div className="form-group" style={{ marginBottom: 0, minWidth: '340px', position: 'relative' }}>
-                    <label htmlFor="overrideUserSearch">User</label>
+                    <label htmlFor="overrideUserSearch">{t('adminDesks.exceptionUser')}</label>
                     <input
                       id="overrideUserSearch"
                       type="search"
@@ -553,7 +556,7 @@ export function AdminDesksPage() {
                       }}
                       onFocus={() => setShowUserDropdown(true)}
                       onBlur={() => setTimeout(() => setShowUserDropdown(false), 150)}
-                      placeholder="Search by name or email..."
+                      placeholder={t('adminDesks.exceptionSearchPlaceholder')}
                       autoComplete="off"
                     />
                     {showUserDropdown && (
@@ -568,7 +571,7 @@ export function AdminDesksPage() {
                       }}>
                         {filteredUsers.length === 0 ? (
                           <li style={{ padding: '0.5rem 0.75rem', color: '#6b7280', fontSize: '0.875rem' }}>
-                            No users match
+                            {t('adminDesks.exceptionNoMatch')}
                           </li>
                         ) : (
                           filteredUsers.map((u) => {
@@ -596,7 +599,7 @@ export function AdminDesksPage() {
                                       fontSize: '0.7rem', padding: '1px 5px',
                                       background: '#fef3c7', color: '#92400e',
                                       borderRadius: '3px', whiteSpace: 'nowrap',
-                                    }}>company not enabled</span>
+                                    }}>{t('adminDesks.exceptionCompanyNotEnabled')}</span>
                                   )}
                                 </div>
                                 <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
@@ -610,7 +613,7 @@ export function AdminDesksPage() {
                     )}
                   </div>
                   <div className="form-group" style={{ marginBottom: 0, width: '140px' }}>
-                    <label htmlFor="overrideQuotaInput">Days/month</label>
+                    <label htmlFor="overrideQuotaInput">{t('adminDesks.exceptionDaysLabel')}</label>
                     <input
                       id="overrideQuotaInput"
                       type="number"
@@ -618,18 +621,18 @@ export function AdminDesksPage() {
                       max={31}
                       value={overrideQuota}
                       onChange={(e) => setOverrideQuota(e.target.value)}
-                      placeholder="e.g. 20"
+                      placeholder={t('adminDesks.exceptionDaysPlaceholder')}
                       required
                     />
                   </div>
                   <button type="submit" className="btn btn-secondary" disabled={savingOverride || !overrideUserId} style={{ marginBottom: '1px' }}>
-                    {savingOverride ? 'Saving...' : 'Add Exception'}
+                    {savingOverride ? t('adminDesks.exceptionAdding') : t('adminDesks.exceptionAdd')}
                   </button>
                 </form>
               )}
 
               {availableUsers.length === 0 && overrides.length > 0 && (
-                <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>All users have an exception set.</p>
+                <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>{t('adminDesks.exceptionAllSet')}</p>
               )}
             </div>
           )}
@@ -640,20 +643,20 @@ export function AdminDesksPage() {
       {activeTab === 'access' && (
         <>
           <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-            Enable hot desk booking for specific companies. Disabled by default.
+            {t('adminDesks.accessDesc')}
           </p>
 
           {companyAccessError && <div className="alert alert-error">{companyAccessError}</div>}
 
           {companies.length === 0 ? (
-            <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>No companies in this park.</p>
+            <p style={{ color: '#6b7280', fontSize: '0.875rem', margin: 0 }}>{t('adminDesks.accessNoCompanies')}</p>
           ) : (
             <div className="table-container">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Company</th>
-                    <th>Desk Booking</th>
+                    <th>{t('adminDesks.accessCompany')}</th>
+                    <th>{t('adminDesks.accessDeskBooking')}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -663,7 +666,7 @@ export function AdminDesksPage() {
                       <td>{company.name}</td>
                       <td>
                         <span className={`status-badge ${company.deskBookingEnabled ? 'active' : 'inactive'}`}>
-                          {company.deskBookingEnabled ? 'Enabled' : 'Disabled'}
+                          {company.deskBookingEnabled ? t('adminDesks.accessEnabled') : t('adminDesks.accessDisabled')}
                         </span>
                       </td>
                       <td>
@@ -673,8 +676,8 @@ export function AdminDesksPage() {
                           disabled={togglingCompanyId === company.id}
                         >
                           {togglingCompanyId === company.id
-                            ? 'Saving...'
-                            : company.deskBookingEnabled ? 'Disable' : 'Enable'}
+                            ? t('adminDesks.accessSaving')
+                            : company.deskBookingEnabled ? t('adminDesks.accessDisableBtn') : t('adminDesks.accessEnable')}
                         </button>
                       </td>
                     </tr>
@@ -691,39 +694,39 @@ export function AdminDesksPage() {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>{editingDesk ? 'Edit Desk' : 'Add Desk'}</h2>
-              <button className="modal-close" onClick={closeModal} aria-label="Close">×</button>
+              <h2>{editingDesk ? t('adminDesks.modalEditTitle') : t('adminDesks.modalAddTitle')}</h2>
+              <button className="modal-close" onClick={closeModal} aria-label={t('common.close')}>×</button>
             </div>
             <form onSubmit={handleDeskSubmit}>
               <div className="modal-body">
                 {deskError && <div className="alert alert-error">{deskError}</div>}
 
                 <div className="form-group">
-                  <label htmlFor="name">Name *</label>
+                  <label htmlFor="name">{t('adminDesks.modalNameLabel')}</label>
                   <input
                     type="text" id="name" name="name"
                     value={deskForm.name} onChange={handleDeskFormChange}
-                    required maxLength={255} placeholder="e.g. Desk 1, Open Plan A"
+                    required maxLength={255} placeholder={t('adminDesks.modalNamePlaceholder')}
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="floor">Floor / Location</label>
+                  <label htmlFor="floor">{t('adminDesks.modalFloorLabel')}</label>
                   <input
                     type="text" id="floor" name="floor"
                     value={deskForm.floor} onChange={handleDeskFormChange}
-                    maxLength={100} placeholder="e.g. Floor 2"
+                    maxLength={100} placeholder={t('adminDesks.modalFloorPlaceholder')}
                   />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="description">Description</label>
+                  <label htmlFor="description">{t('adminDesks.modalDescLabel')}</label>
                   <textarea
                     id="description" name="description"
                     value={deskForm.description} onChange={handleDeskFormChange}
-                    maxLength={2000} rows={2} placeholder="Optional notes"
+                    maxLength={2000} rows={2} placeholder={t('adminDesks.modalDescPlaceholder')}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Features</label>
+                  <label>{t('adminDesks.modalFeaturesLabel')}</label>
                   <div className="amenities-grid">
                     {COMMON_DESK_FEATURES.map((feature) => (
                       <label key={feature} className="amenity-checkbox">
@@ -739,9 +742,9 @@ export function AdminDesksPage() {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancel</button>
+                <button type="button" className="btn btn-secondary" onClick={closeModal}>{t('common.cancel')}</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Saving...' : editingDesk ? 'Save Changes' : 'Add Desk'}
+                  {saving ? t('common.saving') : editingDesk ? t('adminDesks.modalSaveChanges') : t('adminDesks.modalAddDesk')}
                 </button>
               </div>
             </form>
