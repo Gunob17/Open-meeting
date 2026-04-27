@@ -30,7 +30,7 @@
     "mailauth": "^4.13.2",
     "mailparser": "^3.9.8",
     "multer": "^2.1.1",
-    "mysql2": "^3.22.1",
+    "mysql2": "^3.22.3",
     "node-ical": "^0.26.0",
     "nodemailer": "^8.0.5",
     "openid-client": "^5.7.1",
