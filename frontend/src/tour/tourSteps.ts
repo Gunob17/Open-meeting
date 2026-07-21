@@ -13,7 +13,7 @@ const step = (
   placement,
   title: t(titleKey),
   content: t(contentKey),
-  disableBeacon: true,
+  skipBeacon: true,
 });
 
 export function getStepsForRole(
@@ -28,7 +28,7 @@ export function getStepsForRole(
     placement: 'center',
     title: t('tour.welcome.title'),
     content: t('tour.welcome.content'),
-    disableBeacon: true,
+    skipBeacon: true,
   };
 
   const deskUserStep = step(t, 'nav-desks', 'tour.hotDesks.title', 'tour.hotDesks.content');
