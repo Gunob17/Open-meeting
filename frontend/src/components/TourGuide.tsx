@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import Joyride, { CallBackProps, EVENTS, STATUS, Step } from 'react-joyride';
+import { Joyride, EventData, EVENTS, STATUS, Step } from 'react-joyride';
 import { useTranslation } from 'react-i18next';
 
 interface TourGuideProps {
@@ -11,7 +11,7 @@ interface TourGuideProps {
 
 export function TourGuide({ steps, run, onFinish, onStep }: TourGuideProps) {
   const { t } = useTranslation();
-  const handleCallback = useCallback((data: CallBackProps) => {
+  const handleEvent = useCallback((data: EventData) => {
     if (data.type === EVENTS.STEP_BEFORE && onStep) {
       onStep(data.index);
     }
@@ -25,29 +25,27 @@ export function TourGuide({ steps, run, onFinish, onStep }: TourGuideProps) {
       steps={steps}
       run={run}
       continuous
-      showSkipButton
-      showProgress
-      disableScrolling={false}
-      callback={handleCallback}
+      onEvent={handleEvent}
+      options={{
+        buttons: ['back', 'close', 'primary', 'skip'],
+        showProgress: true,
+        primaryColor: '#4f46e5',
+        zIndex: 10000,
+        arrowColor: '#fff',
+        backgroundColor: '#fff',
+        overlayColor: 'rgba(0, 0, 0, 0.5)',
+        textColor: '#374151',
+      }}
       locale={{
         back: t('tour.buttons.back'),
         close: t('tour.buttons.close'),
         last: t('tour.buttons.last'),
         next: t('tour.buttons.next'),
-        nextLabelWithProgress: t('tour.buttons.nextWithProgress'),
+        nextWithProgress: t('tour.buttons.nextWithProgress'),
         skip: t('tour.buttons.skip'),
       }}
       styles={{
-        options: {
-          primaryColor: '#4f46e5',
-          zIndex: 10000,
-          arrowColor: '#fff',
-          backgroundColor: '#fff',
-          overlayColor: 'rgba(0, 0, 0, 0.5)',
-          textColor: '#374151',
-          spotlightShadow: '0 0 15px rgba(0, 0, 0, 0.5)',
-        },
-        buttonNext: {
+        buttonPrimary: {
           backgroundColor: '#4f46e5',
           borderRadius: '6px',
           fontSize: '14px',
