@@ -8,7 +8,7 @@
     "@types/react-dom": "^19.2.5",
     "@types/zxcvbn": "^4.4.5",
     "date-fns": "^4.4.0",
-    "i18next": "^26.4.0",
+    "i18next": "^26.4.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-i18next": "^17.0.12",
