@@ -29,7 +29,7 @@
     "ldapts": "^9.0.0",
     "mailauth": "^4.13.3",
     "mailparser": "^3.9.17",
-    "multer": "^2.2.0",
+    "multer": "^2.3.0",
     "mysql2": "^3.23.1",
     "node-ical": "^0.27.1",
     "nodemailer": "^9.1.1",
