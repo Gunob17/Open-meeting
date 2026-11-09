@@ -12,7 +12,7 @@
     "debug": "ts-node-dev --respawn --transpile-only --inspect-brk=9229 src/index.ts"
   },
   "dependencies": {
-    "@node-saml/node-saml": "^5.1.0",
+    "@node-saml/node-saml": "^5.2.0",
     "@types/imapflow": "^1.0.189",
     "@types/mailparser": "^3.9.0",
     "@types/zxcvbn": "^4.4.5",
@@ -34,7 +34,7 @@
     "node-ical": "^0.27.3",
     "nodemailer": "^9.1.1",
     "openid-client": "^5.7.1",
-    "otpauth": "^9.5.2",
+    "otpauth": "^9.6.0",
     "pg": "^8.22.0",
     "qrcode": "^1.5.4",
     "tedious": "^20.0.0",
