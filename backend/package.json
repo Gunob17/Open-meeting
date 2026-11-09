@@ -20,7 +20,7 @@
     "better-sqlite3": "^12.11.1",
     "cors": "^2.8.5",
     "express": "^5.3.0",
-    "express-rate-limit": "^8.7.2",
+    "express-rate-limit": "^8.7.3",
     "helmet": "^8.3.0",
     "ics": "^3.12.1",
     "imapflow": "^1.7.8",
